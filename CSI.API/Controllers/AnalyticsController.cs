@@ -139,6 +139,13 @@ namespace CSI.API.Controllers
             return Ok(result); 
         }
 
+        [HttpPost("IsGenerated")]
+        public async Task<IActionResult> IsGenerated(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.IsGenerated(analyticsParamsDto);
+            return Ok(result);
+        }
+
         [HttpPost("UpdateUploadStatus")]
         public async Task<IActionResult> UpdateUploadStatus(AnalyticsParamsDto analyticsParamsDto)
         {
@@ -266,6 +273,12 @@ namespace CSI.API.Controllers
                 return (Ok(data));
             }
             return (NotFound());
+        }
+
+        [HttpPost("ManualReload")]
+        public async Task ManualReload(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            await _analyticsService.ManualReload(refreshAnalyticsDto);
         }
     }
 }
