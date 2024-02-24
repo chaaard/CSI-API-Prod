@@ -131,6 +131,7 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
                           $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                           $"     MAX(a.SubTotal) AS SubTotal  " +
                           $" FROM ( " +
                           $"     SELECT   " +
@@ -151,10 +152,11 @@ namespace CSI.Application.Services
                           $"         n.StatusId, " +
                           $"         n.DeleteFlag,   " +
                           $"         n.IsUpload,   " +
+                          $"         n.IsGenerate,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                           $"     FROM tbl_analytics n " +
-                          $"      INNER JOIN [dbo].[tbl_location] l ON n.LocationId = l.LocationCode " +
-                          $"      INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $" ) a " +
                           $" WHERE  " +
                           $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -183,10 +185,99 @@ namespace CSI.Application.Services
                     SubTotal = n.SubTotal,
                     StatusId = n.StatusId,
                     IsUpload = Convert.ToBoolean(n.IsUpload),
+                    IsGenerate = Convert.ToBoolean(n.IsGenerate),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
               
+            return analytics;
+
+        }
+
+        private async Task<List<Analytics>> GetRawAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            DateTime date;
+            var analytics = new List<Analytics>();
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
+            {
+                var result = await _dbContext.AnalyticsView
+              .FromSqlRaw($" SELECT  " +
+                          $"     MAX(a.Id) AS Id, " +
+                          $"     MAX(a.CustomerId) AS CustomerId, " +
+                          $"     MAX(a.CustomerName) AS CustomerName, " +
+                          $"     MAX(a.LocationId) AS LocationId, " +
+                          $"     MAX(a.LocationName) AS LocationName, " +
+                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                          $"     MAX(a.CashierNo) AS CashierNo, " +
+                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                          $"     a.OrderNo, " +
+                          $"     MAX(a.Qty) AS Qty, " +
+                          $"     MAX(a.Amount) AS Amount, " +
+                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(a.SubTotal) AS SubTotal  " +
+                          $" FROM ( " +
+                          $"     SELECT   " +
+                          $"         n.Id, " +
+                          $"         n.CustomerId,  " +
+                          $"         c.CustomerName,  " +
+                          $"         n.LocationId,  " +
+                          $"         l.LocationName,  " +
+                          $"         n.TransactionDate,   " +
+                          $"         n.MembershipNo,   " +
+                          $"         n.CashierNo,  " +
+                          $"         n.RegisterNo,  " +
+                          $"         n.TransactionNo,  " +
+                          $"         n.OrderNo,  " +
+                          $"         n.Qty,  " +
+                          $"         n.Amount,  " +
+                          $"         n.SubTotal, " +
+                          $"         n.StatusId, " +
+                          $"         n.DeleteFlag,   " +
+                          $"         n.IsUpload,   " +
+                          $"         n.IsGenerate,   " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                          $"     FROM tbl_analytics n " +
+                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $" ) a " +
+                          $" WHERE  " +
+                          $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
+                          $" GROUP BY  " +
+                          $"     a.OrderNo,    " +
+                          $"     ABS(a.SubTotal),  " +
+                          $"     a.row_num " +
+                          $" HAVING " +
+                          $"     COUNT(a.OrderNo) = 1 "
+                          )
+                 .ToListAsync();
+
+                analytics = result.Select(n => new Analytics
+                {
+                    Id = n.Id,
+                    CustomerId = n.CustomerId,
+                    LocationId = n.LocationId,
+                    TransactionDate = n.TransactionDate,
+                    MembershipNo = n.MembershipNo,
+                    CashierNo = n.CashierNo,
+                    RegisterNo = n.RegisterNo,
+                    TransactionNo = n.TransactionNo,
+                    OrderNo = n.OrderNo,
+                    Qty = n.Qty,
+                    Amount = n.Amount,
+                    SubTotal = n.SubTotal,
+                    StatusId = n.StatusId,
+                    IsUpload = Convert.ToBoolean(n.IsUpload),
+                    IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                }).ToList();
+            }
+
             return analytics;
 
         }
@@ -216,6 +307,7 @@ namespace CSI.Application.Services
                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                         $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                          $"     MAX(a.SubTotal) AS SubTotal  " +
                          $" FROM ( " +
                          $"     SELECT   " +
@@ -236,10 +328,11 @@ namespace CSI.Application.Services
                          $"         n.StatusId, " +
                          $"         n.DeleteFlag,   " +
                          $"         n.IsUpload,   " +
+                         $"         n.IsGenerate,   " +
                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                          $"     FROM tbl_analytics n " +
-                         $"      INNER JOIN [dbo].[tbl_location] l ON n.LocationId = l.LocationCode " +
-                         $"      INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                         $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                         $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                          $" ) a " +
                          $" WHERE  " +
                          $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {refreshAnalyticsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%') AND a.DeleteFlag = 0" +
@@ -267,6 +360,7 @@ namespace CSI.Application.Services
                     SubTotal = n.SubTotal,
                     StatusId = n.StatusId,
                     IsUpload = Convert.ToBoolean(n.IsUpload),
+                    IsGenerate = Convert.ToBoolean(n.IsGenerate),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
@@ -321,8 +415,8 @@ namespace CSI.Application.Services
                                $"        n.[DeleteFlag],   " +
                                $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                $"     FROM tbl_analytics n " +
-                               $"        LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                               $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                $" ) a " +
                                $" WHERE  " +
                                $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -370,8 +464,8 @@ namespace CSI.Application.Services
                                        $"p.[DeleteFlag]  " +
                                   $" FROM " +
                                   $"     [dbo].[tbl_prooflist] p  " +
-                                  $"     LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                  $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                  $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
+                                  $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                   $" WHERE " +
                                   $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
                                $") p " +
@@ -738,8 +832,8 @@ namespace CSI.Application.Services
                                 $"        n.[DeleteFlag],   " +
                                 $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                 $"     FROM tbl_analytics n " +
-                                $"        LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                                $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                                $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                                $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                 $" ) a " +
                                 $" WHERE  " +
                                 $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%'  AND a.DeleteFlag = 0) " +
@@ -787,8 +881,8 @@ namespace CSI.Application.Services
                                         $"p.[DeleteFlag]   " +
                                    $" FROM " +
                                    $"     [dbo].[tbl_prooflist] p  " +
-                                   $"     LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                   $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                   $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
+                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                    $" WHERE " +
                                    $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)  " +
                                 $") p " +
@@ -923,56 +1017,16 @@ namespace CSI.Application.Services
             var result = await ReturnAnalytics(analyticsParamsDto);
             var merchRef = new Dictionary<string, string>();
 
-            var transactionData = result
-                .Where(x => x.StatusId == 3)
-                .Select(n => new
-                {
-                    n.TransactionDate,
-                    n.SubTotal,
-                    n.StatusId,
-                    n.LocationName,
-                    CustomerId = n.CustomerId.ToString().Replace("\\", ""),
-                })
-                .ToList();
-
-
-            var firstTransaction = transactionData.FirstOrDefault();
-            if (firstTransaction != null)
+            if (result != null)
             {
-                var customerCodesData = _dbContext.CustomerCodes
-                    .Where(y => y.CustomerCode.Contains(firstTransaction.CustomerId.Substring(Math.Max(0, firstTransaction.CustomerId.Length - 6))))
-                    .Select(y => new
-                    {
-                        y.CustomerNo,
-                        y.CustomerName,
-                        y.CustomerCode, // Assuming CustomerCode is the correct property
-                    })
-                    .ToList();
-
-                var formattedData = transactionData
-                 .Join(customerCodesData,
-                     x => x.CustomerId,
-                     y => y.CustomerCode,
-                     (x, y) => new
-                     {
-                         x.TransactionDate,
-                         x.SubTotal,
-                         x.StatusId,
-                         x.LocationName,
-                         y.CustomerNo,
-                         y.CustomerName,
-                         x.CustomerId
-                     })
-                 .ToList();
-
-                var total = formattedData.Sum(x => x.SubTotal);
+                var total = result.Sum(x => x.SubTotal);
                 var locationList = await GetLocations();
 
                 var club = analyticsParamsDto.storeId[0];
                 var trxCount = result.Count();
-                var dateFormat = formattedData.FirstOrDefault().TransactionDate?.ToString("MMddyy");
+                var dateFormat = result.FirstOrDefault().TransactionDate?.ToString("MMddyy");
 
-                isPending = formattedData
+                isPending = result
                     .Where(x => x.StatusId == 5)
                     .Any();
 
@@ -1000,14 +1054,27 @@ namespace CSI.Application.Services
                     var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
 
                     var getShortName = locationList
-                        .Where(x => x.LocationName.Contains(formattedData.FirstOrDefault().LocationName))
+                        .Where(x => x.LocationName.Contains(result.FirstOrDefault().LocationName))
                         .Select(n => new
                         {
                             n.ShortName,
                         })
                         .FirstOrDefault();
 
-                    var formatCustomerNo = formattedData.FirstOrDefault().CustomerNo.Replace("P", "").Trim();
+                    var GetCustomerNo = result
+                             .GroupJoin(
+                                 _dbContext.CustomerCodes,
+                                 x => x.CustomerId,
+                                 y => y.CustomerCode,
+                                 (x, y) => new { x, y }
+                             )
+                             .SelectMany(
+                                 group => group.y,
+                                 (group, y) => y.CustomerNo
+                             )
+                             .FirstOrDefault();
+
+                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
 
                     var getReference = await _dbContext.Reference
                         .Where(x => x.CustomerNo == formatCustomerNo)
@@ -1019,15 +1086,15 @@ namespace CSI.Application.Services
                     var invoice = new InvoiceDto
                     {
                         HDR_TRX_NUMBER = formattedInvoiceNumber,
-                        HDR_TRX_DATE = formattedData.FirstOrDefault().TransactionDate,
+                        HDR_TRX_DATE = result.FirstOrDefault().TransactionDate,
                         HDR_PAYMENT_TYPE = "HS",
                         HDR_BRANCH_CODE = getShortName.ShortName ?? "",
-                        HDR_CUSTOMER_NUMBER = formattedData.FirstOrDefault().CustomerNo,
+                        HDR_CUSTOMER_NUMBER = result.FirstOrDefault().CustomerId,
                         HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
                         HDR_PAYMENT_TERM = "0",
                         HDR_BUSINESS_LINE = "1",
                         HDR_BATCH_SOURCE_NAME = "POS",
-                        HDR_GL_DATE = formattedData.FirstOrDefault().TransactionDate,
+                        HDR_GL_DATE = result.FirstOrDefault().TransactionDate,
                         HDR_SOURCE_REFERENCE = "HS",
                         DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
                         DTL_QUANTITY = 1,
@@ -1040,17 +1107,27 @@ namespace CSI.Application.Services
 
                     invoiceAnalytics.Add(invoice);
 
+                    var formattedResult = result.FirstOrDefault();
+
+                    var customerName = string.Empty;
+                    if (formattedResult != null)
+                    {
+                        customerName = _dbContext.CustomerCodes
+                            .Where(cc => cc.CustomerCode == formattedResult.CustomerId)
+                            .Select(cc => cc.CustomerName)
+                            .FirstOrDefault();
+                    }
 
                     var generateInvoice = new GenerateInvoiceDto
                     {
                         Club = club,
-                        CustomerCode = formattedData.FirstOrDefault().CustomerId,
-                        CustomerNo = formattedData.FirstOrDefault().CustomerNo,
-                        CustomerName = formattedData.FirstOrDefault().CustomerName,
+                        CustomerCode = formattedResult.CustomerId,
+                        CustomerNo = formattedResult.CustomerId,
+                        CustomerName = customerName,
                         InvoiceNo = formattedInvoiceNumber,
-                        InvoiceDate = formattedData.FirstOrDefault().TransactionDate,
-                        TransactionDate = formattedData.FirstOrDefault().TransactionDate,
-                        Location = formattedData.FirstOrDefault().LocationName,
+                        InvoiceDate = formattedResult.TransactionDate,
+                        TransactionDate = formattedResult.TransactionDate,
+                        Location = formattedResult.LocationName,
                         ReferenceNo = getReference.MerchReference + club + dateFormat,
                         InvoiceAmount = total,
                     };
@@ -1078,7 +1155,7 @@ namespace CSI.Application.Services
                     DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out dateTo))
                 {
                     var genInvoice = await _dbContext.GenerateInvoice
-                        .Where(x => x.TransactionDate > dateFrom && analyticsParamsDto.storeId.Contains(x.Club) && x.CustomerCode.Contains(memCodeLast6Digits[0]))
+                        .Where(x => x.TransactionDate >= dateFrom.Date && x.TransactionDate <= dateTo.Date && analyticsParamsDto.storeId.Contains(x.Club) && x.CustomerCode.Contains(memCodeLast6Digits[0]))
                         .ToListAsync();
 
                     generatedInvoice.AddRange(genInvoice);
@@ -1144,6 +1221,7 @@ namespace CSI.Application.Services
                         $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
                         $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                         $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                        $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                         $"     MAX(a.SubTotal) AS SubTotal  " +
                         $" FROM ( " +
                         $"     SELECT   " +
@@ -1164,10 +1242,11 @@ namespace CSI.Application.Services
                         $"         n.StatusId, " +
                         $"         n.DeleteFlag,   " +
                         $"         n.IsUpload,   " +
+                        $"         n.IsGenerate,   " +
                         $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                         $"     FROM tbl_analytics n " +
-                        $"      INNER JOIN [dbo].[tbl_location] l ON n.LocationId = l.LocationCode " +
-                        $"      INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                        $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                        $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                         $" ) a " +
                         $" WHERE  " +
                         $" (CAST(a.TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%'  AND a.DeleteFlag = 0 ) " +
@@ -1248,6 +1327,7 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
                               $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                               $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                              $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                               $"     MAX(a.SubTotal) AS SubTotal  " +
                               $" FROM ( " +
                               $"     SELECT   " +
@@ -1268,10 +1348,11 @@ namespace CSI.Application.Services
                               $"         n.StatusId, " +
                               $"         n.DeleteFlag,   " +
                               $"         n.IsUpload,   " +
+                              $"         n.IsGenerate,   " +
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                               $"     FROM tbl_analytics n " +
-                              $"      INNER JOIN [dbo].[tbl_location] l ON n.LocationId = l.LocationCode " +
-                              $"      INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                              $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                               $" ) a " +
                               $" WHERE  " +
                               $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsToDelete.storeId} AND a.CustomerId LIKE '%{memCodeLast6Digits}%' AND a.OrderNo LIKE '%{analyticsToDelete.jo}%' AND a.DeleteFlag = 0) " +
@@ -1375,6 +1456,7 @@ namespace CSI.Application.Services
                 var fileName = "";
 
                 var getInvoiceAnalytics = await GenerateInvoiceAnalytics(generateA0FileDto.analyticsParamsDto);
+                var getAnalytics = await GetRawAnalytics(generateA0FileDto.analyticsParamsDto);
                 var getInvoice = getInvoiceAnalytics.Item1;
                 var isPending = getInvoiceAnalytics.Item2;
 
@@ -1424,6 +1506,18 @@ namespace CSI.Application.Services
 
                 result = true;
 
+                if (getAnalytics.Any())
+                {
+                    getAnalytics.ForEach(analyticsDto =>
+                    {
+                        analyticsDto.IsGenerate = true;
+                    });
+
+                    _dbContext.BulkUpdate(getAnalytics);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+
                 return ("Invoice Generated Successfully", result, content.ToString(), fileName);
             }
             catch (Exception)
@@ -1437,6 +1531,184 @@ namespace CSI.Application.Services
         {
             string formattedDate = value?.ToString("dd-MMM-yyyy");
             return formattedDate;
+        }
+
+        public async Task<bool> IsGenerated(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var isGenerated = false;
+            var result = await ReturnAnalytics(analyticsParamsDto);
+
+            isGenerated = result
+               .Where(x => x.IsGenerate == true)
+               .Any();
+
+            return isGenerated;
+        }
+
+        public async Task ManualReload(RefreshAnalyticsDto analyticsParam)
+        {
+            var listResultOne = new List<Analytics>();
+            string strFrom = analyticsParam.dates[0].ToString("yyMMdd");
+            string strTo = analyticsParam.dates[1].ToString("yyMMdd");
+            string strStamp = $"{DateTime.Now.ToString("yyMMdd")}{DateTime.Now.ToString("HHmmss")}{DateTime.Now.Millisecond.ToString()}";
+            string getQuery = string.Empty;
+            var deptCodeList = await GetDepartments();
+            var deptCodes = string.Join(", ", deptCodeList);
+            List<string> memCodeLast6Digits = analyticsParam.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%''"));
+            string storeList = $"CSSTOR IN ({string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))})";
+
+            DateTime date;
+            if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
+            {
+                for (int i = 0; i < analyticsParam.memCode.Count(); i++)
+                {
+                    for (int j = 0; j < memCodeLast6Digits.Count(); j++)
+                    {
+                        var analyticsToDelete = _dbContext.Analytics
+                        .Where(a => a.TransactionDate == date.Date &&
+                             a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                             a.LocationId == analyticsParam.storeId[i]);
+
+                        var portalToDelete = _dbContext.Prooflist
+                         .Where(a => a.TransactionDate == date.Date &&
+                                     a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                                     a.StoreId == analyticsParam.storeId[i]);
+
+                        var analyticsIdList = await analyticsToDelete.Select(n => n.Id).ToListAsync();
+
+                        var portalIdList = await portalToDelete.Select(n => n.Id).ToListAsync();
+
+                        _dbContext.Analytics.RemoveRange(analyticsToDelete);
+                        _dbContext.SaveChanges();
+
+                        var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist
+                            .Where(x => analyticsIdList.Contains(x.AnalyticsId))
+                            .ToList();
+
+                        var adjustmentIdList = adjustmentAnalyticsToDelete.Select(n => n.AdjustmentId).ToList();
+
+                        _dbContext.AnalyticsProoflist.RemoveRange(adjustmentAnalyticsToDelete);
+                        _dbContext.SaveChanges();
+
+                        var adjustmentToDelete = _dbContext.Adjustments
+                           .Where(x => adjustmentIdList.Contains(x.Id))
+                           .ToList();
+
+                        _dbContext.Adjustments.RemoveRange(adjustmentToDelete);
+                        _dbContext.SaveChanges();
+
+                        var adjustmentProoflistToDelete = _dbContext.AnalyticsProoflist
+                        .Where(x => portalIdList.Contains(x.ProoflistId))
+                        .ToList();
+
+                        var adjustmentPortalIdList = adjustmentProoflistToDelete.Select(n => n.AdjustmentId).ToList();
+
+                        _dbContext.AnalyticsProoflist.RemoveRange(adjustmentProoflistToDelete);
+                        _dbContext.SaveChanges();
+
+
+                        var adjustmentPortalToDelete = _dbContext.Adjustments
+                            .Where(x => adjustmentPortalIdList.Contains(x.Id))
+                            .ToList();
+
+                        _dbContext.Adjustments.RemoveRange(adjustmentPortalToDelete);
+                        _dbContext.SaveChanges();
+                    }
+                }
+            }
+
+            try
+            {
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT)");
+                // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                  $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                  $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCondition} AND CSDTYP IN (''AR'') AND {storeList}  " +
+                                  $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                // Create the table ANALYTICS_CSHHDR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHHDR{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSCUST VARCHAR(255), CSTAMT DECIMAL(18,3))");
+                // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT )  " +
+                                  $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, A.CSTAMT  " +
+                                  $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                  $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
+                                  $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_CONDTX + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CONDTX{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSSKU INT, CSQTY DECIMAL(18,3),  CSEXPR DECIMAL(18,3), CSEXCS DECIMAL(18,4), CSDSTS INT)");
+                // Insert data from MMJDALIB.CONDTX into the newly created table ANALYTICS_CONDTX + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CONDTX{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS )  " +
+                                      $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSSKU, A.CSQTY, A.CSEXPR, A.CSEXCS, A.CSDSTS  " +
+                                      $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                      $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
+                                      $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN WHERE A.CSSKU <> 0 AND A.CSDSTS = '0' ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_INVMST + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_INVMST{strStamp} (IDESCR VARCHAR(255), IDEPT INT, ISDEPT INT, ICLAS INT, ISCLAS INT, INUMBR INT)");
+                // Insert data from MMJDALIB.INVMST into the newly created table ANALYTICS_INVMST + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_INVMST{strStamp} (IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR) " +
+                                          $"SELECT A.IDESCR, A.IDEPT, A.ISDEPT, A.ICLAS, A.ISCLAS, A.INUMBR " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
+                                          $"INNER JOIN ANALYTICS_CONDTX{strStamp} B  " +
+                                          $"ON A.INUMBR = B.CSSKU");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_TBLSTR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_TBLSTR{strStamp} (STRNUM INT, STRNAM VARCHAR(255))");
+                // Insert data from MMJDALIB.TBLSTR into the newly created table ANALYTICS_TBLSTR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_TBLSTR{strStamp} (STRNUM, STRNAM) " +
+                                        $"SELECT * FROM OPENQUERY(SNR, 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                //Insert the data from tbl_analytics
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO [dbo].[tbl_analytics] (LocationId, TransactionDate, CustomerId, MembershipNo, CashierNo, RegisterNo, TransactionNo, OrderNo, Qty, Amount, SubTotal, UserId, DeleteFlag) " +
+                                  $"SELECT C.CSSTOR, C.CSDATE, B.CSTDOC, A.CSCUST,B.CSTIL, C.CSREG, C.CSTRAN, B.CSCARD, SUM(C.CSQTY) AS CSQTY, SUM(C.CSEXPR) AS CSEXPR, A.CSTAMT, NULL AS UserId, 0 AS DeleteFlag   " +
+                                  $"FROM ANALYTICS_CSHHDR{strStamp} A " +
+                                      $"INNER JOIN ANALYTICS_CSHTND{strStamp} B ON A.CSSTOR = B.CSSTOR AND A.CSDATE = B.CSDATE AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN  " +
+                                      $"INNER JOIN ANALYTICS_CONDTX{strStamp} C ON A.CSSTOR = C.CSSTOR AND A.CSDATE = C.CSDATE AND A.CSREG = C.CSREG AND A.CSTRAN = C.CSTRAN  " +
+                                      $"INNER JOIN ANALYTICS_INVMST{strStamp} D ON C.CSSKU = D.INUMBR  " +
+                                      $"INNER JOIN ANALYTICS_TBLSTR{strStamp} E ON E.STRNUM = C.CSSTOR  " +
+                                  $"GROUP BY C.CSSTOR,  C.CSDATE,  B.CSTDOC,  A.CSCUST,  C.CSREG,  C.CSTRAN,  B.CSCARD,  B.CSTIL,  A.CSTAMT   " +
+                                  $"ORDER BY C.CSSTOR, C.CSDATE, C.CSREG ");
+                await DropTables(strStamp);
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
         }
     }
 }

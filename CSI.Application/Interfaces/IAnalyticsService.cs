@@ -27,5 +27,7 @@ namespace CSI.Application.Interfaces
         Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         bool CheckFolderPath(string path);
         Task<(string, bool, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
+        Task<bool> IsGenerated(AnalyticsParamsDto analyticsParamsDto);
+        Task ManualReload(RefreshAnalyticsDto analyticsParam);
     }
 }

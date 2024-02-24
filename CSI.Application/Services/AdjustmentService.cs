@@ -326,8 +326,8 @@ namespace CSI.Application.Services
                                 $"        n.[DeleteFlag],   " +
                                 $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                 $"     FROM tbl_analytics n " +
-                                $"        LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                                $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                                $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                                $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                 $" ) a " +
                                 $" WHERE  " +
                                 $"      (CAST(a.TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0 ) " +
@@ -375,8 +375,8 @@ namespace CSI.Application.Services
                                         $"p.[DeleteFlag]  " +
                                    $" FROM " +
                                    $"     [dbo].[tbl_prooflist] p  " +
-                                   $"     LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                   $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                   $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
+                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                    $" WHERE " +
                                    $"     (CAST(p.TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
                                 $") p " +
