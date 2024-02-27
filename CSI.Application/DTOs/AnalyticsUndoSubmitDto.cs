@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 
 namespace CSI.Application.DTOs
 {
-    public class AnalyticsToDeleteDto
+    public class AnalyticsUndoSubmitDto
     {
         public string date { get; set; } = string.Empty;
-        public string[] memCode { get; set; } =  new string[0];
+        public string memCode { get; set; } = string.Empty;
         public int storeId { get; set; }
-        public string jo { get; set; } = string.Empty;
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
     }

@@ -29,5 +29,8 @@ namespace CSI.Application.Interfaces
         Task<(string, bool, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
         Task<bool> IsGenerated(AnalyticsParamsDto analyticsParamsDto);
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
+        Task<bool> RevertAnalytics(int id);
+        Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
+        Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
     }
 }
