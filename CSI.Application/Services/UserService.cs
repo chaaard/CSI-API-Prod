@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CSI.Application.Services
 {
@@ -249,5 +250,89 @@ namespace CSI.Application.Services
                 return result;
             }
         }
+
+        //[Authorize]
+        //public async Task<(List<UserListDto>, int)> GetAllUsers()
+        //{
+        //    try
+        //    {
+        //        //var userList = new List<UserListDto>();
+        //        var query = _dbContext.Users
+        //            .Where(x => x.RoleId != 4)
+        //            .Join(_dbContext.Roles, x => x.RoleId, y => y.Id, (x, y) => new { x, y })
+        //            .Join(_dbContext.Locations, user => user.x.Club, loc => loc.LocationCode, (user, loc) => new { user, loc })
+        //            .Select(n => new UserListDto 
+        //            {
+        //                Id = n.user.x.Id,
+        //                EmployeeNumber = n.user.x.EmployeeNumber,
+        //                FirstName = n.user.x.FirstName,
+        //                LastName = n.user.x.LastName,
+        //                Username = n.user.x.Username,
+        //                Role = n.user.y.Role,
+        //                Club = n.loc.LocationName,
+        //                IsLogin = n.user.x.IsLogin,
+        //            })
+        //            .AsQueryable();
+        //        return userList;
+
+        //        var query = _dbContext.CustomerCodes
+        //       .Where(customerCode => customerCode.DeleteFlag == false)
+        //       .Select(n => new CustomerCodeDto
+        //       {
+        //           Id = n.Id,
+        //           CustomerNo = n.CustomerNo,
+        //           CustomerCode = n.CustomerCode,
+        //           CustomerName = n.CustomerName,
+        //           DeleteFlag = n.DeleteFlag,
+        //       })
+        //       .AsQueryable();
+
+        //        // Searching
+        //        if (!string.IsNullOrEmpty(pagination.SearchQuery))
+        //        {
+        //            var searchQuery = $"%{pagination.SearchQuery.ToLower()}%";
+
+        //            query = query.Where(c =>
+        //                (EF.Functions.Like(c.CustomerName.ToLower(), searchQuery)) ||
+        //                (EF.Functions.Like(c.CustomerCode.ToLower(), searchQuery))
+        //            //Add the category column here
+        //            );
+        //        }
+
+        //        // Sorting
+        //        if (!string.IsNullOrEmpty(pagination.ColumnToSort))
+        //        {
+        //            var sortOrder = pagination.OrderBy == "desc" ? "desc" : "asc";
+
+        //            switch (pagination.ColumnToSort.ToLower())
+        //            {
+        //                case "customername":
+        //                    query = sortOrder == "asc" ? query.OrderBy(c => c.CustomerName) : query.OrderByDescending(c => c.CustomerName);
+        //                    break;
+        //                case "customercode":
+        //                    query = sortOrder == "asc" ? query.OrderBy(c => c.CustomerCode) : query.OrderByDescending(c => c.CustomerCode);
+        //                    break;
+        //                //Another case here for category
+        //                default:
+        //                    break;
+        //            }
+        //        }
+
+        //        var totalItemCount = await query.CountAsync();
+        //        var totalPages = (int)Math.Ceiling((double)totalItemCount / pagination.PageSize);
+
+        //        var customerCodesList = await query
+        //            .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+        //            .Take(pagination.PageSize)
+        //            .ToListAsync();
+
+        //        return (customerCodesList, totalPages);
+        //    }
+        //    catch (Exception)
+        //    {
+
+        //        throw;
+        //    }
+        //}
     }
 }

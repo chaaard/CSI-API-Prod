@@ -19,5 +19,6 @@ namespace CSI.Domain.Entities
         public string Location { get; set; } = string.Empty;
         public string ReferenceNo { get; set; } = string.Empty;
         public decimal? InvoiceAmount { get; set; }
+        public string? FileName { get; set; } = string.Empty;
     }
 }
