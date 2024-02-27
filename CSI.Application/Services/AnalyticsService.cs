@@ -1095,7 +1095,7 @@ namespace CSI.Application.Services
                         HDR_TRX_DATE = result.FirstOrDefault().TransactionDate,
                         HDR_PAYMENT_TYPE = "HS",
                         HDR_BRANCH_CODE = getShortName.ShortName ?? "",
-                        HDR_CUSTOMER_NUMBER = result.FirstOrDefault().CustomerId,
+                        HDR_CUSTOMER_NUMBER = GetCustomerNo,
                         HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
                         HDR_PAYMENT_TERM = "0",
                         HDR_BUSINESS_LINE = "1",
@@ -1128,14 +1128,15 @@ namespace CSI.Application.Services
                     {
                         Club = club,
                         CustomerCode = formattedResult.CustomerId,
-                        CustomerNo = formattedResult.CustomerId,
+                        CustomerNo = GetCustomerNo,
                         CustomerName = customerName,
                         InvoiceNo = formattedInvoiceNumber,
                         InvoiceDate = formattedResult.TransactionDate,
                         TransactionDate = formattedResult.TransactionDate,
-                        Location = formattedResult.LocationName,
+                        Location = getShortName.ShortName,
                         ReferenceNo = getReference.MerchReference + club + dateFormat,
                         InvoiceAmount = total,
+                        FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
                     };
 
                     var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);

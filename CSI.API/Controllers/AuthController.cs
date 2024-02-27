@@ -122,5 +122,17 @@ namespace CSI.API.Controllers
             }
             return NotFound();
         }
+
+        //[HttpGet("GetAllUsers")]
+        //public async Task<IActionResult> GetAllUsers()
+        //{
+        //    var result = await _userService.GetAllUsers();
+
+        //    if (result != null)
+        //    {
+        //        return Ok(result);
+        //    }
+        //    return NotFound();
+        //}
     }
 }
