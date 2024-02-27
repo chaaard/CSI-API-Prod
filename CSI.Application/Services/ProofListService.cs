@@ -37,13 +37,15 @@ namespace CSI.Application.Services
             var club = Convert.ToInt32(strClub);
             var proofList = new List<Prooflist>();
 
-            Dictionary<string, string> customers = new Dictionary<string, string>();
-            customers.Add("GrabFood", "011929");
-            customers.Add("GrabMart", "011955");
-            customers.Add("PickARooMerch", "011931");
-            customers.Add("PickARooFS", "011935");
-            customers.Add("FoodPanda", "011838");
-            customers.Add("MetroMart", "011855");
+            Dictionary<string, string> customers = new Dictionary<string, string>
+            {
+                { "GrabFood", "011929" },
+                { "GrabMart", "011955" },
+                { "PickARooMerch", "011931" },
+                { "PickARooFS", "011935" },
+                { "FoodPanda", "011838" },
+                { "MetroMart", "011855" }
+            };
 
             customers.TryGetValue(customerName, out string valueCust);
             DateTime date;
@@ -56,7 +58,6 @@ namespace CSI.Application.Services
                 }
             }
                
-
             try
             {
                 foreach (var file in files)

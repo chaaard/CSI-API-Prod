@@ -26,5 +26,6 @@ namespace CSI.Domain.Entities
         public int? DeleteFlag { get; set; }
         public int? IsUpload { get; set; }
         public int? IsGenerate { get; set; }
+        public int? IsTransfer { get; set; }
     }
 }

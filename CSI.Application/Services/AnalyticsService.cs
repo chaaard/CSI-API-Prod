@@ -14,9 +14,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.Application.Services
 {
@@ -132,6 +129,7 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal  " +
                           $" FROM ( " +
                           $"     SELECT   " +
@@ -153,6 +151,7 @@ namespace CSI.Application.Services
                           $"         n.DeleteFlag,   " +
                           $"         n.IsUpload,   " +
                           $"         n.IsGenerate,   " +
+                          $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
@@ -186,6 +185,7 @@ namespace CSI.Application.Services
                     StatusId = n.StatusId,
                     IsUpload = Convert.ToBoolean(n.IsUpload),
                     IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
@@ -220,6 +220,7 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal  " +
                           $" FROM ( " +
                           $"     SELECT   " +
@@ -241,6 +242,7 @@ namespace CSI.Application.Services
                           $"         n.DeleteFlag,   " +
                           $"         n.IsUpload,   " +
                           $"         n.IsGenerate,   " +
+                          $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
@@ -274,6 +276,7 @@ namespace CSI.Application.Services
                     StatusId = n.StatusId,
                     IsUpload = Convert.ToBoolean(n.IsUpload),
                     IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
@@ -308,6 +311,7 @@ namespace CSI.Application.Services
                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                         $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                          $"     MAX(a.SubTotal) AS SubTotal  " +
                          $" FROM ( " +
                          $"     SELECT   " +
@@ -329,6 +333,7 @@ namespace CSI.Application.Services
                          $"         n.DeleteFlag,   " +
                          $"         n.IsUpload,   " +
                          $"         n.IsGenerate,   " +
+                         $"         n.IsTransfer,   " +
                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                          $"     FROM tbl_analytics n " +
                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
@@ -361,6 +366,7 @@ namespace CSI.Application.Services
                     StatusId = n.StatusId,
                     IsUpload = Convert.ToBoolean(n.IsUpload),
                     IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
@@ -416,7 +422,7 @@ namespace CSI.Application.Services
                                $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                $"     FROM tbl_analytics n " +
                                $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                               $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                $" ) a " +
                                $" WHERE  " +
                                $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -465,7 +471,7 @@ namespace CSI.Application.Services
                                   $" FROM " +
                                   $"     [dbo].[tbl_prooflist] p  " +
                                   $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                  $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                  $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                   $" WHERE " +
                                   $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
                                $") p " +
@@ -540,7 +546,7 @@ namespace CSI.Application.Services
             {
                 var analyticsToDelete = _dbContext.Analytics
                    .Where(a => a.TransactionDate == date &&
-                               a.CustomerId.Contains(memCodeLast6Digits[0])  &&
+                               a.CustomerId.Contains(memCodeLast6Digits[0]) &&
                                a.LocationId == analyticsParam.storeId[0]);
 
                 var portalToDelete = _dbContext.Prooflist
@@ -552,7 +558,7 @@ namespace CSI.Application.Services
 
                 var portalIdList = await portalToDelete.Select(n => n.Id).ToListAsync();
 
-                _dbContext.Analytics.RemoveRange(analyticsToDelete);
+                _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
                 _dbContext.SaveChanges();
 
                 var adjustmentAnalyticsToDelete =  _dbContext.AnalyticsProoflist
@@ -833,7 +839,7 @@ namespace CSI.Application.Services
                                 $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                 $"     FROM tbl_analytics n " +
                                 $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                                $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                                $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                 $" ) a " +
                                 $" WHERE  " +
                                 $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%'  AND a.DeleteFlag = 0) " +
@@ -882,7 +888,7 @@ namespace CSI.Application.Services
                                    $" FROM " +
                                    $"     [dbo].[tbl_prooflist] p  " +
                                    $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                   $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                    $" WHERE " +
                                    $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)  " +
                                 $") p " +
@@ -907,7 +913,7 @@ namespace CSI.Application.Services
                     }).ToList();
 
                     matchDto = matchDtos
-                        .Where(x => x.ProofListId == null || x.AnalyticsId == null || x.Variance <= -2 || x.Variance >= 2)
+                        .Where(x => x.ProofListId == null || x.AnalyticsId == null || x.Variance <= -1 || x.Variance >= 1)
                         .ToList();
                 }
                
@@ -1017,7 +1023,7 @@ namespace CSI.Application.Services
             var result = await ReturnAnalytics(analyticsParamsDto);
             var merchRef = new Dictionary<string, string>();
 
-            if (result != null)
+            if (result.Count >= 1)
             {
                 var total = result.Sum(x => x.SubTotal);
                 var locationList = await GetLocations();
@@ -1222,6 +1228,7 @@ namespace CSI.Application.Services
                         $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                         $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                         $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                        $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                         $"     MAX(a.SubTotal) AS SubTotal  " +
                         $" FROM ( " +
                         $"     SELECT   " +
@@ -1243,6 +1250,7 @@ namespace CSI.Application.Services
                         $"         n.DeleteFlag,   " +
                         $"         n.IsUpload,   " +
                         $"         n.IsGenerate,   " +
+                        $"         n.IsTransfer,   " +
                         $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                         $"     FROM tbl_analytics n " +
                         $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
@@ -1306,9 +1314,11 @@ namespace CSI.Application.Services
             IQueryable<AnalyticsDto> analytics = Enumerable.Empty<AnalyticsDto>().AsQueryable();
             var totalPages = 0;
             var formattedData = new List<AnalyticsDto>();
-            var memCodeLast6Digits = analyticsToDelete.memCode.Substring(Math.Max(0, analyticsToDelete.memCode.Length - 6));
+            var memCodeLast6Digits = analyticsToDelete.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+           
             if (DateTime.TryParse(analyticsToDelete.date, out date))
             {
+                string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits => $"(CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsToDelete.storeId} AND a.CustomerId LIKE '%{last6Digits}%' AND a.OrderNo LIKE '%{analyticsToDelete.jo}%')"));
                 var result = await _dbContext.AnalyticsView
                   .FromSqlRaw($" SELECT  " +
                               $"     MAX(a.Id) AS Id, " +
@@ -1328,6 +1338,7 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
                               $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                               $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                              $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                               $"     MAX(a.SubTotal) AS SubTotal  " +
                               $" FROM ( " +
                               $"     SELECT   " +
@@ -1349,13 +1360,14 @@ namespace CSI.Application.Services
                               $"         n.DeleteFlag,   " +
                               $"         n.IsUpload,   " +
                               $"         n.IsGenerate,   " +
+                              $"         n.IsTransfer,   " +
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                               $" ) a " +
                               $" WHERE  " +
-                              $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsToDelete.storeId} AND a.CustomerId LIKE '%{memCodeLast6Digits}%' AND a.OrderNo LIKE '%{analyticsToDelete.jo}%' AND a.DeleteFlag = 0) " +
+                              $"     {cstDocCondition}" +
                               $" GROUP BY  " +
                               $"     a.OrderNo,    " +
                               $"     ABS(a.SubTotal),  " +
@@ -1379,6 +1391,7 @@ namespace CSI.Application.Services
                     Qty = n.Qty,
                     Amount = n.Amount,
                     SubTotal = n.SubTotal,
+                    DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).AsQueryable();
 
                 var totalItemCount = analytics.Count();
@@ -1391,6 +1404,135 @@ namespace CSI.Application.Services
                     .ToList();
             }
             return (formattedData, totalPages);
+        }
+
+        public async Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit)
+        {
+            var date = new DateTime();
+            IQueryable<AnalyticsDto> analytics = Enumerable.Empty<AnalyticsDto>().AsQueryable();
+            var totalPages = 0;
+            var formattedData = new List<AnalyticsDto>();
+            var memCodeLast6Digits = analyticsUndoSubmit.memCode.Substring(Math.Max(0, analyticsUndoSubmit.memCode.Length - 6));
+
+            if (DateTime.TryParse(analyticsUndoSubmit.date, out date))
+            {
+                string cstDocCondition = $"(CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsUndoSubmit.storeId} AND a.CustomerId LIKE '%{memCodeLast6Digits}%' AND a.StatusId = 3)";
+                var result = await _dbContext.AnalyticsView
+                  .FromSqlRaw($" SELECT  " +
+                              $"     MAX(a.Id) AS Id, " +
+                              $"     MAX(a.CustomerName) AS CustomerName, " +
+                              $"     MAX(a.CustomerId) AS CustomerId, " +
+                              $"     MAX(a.LocationId) AS LocationId, " +
+                              $"     MAX(a.LocationName) AS LocationName, " +
+                              $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                              $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                              $"     MAX(a.CashierNo) AS CashierNo, " +
+                              $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                              $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                              $"     a.OrderNo, " +
+                              $"     MAX(a.Qty) AS Qty, " +
+                              $"     MAX(a.Amount) AS Amount, " +
+                              $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                              $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                              $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                              $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                              $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                              $"     MAX(a.SubTotal) AS SubTotal  " +
+                              $" FROM ( " +
+                              $"     SELECT   " +
+                              $"         n.Id, " +
+                              $"         c.CustomerName,  " +
+                              $"         n.CustomerId,  " +
+                              $"         n.LocationId,  " +
+                              $"         l.LocationName,  " +
+                              $"         n.TransactionDate,   " +
+                              $"         n.MembershipNo,   " +
+                              $"         n.CashierNo,  " +
+                              $"         n.RegisterNo,  " +
+                              $"         n.TransactionNo,  " +
+                              $"         n.OrderNo,  " +
+                              $"         n.Qty,  " +
+                              $"         n.Amount,  " +
+                              $"         n.SubTotal, " +
+                              $"         n.StatusId, " +
+                              $"         n.DeleteFlag,   " +
+                              $"         n.IsUpload,   " +
+                              $"         n.IsGenerate,   " +
+                              $"         n.IsTransfer,   " +
+                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                              $"     FROM tbl_analytics n " +
+                              $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                              $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $" ) a " +
+                              $" WHERE  " +
+                              $"     {cstDocCondition}" +
+                              $" GROUP BY  " +
+                              $"     a.OrderNo,    " +
+                              $"     ABS(a.SubTotal),  " +
+                              $"     a.row_num " +
+                              $" HAVING " +
+                              $"     COUNT(a.OrderNo) = 1 "
+                              )
+                  .ToListAsync();
+
+                analytics = result.Select(n => new AnalyticsDto
+                {
+                    Id = n.Id,
+                    CustomerName = n.CustomerName,
+                    LocationName = n.LocationName,
+                    TransactionDate = n.TransactionDate,
+                    MembershipNo = n.MembershipNo,
+                    CashierNo = n.CashierNo,
+                    RegisterNo = n.RegisterNo,
+                    TransactionNo = n.TransactionNo,
+                    OrderNo = n.OrderNo,
+                    Qty = n.Qty,
+                    Amount = n.Amount,
+                    SubTotal = n.SubTotal,
+                    DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                }).AsQueryable();
+
+                var totalItemCount = analytics.Count();
+                totalPages = (int)Math.Ceiling((double)totalItemCount / analyticsUndoSubmit.PageSize);
+
+                formattedData = analytics
+                    .Skip((analyticsUndoSubmit.PageNumber - 1) * analyticsUndoSubmit.PageSize)
+                    .Take(analyticsUndoSubmit.PageSize)
+                    .OrderByDescending(x => x.Id)
+                    .ToList();
+            }
+            return (formattedData, totalPages);
+        }
+
+        public async Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var isPending = true;
+            var result = await ReturnAnalytics(analyticsParamsDto);
+
+            var CheckIfUpload = result.Where(x => x.IsUpload == true).Any();
+
+            if (!CheckIfUpload)
+            {
+                return false;
+            }
+
+            foreach (var analytics in result)
+            {
+                analytics.StatusId = 5;
+            }
+
+            var analyticsEntityList = result.Select(analyticsDto =>
+            {
+                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                analyticsEntity.StatusId = 5;
+                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                return analyticsEntity;
+            }).ToList();
+
+            _dbContext.BulkUpdate(analyticsEntityList);
+            await _dbContext.SaveChangesAsync();
+
+            return isPending;
         }
 
         public async Task<bool> DeleteAnalytics(int id)
@@ -1411,6 +1553,24 @@ namespace CSI.Application.Services
             return result;
         }
 
+        public async Task<bool> RevertAnalytics(int id)
+        {
+            var result = false;
+
+            var GetAnalytics = await _dbContext.Analytics
+                .Where(x => x.Id == id)
+                .FirstOrDefaultAsync();
+
+            if (GetAnalytics != null)
+            {
+                GetAnalytics.DeleteFlag = false;
+                await _dbContext.SaveChangesAsync();
+                result = true;
+            }
+
+            return result;
+        }
+
         public async Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
             var result = false;
@@ -1422,6 +1582,7 @@ namespace CSI.Application.Services
             if (GetAnalytics != null)
             {
                 GetAnalytics.CustomerId = updateAnalyticsDto.CustomerId;
+                GetAnalytics.IsTransfer = true;
                 await _dbContext.SaveChangesAsync();
                 result = true;
             }
@@ -1579,7 +1740,7 @@ namespace CSI.Application.Services
 
                         var portalIdList = await portalToDelete.Select(n => n.Id).ToListAsync();
 
-                        _dbContext.Analytics.RemoveRange(analyticsToDelete);
+                        _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
                         _dbContext.SaveChanges();
 
                         var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist

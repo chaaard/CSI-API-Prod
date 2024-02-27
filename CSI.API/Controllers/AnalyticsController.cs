@@ -1,6 +1,7 @@
 ﻿using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
 using CSI.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +10,7 @@ namespace CSI.API.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [EnableCors("AllowOrigin")]
+    //[Authorize]
     public class AnalyticsController : ControllerBase
     {
         public readonly IAnalyticsService _analyticsService;
@@ -241,6 +243,13 @@ namespace CSI.API.Controllers
             return (Ok(result));
         }
 
+        [HttpPut("RevertAnalytics")]
+        public async Task<IActionResult> RevertAnalytics(int id)
+        {
+            var result = await _analyticsService.RevertAnalytics(id);
+            return (Ok(result));
+        }
+
         [HttpPut("UpdateAnalytics")]
         public async Task<IActionResult> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
@@ -279,6 +288,30 @@ namespace CSI.API.Controllers
         public async Task ManualReload(RefreshAnalyticsDto refreshAnalyticsDto)
         {
             await _analyticsService.ManualReload(refreshAnalyticsDto);
+        }
+
+        [HttpPost("GetAnalyticsToUndoSubmit")]
+        public async Task<IActionResult> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit)
+        {
+            var result = await _analyticsService.GetAnalyticsToUndoSubmit(analyticsUndoSubmit);
+
+            if (result.Item1 != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("UndoSubmitAnalytics")]
+        public async Task<IActionResult> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.UndoSubmitAnalytics(analyticsParamsDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
         }
     }
 }

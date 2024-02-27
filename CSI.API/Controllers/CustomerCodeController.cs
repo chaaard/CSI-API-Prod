@@ -1,6 +1,7 @@
 ﻿using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
 using CSI.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +10,7 @@ namespace CSI.API.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [EnableCors("AllowOrigin")]
+    //[Authorize]
     public class CustomerCodeController : ControllerBase
     {
         public readonly ICustomerCodeService _customerCodeService;
