@@ -327,7 +327,7 @@ namespace CSI.Application.Services
                                 $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                 $"     FROM tbl_analytics n " +
                                 $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                                $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                                $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                 $" ) a " +
                                 $" WHERE  " +
                                 $"      (CAST(a.TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0 ) " +
@@ -376,7 +376,7 @@ namespace CSI.Application.Services
                                    $" FROM " +
                                    $"     [dbo].[tbl_prooflist] p  " +
                                    $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                   $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                    $" WHERE " +
                                    $"     (CAST(p.TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
                                 $") p " +
@@ -416,6 +416,9 @@ namespace CSI.Application.Services
         {
             var result = false;
             var oldCustomerId = "";
+            var isUpload = false;
+            var isCompleted = false;
+            DateTime date;
             try
             {
                 if (adjustmentTypeDto != null)
@@ -424,10 +427,25 @@ namespace CSI.Application.Services
                        .Where(x => x.Id == adjustmentTypeDto.AnalyticsId)
                        .FirstOrDefaultAsync();
 
+                   
+                    if (DateTime.TryParse(adjustmentTypeDto.refreshAnalyticsDto.dates[0].ToString(), out date))
+                    {
+                        var check = await _dbContext.Analytics
+                             .Where(a => a.TransactionDate == date &&
+                                       a.CustomerId == adjustmentTypeDto.AdjustmentAddDto.CustomerId &&
+                                       a.LocationId == adjustmentTypeDto.refreshAnalyticsDto.storeId[0])
+                             .ToListAsync();
+
+                        isUpload = check.Where(x => x.IsUpload == true).Any();
+                        isCompleted = check.Where(x => x.StatusId == 3).Any();
+                    }
+
                     if (matchRow != null)
                     {
                         oldCustomerId = matchRow.CustomerId;
                         matchRow.IsTransfer = true;
+                        matchRow.IsUpload = isUpload;
+                        matchRow.StatusId = isCompleted ? 3 : 5;
                         matchRow.CustomerId = adjustmentTypeDto?.AdjustmentAddDto?.CustomerId;
                         await _dbContext.SaveChangesAsync();
                         result = true;
@@ -508,32 +526,47 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<TransactionDtos> GetTotalCountAmount(TransactionCountAmountDto transactionCountAmountDto)
+        public async Task<Dictionary<int, Dictionary<int, TransactionDtos>>> GetTotalCountAmount(TransactionCountAmountDto transactionCountAmountDto)
         {
             DateTime date1;
             DateTime date2;
             DateTime.TryParse(transactionCountAmountDto.dates[0], out date1);
             DateTime.TryParse(transactionCountAmountDto.dates[1], out date2);
 
-            var result = await _dbContext.AnalyticsProoflist
-                 .Where(ap => ap.ActionId == transactionCountAmountDto.actionId && ap.StatusId == transactionCountAmountDto.statusId)
-                 .Join(
-                     _dbContext.Analytics,
-                     ap => ap.AnalyticsId,
-                     a => a.Id,
-                     (ap, a) => new { ap, a }
-                 )
-                 .Where(joined => joined.a.LocationId == transactionCountAmountDto.storeId[0] && joined.a.TransactionDate >= date1 && joined.a.TransactionDate <= date2)
-                 .GroupBy(joined => new { joined.ap.ActionId })
-                 .Select(grouped => new TransactionDtos
-                 {
-                     Count = grouped.Count(),
-                     Amount = grouped.Sum(j => j.a.SubTotal)
-                 })
-                 .FirstOrDefaultAsync();
+            var totalAmountsAndCount = new Dictionary<int, Dictionary<int, TransactionDtos>>();
 
-            return result ?? new TransactionDtos();
+            foreach (var status in transactionCountAmountDto.statusId)
+            {
+                var actionResultDict = new Dictionary<int, TransactionDtos>();
+
+                foreach (var action in transactionCountAmountDto.actionId)
+                {
+                    var result = await _dbContext.AnalyticsProoflist
+                        .Where(ap => ap.ActionId == action && ap.StatusId == status)
+                        .Join(
+                            _dbContext.Analytics,
+                            ap => ap.AnalyticsId,
+                            a => a.Id,
+                            (ap, a) => new { ap, a }
+                        )
+                        .Where(joined => joined.a.LocationId == transactionCountAmountDto.storeId[0] && joined.a.TransactionDate >= date1 && joined.a.TransactionDate <= date2)
+                        .GroupBy(joined => new { joined.ap.ActionId })
+                        .Select(grouped => new TransactionDtos
+                        {
+                            Count = grouped.Count(),
+                            Amount = grouped.Sum(j => j.a.SubTotal)
+                        })
+                        .FirstOrDefaultAsync();
+
+                    actionResultDict.Add(action, result);
+                }
+
+                totalAmountsAndCount.Add(status, actionResultDict);
+            }
+
+            return totalAmountsAndCount;
         }
+
 
         public async Task<List<ExceptionDto>> ExportExceptions(AdjustmentParams adjustmentParams)
         {
