@@ -11,7 +11,7 @@ namespace CSI.Application.DTOs
         public List<string> dates { get; set; } = new List<string>();
         public List<string> memCode { get; set; } = new List<string>();
         public List<int> storeId { get; set; } = new List<int>();
-        public int actionId { get; set; }
-        public int statusId { get; set; }
+        public List<int> actionId { get; set; } = new List<int>();
+        public List<int> statusId { get; set; } = new List<int>();
     }
 }

@@ -155,7 +155,7 @@ namespace CSI.Application.Services
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $" ) a " +
                           $" WHERE  " +
                           $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -246,7 +246,7 @@ namespace CSI.Application.Services
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $" ) a " +
                           $" WHERE  " +
                           $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -337,7 +337,7 @@ namespace CSI.Application.Services
                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                          $"     FROM tbl_analytics n " +
                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                         $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                         $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                          $" ) a " +
                          $" WHERE  " +
                          $"     (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {refreshAnalyticsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%') AND a.DeleteFlag = 0" +
@@ -374,17 +374,24 @@ namespace CSI.Application.Services
             return analytics;
         }
 
-        public async Task<decimal?> GetTotalAmountPerMechant(AnalyticsParamsDto analyticsParamsDto)
+        public async Task<Dictionary<string, decimal?>> GetTotalAmountPerMerchant(AnalyticsParamsDto analyticsParamsDto)
         {
+            Dictionary<string, decimal?> totalAmounts = new Dictionary<string, decimal?>();
             DateTime date;
-            decimal? result = 0;
+
             if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
             {
-                result = await _dbContext.Analytics
-                    .Where(x => x.TransactionDate == date && x.LocationId == analyticsParamsDto.storeId[0] && analyticsParamsDto.memCode[0].Contains(x.CustomerId) && x.DeleteFlag == false)
-                    .SumAsync(e => e.SubTotal);
+                foreach (var memCode in analyticsParamsDto.memCode)
+                {
+                    decimal? result = await _dbContext.Analytics
+                        .Where(x => x.TransactionDate == date && x.LocationId == analyticsParamsDto.storeId[0] && x.CustomerId.Contains(memCode) && x.DeleteFlag == false)
+                        .SumAsync(e => e.SubTotal);
+
+                    totalAmounts.Add(memCode, result);
+                }
             }
-            return result;
+
+            return totalAmounts;
         }
 
 
@@ -422,7 +429,7 @@ namespace CSI.Application.Services
                                $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                $"     FROM tbl_analytics n " +
                                $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                               $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                $" ) a " +
                                $" WHERE  " +
                                $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0) " +
@@ -471,7 +478,7 @@ namespace CSI.Application.Services
                                   $" FROM " +
                                   $"     [dbo].[tbl_prooflist] p  " +
                                   $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                  $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                  $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                   $" WHERE " +
                                   $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
                                $") p " +
@@ -680,6 +687,32 @@ namespace CSI.Application.Services
                                   $"GROUP BY C.CSSTOR,  C.CSDATE,  B.CSTDOC,  A.CSCUST,  C.CSREG,  C.CSTRAN,  B.CSCARD,  B.CSTIL,  A.CSTAMT   " +
                                   $"ORDER BY C.CSSTOR, C.CSDATE, C.CSREG ");
 
+
+                foreach (var store in analyticsParam.storeId)
+                {
+                    foreach (var code in analyticsParam.memCode)
+                    {
+                        string formattedMemCode = code.Substring(Math.Max(0, code.Length - 6));
+                        if (analyticsParam.dates != null && analyticsParam.dates.Any() && analyticsParam.dates[0] != null)
+                        {
+                            var transactionDate = analyticsParam.dates[0].Date;
+
+                            string sqlUpdate = @"
+                                UPDATE tbl_analytics
+                                SET CustomerId = @code
+                                WHERE CustomerId LIKE CONCAT('%', @formattedMemCode, '%')
+                                AND TransactionDate = @transactionDate
+                                AND LocationId = @store";
+
+                            await _dbContext.Database.ExecuteSqlRawAsync(sqlUpdate,
+                                new SqlParameter("@code", code),
+                                new SqlParameter("@formattedMemCode", formattedMemCode),
+                                new SqlParameter("@transactionDate", transactionDate),
+                                new SqlParameter("@store", store));
+                        }
+                    }
+                }
+
                 await DropTables(strStamp);
 
                 await SubmitAnalyticsUpdate(analyticsParam);
@@ -839,7 +872,7 @@ namespace CSI.Application.Services
                                 $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                                 $"     FROM tbl_analytics n " +
                                 $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                                $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                                $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                                 $" ) a " +
                                 $" WHERE  " +
                                 $"      (CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%'  AND a.DeleteFlag = 0) " +
@@ -888,11 +921,11 @@ namespace CSI.Application.Services
                                    $" FROM " +
                                    $"     [dbo].[tbl_prooflist] p  " +
                                    $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
-                                   $"     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                    $" WHERE " +
                                    $"     (CAST(p.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)  " +
                                 $") p " +
-                            $"ON a.[OrderNo] = p.[OrderNo]" +
+                            $"ON a.[OrderNo] = p.[OrderNo] " +
                             $"ORDER BY COALESCE(p.Id, a.Id) DESC; ")
                     .ToListAsync();
 
@@ -1172,16 +1205,21 @@ namespace CSI.Application.Services
             return generatedInvoice;
         }
 
-        public async Task<bool> IsSubmitted(AnalyticsParamsDto analyticsParamsDto)
+        public async Task<(bool, bool)> IsSubmittedGenerated(AnalyticsParamsDto analyticsParamsDto)
         {
             var isSubmitted = false;
+            var isGenerated = false;
             var result = await ReturnAnalytics(analyticsParamsDto);
 
             isSubmitted = result
                .Where(x => x.StatusId == 3)
                .Any();
 
-            return isSubmitted;
+            isGenerated = result
+              .Where(x => x.IsGenerate == true)
+              .Any();
+
+            return (isSubmitted, isGenerated);
         }
 
         public async Task<List<int>> GetClubs()
@@ -1255,7 +1293,7 @@ namespace CSI.Application.Services
                         $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                         $"     FROM tbl_analytics n " +
                         $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                        $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                        $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                         $" ) a " +
                         $" WHERE  " +
                         $" (CAST(a.TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%'  AND a.DeleteFlag = 0 ) " +
@@ -1365,7 +1403,7 @@ namespace CSI.Application.Services
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                              $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                               $" ) a " +
                               $" WHERE  " +
                               $"     {cstDocCondition}" +
@@ -1463,7 +1501,7 @@ namespace CSI.Application.Services
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                              $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                               $" ) a " +
                               $" WHERE  " +
                               $"     {cstDocCondition}" +
@@ -1579,6 +1617,8 @@ namespace CSI.Application.Services
             var GetAnalytics = await _dbContext.Analytics
                 .Where(x => x.Id == updateAnalyticsDto.Id)
                 .FirstOrDefaultAsync();
+
+
 
             if (GetAnalytics != null)
             {
@@ -1864,7 +1904,106 @@ namespace CSI.Application.Services
                                       $"INNER JOIN ANALYTICS_TBLSTR{strStamp} E ON E.STRNUM = C.CSSTOR  " +
                                   $"GROUP BY C.CSSTOR,  C.CSDATE,  B.CSTDOC,  A.CSCUST,  C.CSREG,  C.CSTRAN,  B.CSCARD,  B.CSTIL,  A.CSTAMT   " +
                                   $"ORDER BY C.CSSTOR, C.CSDATE, C.CSREG ");
+
+                foreach (var store in analyticsParam.storeId)
+                {
+                    foreach (var code in analyticsParam.memCode)
+                    {
+                        string formattedMemCode = code.Substring(Math.Max(0, code.Length - 6));
+                        if (analyticsParam.dates != null && analyticsParam.dates.Any() && analyticsParam.dates[0] != null)
+                        {
+                            var transactionDate = analyticsParam.dates[0].Date;
+
+                            string sqlUpdate = @"
+                                UPDATE tbl_analytics
+                                SET CustomerId = @code
+                                WHERE CustomerId LIKE CONCAT('%', @formattedMemCode, '%')
+                                AND TransactionDate = @transactionDate
+                                AND LocationId = @store";
+
+                            await _dbContext.Database.ExecuteSqlRawAsync(sqlUpdate,
+                                new SqlParameter("@code", code),
+                                new SqlParameter("@formattedMemCode", formattedMemCode),
+                                new SqlParameter("@transactionDate", transactionDate),
+                                new SqlParameter("@store", store));
+                        }
+                    }
+                }
+
                 await DropTables(strStamp);
+
+                await SubmitAnalyticsUpdate(analyticsParam);
+                var analyticsParams = new AnalyticsParamsDto
+                {
+                    dates = analyticsParam.dates.Select(date => date.ToString()).ToList(),
+                    memCode = analyticsParam.memCode,
+                    userId = analyticsParam.userId,
+                    storeId = analyticsParam.storeId
+                };
+
+                var toUpdate = await GetAnalyticsProofListVariance(analyticsParams);
+                if (toUpdate.Where(x => x.ProofListId != null).Any())
+                {
+                    var analyticsIdList = toUpdate.Select(n => n.AnalyticsId).ToList();
+
+                    var analyticsToUpdate = await _dbContext.Analytics
+                      .Where(x => analyticsIdList.Contains(x.Id))
+                      .ToListAsync();
+
+                    var analyticsEntityList = analyticsToUpdate.ToList();
+                    analyticsEntityList.ForEach(analyticsDto =>
+                    {
+                        analyticsDto.IsUpload = true;
+                    });
+
+                    var analyticsEntity = _mapper.Map<List<Analytics>>(analyticsEntityList);
+
+                    _dbContext.BulkUpdate(analyticsEntityList);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParam);
+
+                var isUpload = MatchDto
+                            .Where(x => x.IsUpload == true)
+                            .Any();
+
+                if (isUpload)
+                {
+                    foreach (var item in MatchDto)
+                    {
+                        var param = new AnalyticsProoflistDto
+                        {
+
+                            Id = 0,
+                            AnalyticsId = item.AnalyticsId,
+                            ProoflistId = item.ProofListId,
+                            ActionId = null,
+                            StatusId = 5,
+                            AdjustmentId = 0,
+                            SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
+                            DeleteFlag = false,
+                            AdjustmentAddDto = new AdjustmentAddDto
+                            {
+                                Id = 0,
+                                DisputeReferenceNumber = null,
+                                DisputeAmount = null,
+                                DateDisputeFiled = null,
+                                DescriptionOfDispute = null,
+                                NewJO = null,
+                                CustomerId = null,
+                                AccountsPaymentDate = null,
+                                AccountsPaymentTransNo = null,
+                                AccountsPaymentAmount = null,
+                                ReasonId = null,
+                                Descriptions = null,
+                                DeleteFlag = null,
+                            }
+                        };
+
+                        var result = await CreateAnalyticsProofList(param);
+                    }
+                }
             }
             catch (Exception ex)
             {

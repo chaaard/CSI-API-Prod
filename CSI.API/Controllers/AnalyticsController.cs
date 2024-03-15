@@ -77,7 +77,7 @@ namespace CSI.API.Controllers
         {
             try
             {
-                var result = await _analyticsService.GetTotalAmountPerMechant(analyticsParamsDto);
+                var result = await _analyticsService.GetTotalAmountPerMerchant(analyticsParamsDto);
 
                 if (result != null)
                 {
@@ -134,18 +134,16 @@ namespace CSI.API.Controllers
             return (NotFound());
         }
 
-        [HttpPost("IsSubmitted")]
+        [HttpPost("IsSubmittedGenerated")]
         public async Task<IActionResult> IsSubmitted(AnalyticsParamsDto analyticsParamsDto)
         {
-            var result = await _analyticsService.IsSubmitted(analyticsParamsDto);
-            return Ok(result); 
-        }
-
-        [HttpPost("IsGenerated")]
-        public async Task<IActionResult> IsGenerated(AnalyticsParamsDto analyticsParamsDto)
-        {
-            var result = await _analyticsService.IsGenerated(analyticsParamsDto);
-            return Ok(result);
+            var result = await _analyticsService.IsSubmittedGenerated(analyticsParamsDto);
+            var data = new
+            {
+                IsSubmitted = result.Item1,
+                IsGenerated = result.Item2
+            };
+            return Ok(data); 
         }
 
         [HttpPost("UpdateUploadStatus")]
