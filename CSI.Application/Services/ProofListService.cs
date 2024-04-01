@@ -962,10 +962,6 @@ namespace CSI.Application.Services
                         var isPayable = fields[columnIndexes["is payable"]].ToLower();
 
                         var test = fields[columnIndexes["order id"]];
-                        if (test == "q9ao-fslv")
-                        {
-                            test = "";
-                        }
 
                         if (status == "cancelled" && isPayable == "yes")
                         {

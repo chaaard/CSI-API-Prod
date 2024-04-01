@@ -311,5 +311,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("AccountingGenerateInvoice")]
+        public async Task<IActionResult> AccountingGenerateInvoice(AccountingGenerateInvoiceDto accountingGenerateInvoiceDto)
+        {
+            var result = await _analyticsService.AccountingGenerateInvoice(accountingGenerateInvoiceDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }
