@@ -272,9 +272,7 @@ namespace CSI.API.Controllers
                 var data = new
                 {
                     Message = result.Item1,
-                    Result = result.Item2,
-                    Content = result.Item3,
-                    FileName = result.Item4
+                    FileName = result.Item2,
                 };
 
                 return (Ok(data));
@@ -313,9 +311,9 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("AccountingGenerateInvoice")]
-        public async Task<IActionResult> AccountingGenerateInvoice(AccountingGenerateInvoiceDto accountingGenerateInvoiceDto)
+        public async Task<IActionResult> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto)
         {
-            var result = await _analyticsService.AccountingGenerateInvoice(accountingGenerateInvoiceDto);
+            var result = await _analyticsService.AccountingGenerateInvoice(generateA0FileDto);
 
             if (result != null)
             {

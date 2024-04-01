@@ -189,7 +189,7 @@ namespace CSI.Application.Services
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                 }).ToList();
             }
-              
+
             return analytics;
 
         }
@@ -513,7 +513,7 @@ namespace CSI.Application.Services
         public async Task UpdateUploadStatus(AnalyticsParamsDto analyticsParamsDto)
         {
             var getMatch = await GetAnalyticsProofListVariance(analyticsParamsDto);
-           
+
             if (getMatch.Where(x => x.ProofListId != null).Any())
             {
                 var analyticsIdList = getMatch.Select(n => n.AnalyticsId).ToList();
@@ -568,12 +568,12 @@ namespace CSI.Application.Services
                 _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
                 _dbContext.SaveChanges();
 
-                var adjustmentAnalyticsToDelete =  _dbContext.AnalyticsProoflist
+                var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist
                     .Where(x => analyticsIdList.Contains(x.AnalyticsId))
                     .ToList();
 
                 var adjustmentIdList = adjustmentAnalyticsToDelete.Select(n => n.AdjustmentId).ToList();
-                
+
                 _dbContext.AnalyticsProoflist.RemoveRange(adjustmentAnalyticsToDelete);
                 _dbContext.SaveChanges();
 
@@ -601,7 +601,7 @@ namespace CSI.Application.Services
                 _dbContext.Adjustments.RemoveRange(adjustmentPortalToDelete);
                 _dbContext.SaveChanges();
             }
-           
+
             try
             {
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT)");
@@ -757,7 +757,7 @@ namespace CSI.Application.Services
                     {
                         var param = new AnalyticsProoflistDto
                         {
-                           
+
                             Id = 0,
                             AnalyticsId = item.AnalyticsId,
                             ProoflistId = item.ProofListId,
@@ -949,7 +949,7 @@ namespace CSI.Application.Services
                         .Where(x => x.ProofListId == null || x.AnalyticsId == null || x.Variance <= -1 || x.Variance >= 1)
                         .ToList();
                 }
-               
+
 
                 return matchDto;
             }
@@ -1117,7 +1117,8 @@ namespace CSI.Application.Services
 
                     var getReference = await _dbContext.Reference
                         .Where(x => x.CustomerNo == formatCustomerNo)
-                        .Select(n => new {
+                        .Select(n => new
+                        {
                             n.MerchReference,
                         })
                         .FirstOrDefaultAsync();
@@ -1302,7 +1303,7 @@ namespace CSI.Application.Services
                         $"     ABS(a.SubTotal),  " +
                         $"     a.row_num " +
                         $" HAVING " +
-                        $"     COUNT(a.OrderNo) = 1 " + 
+                        $"     COUNT(a.OrderNo) = 1 " +
                         $" ORDER BY MAX(a.TransactionDate) ASC")
                        .ToListAsync();
 
@@ -1354,7 +1355,7 @@ namespace CSI.Application.Services
             var totalPages = 0;
             var formattedData = new List<AnalyticsDto>();
             var memCodeLast6Digits = analyticsToDelete.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
-           
+
             if (DateTime.TryParse(analyticsToDelete.date, out date))
             {
                 string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits => $"(CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsToDelete.storeId} AND CustomerId LIKE '%{last6Digits}%' AND OrderNo LIKE '%{analyticsToDelete.jo}%')"));
@@ -1650,77 +1651,231 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<(string, bool, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto)
+        public async Task<(string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto)
         {
             try
             {
-                var result = false;
+                //var result = false;
                 var fileName = "";
+                var formattedList = new List<string>();
 
-                var getInvoiceAnalytics = await GenerateInvoiceAnalytics(generateA0FileDto.analyticsParamsDto);
-                var getAnalytics = await GetRawAnalytics(generateA0FileDto.analyticsParamsDto);
-                var getInvoice = getInvoiceAnalytics.Item1;
-                var isPending = getInvoiceAnalytics.Item2;
-
-                if (isPending)
+                var invoiceAnalytics = new List<InvoiceDto>();
+                var isPending = false;
+                DateTime currentDate = DateTime.Now;
+                Random random = new Random();
+                var getGeneratedInvoice = await AccountingGenerateInvoice(generateA0FileDto);
+                if (getGeneratedInvoice.Count() >= 1)
                 {
-                    return ("Please submit the analytics first and try again.", false, "", "");
-                }
-                
-                var content = new StringBuilder();
-                var formattedItems = getInvoice.Select(item =>
-                {
-                    var formattedTRXDate = FormatDate(item.HDR_TRX_DATE);
-                    var formattedGLDate = FormatDate(item.HDR_GL_DATE);
+                    var getSubmittedInvoice = getGeneratedInvoice
+                       .Where(x => x.SubmitStatus == 3 && x.IsGenerated == false)
+                       .Select(n => new
+                       {
+                           n.Date,
+                           n.CustomerId,
+                           n.LocationId,
+                       })
+                       .ToList();
 
-                    return new
+                    if (getSubmittedInvoice.Count() == 0)
                     {
-                        HDR_TRX_NUMBER = item.HDR_TRX_NUMBER,
-                        HDR_TRX_DATE = formattedTRXDate,
-                        HDR_PAYMENT_TYPE = item.HDR_PAYMENT_TYPE,
-                        HDR_BRANCH_CODE = item.HDR_BRANCH_CODE,
-                        HDR_CUSTOMER_NUMBER = item.HDR_CUSTOMER_NUMBER,
-                        HDR_CUSTOMER_SITE = item.HDR_CUSTOMER_SITE,
-                        HDR_PAYMENT_TERM = item.HDR_PAYMENT_TERM,
-                        HDR_BUSINESS_LINE = item.HDR_BUSINESS_LINE,
-                        HDR_BATCH_SOURCE_NAME = item.HDR_BATCH_SOURCE_NAME,
-                        HDR_GL_DATE = formattedGLDate,
-                        HDR_SOURCE_REFERENCE = item.HDR_SOURCE_REFERENCE,
-                        DTL_LINE_DESC = item.DTL_LINE_DESC,
-                        DTL_QUANTITY = item.DTL_QUANTITY,
-                        DTL_AMOUNT = item.DTL_AMOUNT,
-                        DTL_VAT_CODE = item.DTL_VAT_CODE,
-                        DTL_CURRENCY = item.DTL_CURRENCY,
-                        INVOICE_APPLIED = item.INVOICE_APPLIED,
-                        FILENAME = item.FILENAME
-                    };
-                });
+                        return ("Error generating invoice. Please check and try again.", fileName);
+                    }
 
-                foreach (var item in formattedItems)
-                {
-                    fileName = item.FILENAME;
-                    content.AppendLine($"{item.HDR_TRX_NUMBER}|{item.HDR_TRX_DATE}|{item.HDR_PAYMENT_TYPE}|{item.HDR_BRANCH_CODE}|{item.HDR_CUSTOMER_NUMBER}|{item.HDR_CUSTOMER_SITE}|{item.HDR_PAYMENT_TERM}|{item.HDR_BUSINESS_LINE}|{item.HDR_BATCH_SOURCE_NAME}|{item.HDR_GL_DATE}|{item.HDR_SOURCE_REFERENCE}|{item.DTL_LINE_DESC}|{item.DTL_QUANTITY}|{item.DTL_AMOUNT}|{item.DTL_VAT_CODE}|{item.DTL_CURRENCY}|{item.INVOICE_APPLIED}|{item.FILENAME}|");
-                }
-
-                // Write content to file
-                string filePath = Path.Combine(generateA0FileDto.Path, fileName);
-                File.WriteAllText(filePath, content.ToString());
-
-                result = true;
-
-                if (getAnalytics.Any())
-                {
-                    getAnalytics.ForEach(analyticsDto =>
+                    foreach (var item in getSubmittedInvoice)
                     {
-                        analyticsDto.IsGenerate = true;
-                    });
+                        var param = new AnalyticsParamsDto
+                        {
+                            dates = new List<string> { item.Date.ToString() },
+                            memCode = new List<string> { item.CustomerId },
+                            storeId = new List<int> { item.LocationId ?? 0 },
+                        };
 
-                    _dbContext.BulkUpdate(getAnalytics);
-                    await _dbContext.SaveChangesAsync();
+                        var result = await ReturnAnalytics(param);
+                        var merchRef = new Dictionary<string, string>();
+
+                        if (result.Count >= 1)
+                        {
+                            var total = result.Sum(x => x.SubTotal);
+                            var locationList = await GetLocations();
+
+                            var club = param.storeId[0];
+                            var trxCount = result.Count();
+                            var dateFormat = result.FirstOrDefault().TransactionDate?.ToString("MMddyy");
+
+                            isPending = result
+                                .Where(x => x.StatusId == 5)
+                                .Any();
+
+                            var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
+                            long startingInvoiceNumber = 000000000001;
+
+                            if (lastInvoice != null)
+                            {
+                                startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
+                            }
+
+                            long newInvoiceNumber = startingInvoiceNumber;
+
+                            while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
+                            {
+                                newInvoiceNumber++;
+                            }
+
+                            var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
+
+                            var getShortName = locationList
+                                .Where(x => x.LocationName.Contains(result.FirstOrDefault().LocationName))
+                                .Select(n => new
+                                {
+                                    n.ShortName,
+                                })
+                                .FirstOrDefault();
+
+                            var GetCustomerNo = result
+                                    .GroupJoin(
+                                        _dbContext.CustomerCodes,
+                                        x => x.CustomerId,
+                                        y => y.CustomerCode,
+                                        (x, y) => new { x, y }
+                                    )
+                                    .SelectMany(
+                                        group => group.y,
+                                        (group, y) => y.CustomerNo
+                                    )
+                                    .FirstOrDefault();
+
+                            var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
+
+                            var getReference = await _dbContext.Reference
+                                .Where(x => x.CustomerNo == formatCustomerNo)
+                                .Select(n => new
+                                {
+                                    n.MerchReference,
+                                })
+                                .FirstOrDefaultAsync();
+
+                            var invoice = new InvoiceDto
+                            {
+                                HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                HDR_TRX_DATE = result.FirstOrDefault().TransactionDate,
+                                HDR_PAYMENT_TYPE = "HS",
+                                HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                HDR_PAYMENT_TERM = "0",
+                                HDR_BUSINESS_LINE = "1",
+                                HDR_BATCH_SOURCE_NAME = "POS",
+                                HDR_GL_DATE = result.FirstOrDefault().TransactionDate,
+                                HDR_SOURCE_REFERENCE = "HS",
+                                DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
+                                DTL_QUANTITY = 1,
+                                DTL_AMOUNT = total,
+                                DTL_VAT_CODE = "",
+                                DTL_CURRENCY = "PHP",
+                                INVOICE_APPLIED = "0",
+                                FILENAME = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01"
+                            };
+
+                            invoiceAnalytics.Add(invoice);
+
+                            var formattedResult = result.FirstOrDefault();
+
+                            var customerName = string.Empty;
+                            if (formattedResult != null)
+                            {
+                                customerName = _dbContext.CustomerCodes
+                                    .Where(cc => cc.CustomerCode == formattedResult.CustomerId)
+                                    .Select(cc => cc.CustomerName)
+                                    .FirstOrDefault();
+                            }
+
+                            var generateInvoice = new GenerateInvoiceDto
+                            {
+                                Club = club,
+                                CustomerCode = formattedResult.CustomerId,
+                                CustomerNo = GetCustomerNo,
+                                CustomerName = customerName,
+                                InvoiceNo = formattedInvoiceNumber,
+                                InvoiceDate = formattedResult.TransactionDate,
+                                TransactionDate = formattedResult.TransactionDate,
+                                Location = getShortName.ShortName,
+                                ReferenceNo = getReference.MerchReference + club + dateFormat,
+                                InvoiceAmount = total,
+                                FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                            };
+
+                            var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                            _dbContext.GenerateInvoice.Add(genInvoice);
+                            await _dbContext.SaveChangesAsync();
+
+                            var param1 = new GenerateA0FileDto
+                            {
+                                Path = "",
+                                analyticsParamsDto = new AnalyticsParamsDto
+                                {
+                                    dates = new List<string> { item.Date.ToString() },
+                                    memCode = new List<string> { item.CustomerId },
+                                    storeId = new List<int> { item.LocationId ?? 0 },
+                                }
+                            };
+
+                            var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                            if (getAnalytics.Any())
+                            {
+                                getAnalytics.ForEach(analyticsDto =>
+                                {
+                                    analyticsDto.IsGenerate = true;
+                                });
+
+                                _dbContext.BulkUpdate(getAnalytics);
+                                await _dbContext.SaveChangesAsync();
+                            }
+                        }
+                    }
+                    var content = new StringBuilder();
+
+                    foreach (var item in invoiceAnalytics)
+                    {
+                        var formattedTRXDate = FormatDate(item.HDR_TRX_DATE);
+                        var formattedGLDate = FormatDate(item.HDR_GL_DATE);
+
+                        var format = new
+                        {
+                            HDR_TRX_NUMBER = item.HDR_TRX_NUMBER,
+                            HDR_TRX_DATE = formattedTRXDate,
+                            HDR_PAYMENT_TYPE = item.HDR_PAYMENT_TYPE,
+                            HDR_BRANCH_CODE = item.HDR_BRANCH_CODE,
+                            HDR_CUSTOMER_NUMBER = item.HDR_CUSTOMER_NUMBER,
+                            HDR_CUSTOMER_SITE = item.HDR_CUSTOMER_SITE,
+                            HDR_PAYMENT_TERM = item.HDR_PAYMENT_TERM,
+                            HDR_BUSINESS_LINE = item.HDR_BUSINESS_LINE,
+                            HDR_BATCH_SOURCE_NAME = item.HDR_BATCH_SOURCE_NAME,
+                            HDR_GL_DATE = formattedGLDate,
+                            HDR_SOURCE_REFERENCE = item.HDR_SOURCE_REFERENCE,
+                            DTL_LINE_DESC = item.DTL_LINE_DESC,
+                            DTL_QUANTITY = item.DTL_QUANTITY,
+                            DTL_AMOUNT = item.DTL_AMOUNT,
+                            DTL_VAT_CODE = item.DTL_VAT_CODE,
+                            DTL_CURRENCY = item.DTL_CURRENCY,
+                            INVOICE_APPLIED = item.INVOICE_APPLIED,
+                            FILENAME = item.FILENAME
+                        };
+
+
+                        fileName = format.FILENAME;
+                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{format.FILENAME}|");
+                    }
+
+                    // Write content to file
+                    string filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                    File.WriteAllText(filePath, content.ToString());
+
+                    return ("Invoice Generated Successfully", fileName);
                 }
-
-
-                return ("Invoice Generated Successfully", result, content.ToString(), fileName);
+                else
+                {
+                    return ("Error generating invoice. Please check and try again.", fileName);
+                }
             }
             catch (Exception)
             {
@@ -2012,16 +2167,15 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(AccountingGenerateInvoiceDto accountingGenerateInvoiceDto)
+        public async Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto)
         {
             var result = new List<AccntGenerateInvoiceDto>();
             var getClubs = await GetClubs();
             foreach (var club in getClubs)
             {
                 DateTime date;
-                if (DateTime.TryParse(accountingGenerateInvoiceDto.date.ToString(), out date))
+                if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
                 {
-
                     var GetAnalytics = _dbContext.Locations
                     .Where(location => location.LocationCode == club)
                     .GroupJoin(
@@ -2029,7 +2183,7 @@ namespace CSI.Application.Services
                             .Where(analytics =>
                                 analytics.TransactionDate.Value == date.Date &&
                                 analytics.DeleteFlag == false &&
-                                analytics.CustomerId.Contains(accountingGenerateInvoiceDto.memCode)),
+                                analytics.CustomerId.Contains(generateA0FileDto.analyticsParamsDto.memCode[0])),
                         location => location.LocationCode,
                         analytics => analytics.LocationId,
                         (location, analyticsGroup) => new { location, analyticsGroup }
@@ -2042,17 +2196,16 @@ namespace CSI.Application.Services
                             CustomerId = analytics != null ? analytics.CustomerId : null,
                             Date = date,
                             Location = x.location.LocationName,
+                            LocationId = x.location.LocationCode,
                             SubmitStatus = analytics != null ? analytics.StatusId : 0,
+                            IsGenerated = analytics.IsGenerate
                         }
                     )
                     .FirstOrDefault();
-
-
                     result.Add(GetAnalytics);
                 }
-
             }
-            
+
             return result;
         }
     }

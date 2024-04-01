@@ -13,5 +13,7 @@ namespace CSI.Application.DTOs
         public DateTime? Date { get; set; }
         public string Location { get; set; } = string.Empty;
         public int SubmitStatus { get; set; }
+        public int? LocationId { get; set; }
+        public bool? IsGenerated { get; set; }
     }
 }
