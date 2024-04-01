@@ -328,9 +328,9 @@ namespace CSI.Application.Services
                                 $"     FROM tbl_analytics n " +
                                 $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                                 $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                                $" ) a " +
                                 $" WHERE  " +
-                                $"      (CAST(a.TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND a.LocationId = {analyticsParamsDto.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0 ) " +
+                                $"      (CAST(TransactionDate AS DATE) = '{analyticsParamsDto.dates[0].ToString()}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 ) " +
+                                $" ) a " +
                                 $" GROUP BY  " +
                                 $"     a.OrderNo,    " +
                                 $"     ABS(a.SubTotal),  " +
