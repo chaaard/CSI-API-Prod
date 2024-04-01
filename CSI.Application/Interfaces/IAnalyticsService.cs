@@ -26,11 +26,11 @@ namespace CSI.Application.Interfaces
         Task<bool> DeleteAnalytics(int id);
         Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         bool CheckFolderPath(string path);
-        Task<(string, bool, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
+        Task<(string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
         Task<bool> RevertAnalytics(int id);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
-        Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(AccountingGenerateInvoiceDto accountingGenerateInvoiceDto);
+        Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
     }
 }
