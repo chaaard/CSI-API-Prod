@@ -21,11 +21,11 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("UploadProofList")]
-        public async Task<IActionResult> UploadProofList(List<IFormFile> files, [FromForm] string customerName, [FromForm] string strClub, [FromForm] string selectedDate)
+        public async Task<IActionResult> UploadProofList(List<IFormFile> files, [FromForm] string customerName, [FromForm] string strClub, [FromForm] string selectedDate, [FromForm] string analyticsParamsDto)
         {
             try
             {
-                var result =  await _proofListService.ReadProofList(files, customerName, strClub, selectedDate);
+                var result =  await _proofListService.ReadProofList(files, customerName, strClub, selectedDate, analyticsParamsDto);
                 return Ok(result);
             }
             catch (OperationCanceledException)

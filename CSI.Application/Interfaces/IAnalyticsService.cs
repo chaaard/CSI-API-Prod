@@ -26,7 +26,7 @@ namespace CSI.Application.Interfaces
         Task<bool> DeleteAnalytics(int id);
         Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         bool CheckFolderPath(string path);
-        Task<(string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
+        Task<(string, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
         Task<bool> RevertAnalytics(int id);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);

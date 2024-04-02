@@ -1651,7 +1651,7 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<(string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto)
+        public async Task<(string, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto)
         {
             try
             {
@@ -1678,7 +1678,7 @@ namespace CSI.Application.Services
 
                     if (getSubmittedInvoice.Count() == 0)
                     {
-                        return ("Error generating invoice. Please check and try again.", fileName);
+                        return ("Error generating invoice. Please check and try again.", fileName, "");
                     }
 
                     foreach (var item in getSubmittedInvoice)
@@ -1870,11 +1870,11 @@ namespace CSI.Application.Services
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     File.WriteAllText(filePath, content.ToString());
 
-                    return ("Invoice Generated Successfully", fileName);
+                    return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
                 else
                 {
-                    return ("Error generating invoice. Please check and try again.", fileName);
+                    return ("Error generating invoice. Please check and try again.", fileName, "");
                 }
             }
             catch (Exception)

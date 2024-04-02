@@ -273,6 +273,7 @@ namespace CSI.API.Controllers
                 {
                     Message = result.Item1,
                     FileName = result.Item2,
+                    Content = result.Item3,
                 };
 
                 return (Ok(data));
