@@ -16,26 +16,34 @@ using System.Security.Cryptography.X509Certificates;
 using CSI.Application.DTOs;
 using AutoMapper.Configuration.Annotations;
 using EFCore.BulkExtensions;
+using Newtonsoft.Json;
 
 namespace CSI.Application.Services
 {
     public class ProofListService : IProofListService
     {
         private readonly AppDBContext _dbContext;
+        private readonly IAnalyticsService _iAnalyticsService;
 
-        public ProofListService(AppDBContext dBContext)
+        public ProofListService(AppDBContext dBContext, IAnalyticsService iAnalyticsService)
         {
             _dbContext = dBContext;
             _dbContext.Database.SetCommandTimeout(999);
-
+            _iAnalyticsService = iAnalyticsService;
         }
 
-        public async Task<(List<Prooflist>?, string?)> ReadProofList(List<IFormFile> files, string customerName, string strClub, string selectedDate)
+        public async Task<(List<Prooflist>?, string?)> ReadProofList(List<IFormFile> files, string customerName, string strClub, string selectedDate, string analyticsParamsDto)
         {
             int row = 2;
             int rowCount = 0;
             var club = Convert.ToInt32(strClub);
             var proofList = new List<Prooflist>();
+            var param = new AnalyticsParamsDto();
+
+            if (analyticsParamsDto != null)
+            {
+                 param = JsonConvert.DeserializeObject<AnalyticsParamsDto>(analyticsParamsDto);
+            }
 
             Dictionary<string, string> customers = new Dictionary<string, string>
             {
@@ -254,7 +262,6 @@ namespace CSI.Application.Services
 
                 if (DataExistsInDatabase(proofList))
                 {
-
                     customers.TryGetValue(customerName, out string value);
                     var convertDate = GetDateTime(selectedDate);
                     DeleteRecords(club, convertDate, value);
@@ -262,8 +269,10 @@ namespace CSI.Application.Services
 
                 if (proofList != null)
                 {
-                    _dbContext.Prooflist.AddRange(proofList);
-                    _dbContext.SaveChanges();
+                    await _dbContext.Prooflist.AddRangeAsync(proofList);
+                    await _dbContext.SaveChangesAsync();
+                    await _iAnalyticsService.UpdateUploadStatus(param);
+
                     return (proofList, "Success");
                 }
                 else
