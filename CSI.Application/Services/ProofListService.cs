@@ -464,26 +464,33 @@ namespace CSI.Application.Services
                         {
                             chktransactionDate = transactionDate.Value.Date;
                         }
-                        var cnvrtDate = GetDateTime(selectedDate);
-                        if (cnvrtDate == chktransactionDate)
+
+                        var convertDate = GetDateTime(selectedDate);
+                        if (convertDate == chktransactionDate)
                         {
-                            var prooflist = new Prooflist
+                            if (transactionDate != null)
                             {
-                                CustomerId = customerName == "PickARooMerch" ? "9999011931" : "9999011935",
-                                TransactionDate = transactionDate,
-                                OrderNo = worksheet.Cells[row, columnIndexes["order number"]].Value?.ToString(),
-                                NonMembershipFee = (decimal?)0.00,
-                                PurchasedAmount = (decimal?)0.00,
-                                Amount = worksheet.Cells[row, columnIndexes["amount"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["amount"]].Value?.ToString()) : null,
-                                StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" ? 4 : null,
-                                StoreId = club,
-                                DeleteFlag = false,
-                            };
-                            pickARooProofList.Add(prooflist);
-                        }
-                        else
-                        {
-                            return (pickARooProofList, "Uploaded file transaction dates do not match.");
+                                if (convertDate == chktransactionDate)
+                                {
+                                    var prooflist = new Prooflist
+                                    {
+                                        CustomerId = customerName == "PickARooMerch" ? "9999011931" : "9999011935",
+                                        TransactionDate = transactionDate,
+                                        OrderNo = worksheet.Cells[row, columnIndexes["order number"]].Value?.ToString(),
+                                        NonMembershipFee = (decimal?)0.00,
+                                        PurchasedAmount = (decimal?)0.00,
+                                        Amount = worksheet.Cells[row, columnIndexes["amount"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["amount"]].Value?.ToString()) : null,
+                                        StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" ? 4 : null,
+                                        StoreId = club,
+                                        DeleteFlag = false,
+                                    };
+                                    pickARooProofList.Add(prooflist);
+                                }
+                                else
+                                {
+                                    return (pickARooProofList, "Uploaded file transaction dates do not match.");
+                                }
+                            }
                         }
                     }
                 }
@@ -640,26 +647,33 @@ namespace CSI.Application.Services
                         {
                             chktransactionDate = transactionDate.Value.Date;
                         }
-                        var cnvrtDate = GetDateTime(selectedDate);
-                        if (cnvrtDate == chktransactionDate)
+
+                        var convertDate = GetDateTime(selectedDate);
+                        if (convertDate == chktransactionDate)
                         {
-                            var prooflist = new Prooflist
+                            if (transactionDate != null)
                             {
-                                CustomerId = "9999011855",
-                                TransactionDate = transactionDate,
-                                OrderNo = worksheet.Cells[row, columnIndexes["jo #"]].Value?.ToString(),
-                                NonMembershipFee = NonMembershipFee,
-                                PurchasedAmount = PurchasedAmount,
-                                Amount = NonMembershipFee + PurchasedAmount,
-                                StatusId = worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Cancelled" ? 4 : null,
-                                StoreId = club,
-                                DeleteFlag = false,
-                            };
-                            metroMartProofList.Add(prooflist);
-                        }
-                        else
-                        {
-                            return (metroMartProofList, "Uploaded file transaction dates do not match.");
+                                if (convertDate == chktransactionDate)
+                                {
+                                    var prooflist = new Prooflist
+                                    {
+                                        CustomerId = "9999011855",
+                                        TransactionDate = transactionDate,
+                                        OrderNo = worksheet.Cells[row, columnIndexes["jo #"]].Value?.ToString(),
+                                        NonMembershipFee = NonMembershipFee,
+                                        PurchasedAmount = PurchasedAmount,
+                                        Amount = NonMembershipFee + PurchasedAmount,
+                                        StatusId = worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Cancelled" ? 4 : null,
+                                        StoreId = club,
+                                        DeleteFlag = false,
+                                    };
+                                    metroMartProofList.Add(prooflist);
+                                }
+                                else
+                                {
+                                    return (metroMartProofList, "Uploaded file transaction dates do not match.");
+                                }
+                            }
                         }
                     }
                 }
@@ -807,27 +821,35 @@ namespace CSI.Application.Services
                             chktransactionDate = transactionDate.Value.Date;
                         }
                         var cnvrtDate = GetDateTime(selectedDate);
-                        if (cnvrtDate == chktransactionDate)
-                        {
-                            var metroMart = new Prooflist
-                            {
-                                CustomerId = "9999011855",
-                                TransactionDate = transactionDate,
-                                OrderNo = fields[columnIndexes["jo #"]],
-                                NonMembershipFee = NonMembershipFee,
-                                PurchasedAmount = PurchasedAmount,
-                                Amount = amount,
-                                StatusId = fields[columnIndexes["jo delivery status"]] == "Completed" || fields[columnIndexes["jo delivery status"]] == "Delivered" || fields[columnIndexes["jo delivery status"]] == "Transferred" ? 3 : fields[columnIndexes["jo delivery status"]] == "Cancelled" ? 4 : null,
-                                StoreId = club,
-                                DeleteFlag = false,
-                            };
 
-                            metroMartProofLists.Add(metroMart);
-                            rowCount++;
-                        }
-                        else
+                        var convertDate = GetDateTime(selectedDate);
+                        if (convertDate == chktransactionDate)
                         {
-                            return (metroMartProofLists, "Uploaded file transaction dates do not match.");
+                            if (transactionDate != null)
+                            {
+                                if (convertDate == chktransactionDate)
+                                {
+                                    var metroMart = new Prooflist
+                                    {
+                                        CustomerId = "9999011855",
+                                        TransactionDate = transactionDate,
+                                        OrderNo = fields[columnIndexes["jo #"]],
+                                        NonMembershipFee = NonMembershipFee,
+                                        PurchasedAmount = PurchasedAmount,
+                                        Amount = amount,
+                                        StatusId = fields[columnIndexes["jo delivery status"]] == "Completed" || fields[columnIndexes["jo delivery status"]] == "Delivered" || fields[columnIndexes["jo delivery status"]] == "Transferred" ? 3 : fields[columnIndexes["jo delivery status"]] == "Cancelled" ? 4 : null,
+                                        StoreId = club,
+                                        DeleteFlag = false,
+                                    };
+
+                                    metroMartProofLists.Add(metroMart);
+                                    rowCount++;
+                                }
+                                else
+                                {
+                                    return (metroMartProofLists, "Uploaded file transaction dates do not match.");
+                                }
+                            }
                         }
                     }
                 }
@@ -889,28 +911,35 @@ namespace CSI.Application.Services
                         {
                             chktransactionDate = transactionDate.Value.Date;
                         }
-                        var cnvrtDate = GetDateTime(selectedDate);
-                        if (cnvrtDate == chktransactionDate)
-                        {
-                            var pickARoo = new Prooflist
-                            {
-                                CustomerId = customerName == "PickARooMerch" ? "9999011931" : "9999011935",
-                                TransactionDate = fields[columnIndexes["order date"]].ToString() != "" ? GetDateTime(fields[columnIndexes["order date"]]) : null,
-                                OrderNo = fields[columnIndexes["order number"]], 
-                                NonMembershipFee = (decimal?)0.00,
-                                PurchasedAmount = (decimal?)0.00,
-                                Amount = fields[columnIndexes["amount"]] != "" ? decimal.Parse(fields[columnIndexes["amount"]]) : (decimal?)0.00, 
-                                StatusId = fields[columnIndexes["order status"]] == "Completed" || fields[columnIndexes["order status"]] == "Delivered" || fields[columnIndexes["order status"]] == "Transferred" ? 3 : fields[columnIndexes["order status"]] == "Cancelled" ? 4 : null,
-                                StoreId = club,
-                                DeleteFlag = false,
-                            };
 
-                            pickARooProofLists.Add(pickARoo);
-                            rowCount++;
-                        }
-                        else
+                        var convertDate = GetDateTime(selectedDate);
+                        if (convertDate == chktransactionDate)
                         {
-                            return (pickARooProofLists, "Uploaded file transaction dates do not match.");
+                            if (transactionDate != null)
+                            {
+                                if (convertDate == chktransactionDate)
+                                {
+                                    var pickARoo = new Prooflist
+                                    {
+                                        CustomerId = customerName == "PickARooMerch" ? "9999011931" : "9999011935",
+                                        TransactionDate = fields[columnIndexes["order date"]].ToString() != "" ? GetDateTime(fields[columnIndexes["order date"]]) : null,
+                                        OrderNo = fields[columnIndexes["order number"]],
+                                        NonMembershipFee = (decimal?)0.00,
+                                        PurchasedAmount = (decimal?)0.00,
+                                        Amount = fields[columnIndexes["amount"]] != "" ? decimal.Parse(fields[columnIndexes["amount"]]) : (decimal?)0.00,
+                                        StatusId = fields[columnIndexes["order status"]] == "Completed" || fields[columnIndexes["order status"]] == "Delivered" || fields[columnIndexes["order status"]] == "Transferred" ? 3 : fields[columnIndexes["order status"]] == "Cancelled" ? 4 : null,
+                                        StoreId = club,
+                                        DeleteFlag = false,
+                                    };
+
+                                    pickARooProofLists.Add(pickARoo);
+                                    rowCount++;
+                                }
+                                else
+                                {
+                                    return (pickARooProofLists, "Uploaded file transaction dates do not match.");
+                                }
+                            }
                         }
                     }
                 }
