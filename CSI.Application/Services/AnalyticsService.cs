@@ -402,6 +402,10 @@ namespace CSI.Application.Services
                 List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
                 DateTime date;
                 var matchDtos = new List<MatchDto>();
+                var uniqueMatches = new List<Match>();
+                var duplicateMatches = new List<Match>();
+                var formatDupes = new List<MatchDto>();
+                var orderedResult = new List<MatchDto>();
                 if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
                 {
                     var result = await _dbContext.Match
@@ -486,7 +490,32 @@ namespace CSI.Application.Services
                            $"ORDER BY COALESCE(p.Id, a.Id) DESC; ")
                    .ToListAsync();
 
-                    matchDtos = result.Select(m => new MatchDto
+                    var groupedByOrderNo = result.GroupBy(m => m.AnalyticsOrderNo);
+                    foreach (var group in groupedByOrderNo)
+                    {
+                        if (group.Count() > 1)
+                        {
+                            duplicateMatches.AddRange(group.Skip(1)); // Add duplicates to the duplicateMatches list
+                        }
+                        uniqueMatches.Add(group.First()); // Add the first item (unique) to the uniqueMatches list
+                    }
+
+                    formatDupes = duplicateMatches.Select(n => new MatchDto
+                    {
+                        AnalyticsId = n.AnalyticsId,
+                        AnalyticsPartner = n.AnalyticsPartner,
+                        AnalyticsLocation = n.AnalyticsLocation,
+                        AnalyticsTransactionDate = n.AnalyticsTransactionDate,
+                        AnalyticsOrderNo = n.AnalyticsOrderNo,
+                        AnalyticsAmount = n.AnalyticsAmount,
+                        ProofListId = null,
+                        ProofListTransactionDate = null,
+                        ProofListOrderNo = null,
+                        ProofListAmount = null,
+                        Variance = n.AnalyticsAmount,
+                    }).ToList();
+
+                    matchDtos = uniqueMatches.Select(m => new MatchDto
                     {
                         AnalyticsId = m.AnalyticsId,
                         AnalyticsPartner = m.AnalyticsPartner,
@@ -500,9 +529,15 @@ namespace CSI.Application.Services
                         ProofListAmount = m.ProofListAmount,
                         Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
                     }).ToList();
+
+                    matchDtos.AddRange(formatDupes);
+                    orderedResult = matchDtos
+                        .OrderByDescending(m => m.AnalyticsAmount == null)
+                        .ThenByDescending(m => m.ProofListAmount == null)
+                        .ToList();
                 }
 
-                return matchDtos;
+                return orderedResult;
             }
             catch (Exception ex)
             {
@@ -844,6 +879,11 @@ namespace CSI.Application.Services
             {
                 DateTime date;
                 var matchDto = new List<MatchDto>();
+                var matchDtos = new List<MatchDto>();
+                var uniqueMatches = new List<Match>();
+                var duplicateMatches = new List<Match>();
+                var formatDupes = new List<MatchDto>();
+                var orderedResult = new List<MatchDto>();
                 List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
                 if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
                 {
@@ -929,7 +969,32 @@ namespace CSI.Application.Services
                             $"ORDER BY COALESCE(p.Id, a.Id) DESC; ")
                     .ToListAsync();
 
-                    var matchDtos = result.Select(m => new MatchDto
+                    var groupedByOrderNo = result.GroupBy(m => m.AnalyticsOrderNo);
+                    foreach (var group in groupedByOrderNo)
+                    {
+                        if (group.Count() > 1)
+                        {
+                            duplicateMatches.AddRange(group.Skip(1));
+                        }
+                        uniqueMatches.Add(group.First());
+                    }
+
+                    formatDupes = duplicateMatches.Select(n => new MatchDto
+                    {
+                        AnalyticsId = n.AnalyticsId,
+                        AnalyticsPartner = n.AnalyticsPartner,
+                        AnalyticsLocation = n.AnalyticsLocation,
+                        AnalyticsTransactionDate = n.AnalyticsTransactionDate,
+                        AnalyticsOrderNo = n.AnalyticsOrderNo,
+                        AnalyticsAmount = n.AnalyticsAmount,
+                        ProofListId = null,
+                        ProofListTransactionDate = null,
+                        ProofListOrderNo = null,
+                        ProofListAmount = null,
+                        Variance = n.AnalyticsAmount,
+                    }).ToList();
+
+                    matchDtos = uniqueMatches.Select(m => new MatchDto
                     {
                         AnalyticsId = m.AnalyticsId,
                         AnalyticsPartner = m.AnalyticsPartner,
@@ -945,7 +1010,13 @@ namespace CSI.Application.Services
                         IsUpload = Convert.ToBoolean(m.IsUpload),
                     }).ToList();
 
-                    matchDto = matchDtos
+                    matchDtos.AddRange(formatDupes);
+                    orderedResult = matchDtos
+                        .OrderByDescending(m => m.AnalyticsAmount == null)
+                        .ThenByDescending(m => m.ProofListAmount == null)
+                        .ToList();
+
+                    matchDto = orderedResult
                         .Where(x => x.ProofListId == null || x.AnalyticsId == null || x.Variance <= -1 || x.Variance >= 1)
                         .ToList();
                 }
