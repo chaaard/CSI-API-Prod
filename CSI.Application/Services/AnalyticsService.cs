@@ -1965,22 +1965,13 @@ namespace CSI.Application.Services
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     File.WriteAllText(filePath, content.ToString());
 
-                    string batchFilePath = generateA0FileDto.BatFilePath + " " + fileName;
+                    string batchFilePath = generateA0FileDto.BatFilePath;
 
-                    ProcessStartInfo processStartInfo = new ProcessStartInfo
-                    {
-                        FileName = batchFilePath,
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
+                    var processStartInfo = new Process();
 
-                    Process process = new Process
-                    {
-                        StartInfo = processStartInfo
-                    };
-                    process.Start();
-                    process.WaitForExit();
+                    processStartInfo.StartInfo.FileName = batchFilePath;
+                    processStartInfo.StartInfo.Arguments = fileName;
+                    processStartInfo.Start();
 
                     return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
