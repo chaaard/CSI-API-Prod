@@ -16,6 +16,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CSI.Application.Services
 {
@@ -404,8 +405,8 @@ namespace CSI.Application.Services
                 List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
                 DateTime date;
                 var matchDtos = new List<MatchDto>();
-                var uniqueMatches = new List<Match>();
-                var duplicateMatches = new List<Match>();
+                var uniqueMatches = new List<CSI.Domain.Entities.Match>();
+                var duplicateMatches = new List<CSI.Domain.Entities.Match>();
                 var formatDupes = new List<MatchDto>();
                 var orderedResult = new List<MatchDto>();
                 if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
@@ -882,8 +883,8 @@ namespace CSI.Application.Services
                 DateTime date;
                 var matchDto = new List<MatchDto>();
                 var matchDtos = new List<MatchDto>();
-                var uniqueMatches = new List<Match>();
-                var duplicateMatches = new List<Match>();
+                var uniqueMatches = new List<CSI.Domain.Entities.Match>();
+                var duplicateMatches = new List<CSI.Domain.Entities.Match>();
                 var formatDupes = new List<MatchDto>();
                 var orderedResult = new List<MatchDto>();
                 List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
@@ -1900,9 +1901,9 @@ namespace CSI.Application.Services
                                 FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
                             };
 
-                            var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
-                            _dbContext.GenerateInvoice.Add(genInvoice);
-                            await _dbContext.SaveChangesAsync();
+                            //var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                            //_dbContext.GenerateInvoice.Add(genInvoice);
+                            //await _dbContext.SaveChangesAsync();
 
                             var param1 = new GenerateA0FileDto
                             {
@@ -1923,8 +1924,8 @@ namespace CSI.Application.Services
                                     analyticsDto.IsGenerate = true;
                                 });
 
-                                _dbContext.BulkUpdate(getAnalytics);
-                                await _dbContext.SaveChangesAsync();
+                                //_dbContext.BulkUpdate(getAnalytics);
+                                //await _dbContext.SaveChangesAsync();
                             }
                         }
                     }
@@ -1963,15 +1964,23 @@ namespace CSI.Application.Services
                     }
 
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
-                    File.WriteAllText(filePath, content.ToString());
+                    await File.WriteAllTextAsync(filePath, content.ToString());
+
 
                     string batchFilePath = generateA0FileDto.BatFilePath;
 
-                    var processStartInfo = new Process();
+                    string batchFileContent = File.ReadAllText(batchFilePath);
+                    string pattern = @"A01MoveTool.exe\s+(.*?)$";
+                    System.Text.RegularExpressions.Match match = Regex.Match(batchFileContent, pattern, RegexOptions.Multiline);
 
-                    processStartInfo.StartInfo.FileName = batchFilePath;
-                    processStartInfo.StartInfo.Arguments = fileName;
-                    processStartInfo.Start();
+                    if (match.Success)
+                    {
+                        string dynamicValue = match.Groups[1].Value;
+                        string newDynamicValue = fileName;
+                        string newBatchFileContent = Regex.Replace(batchFileContent, pattern, $"A01MoveTool.exe {newDynamicValue}");
+                        await File.WriteAllTextAsync(batchFilePath, newBatchFileContent);
+                        ExecuteBatchFile(batchFilePath);
+                    }
 
                     return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
@@ -1985,6 +1994,13 @@ namespace CSI.Application.Services
 
                 throw;
             }
+        }
+
+        static void ExecuteBatchFile(string filePath)
+        {
+            Process process = new Process();
+            process.StartInfo.FileName = filePath;
+            process.Start();
         }
 
         public string FormatDate(DateTime? value)
