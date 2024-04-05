@@ -1966,21 +1966,6 @@ namespace CSI.Application.Services
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     await File.WriteAllTextAsync(filePath, content.ToString());
 
-                    string batchFilePath = generateA0FileDto.BatFilePath;
-
-                    string batchFileContent = File.ReadAllText(batchFilePath);
-                    string pattern = @"A01MoveTool.exe\s+(.*?)$";
-                    System.Text.RegularExpressions.Match match = Regex.Match(batchFileContent, pattern, RegexOptions.Multiline);
-
-                    if (match.Success)
-                    {
-                        string dynamicValue = match.Groups[1].Value;
-                        string newDynamicValue = fileName;
-                        string newBatchFileContent = Regex.Replace(batchFileContent, pattern, $"A01MoveTool.exe {newDynamicValue}");
-                        await File.WriteAllTextAsync(batchFilePath, newBatchFileContent);
-                        ExecuteBatchFile(batchFilePath);
-                    }
-
                     return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
                 else
