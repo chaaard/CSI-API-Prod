@@ -1901,9 +1901,9 @@ namespace CSI.Application.Services
                                 FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
                             };
 
-                            //var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
-                            //_dbContext.GenerateInvoice.Add(genInvoice);
-                            //await _dbContext.SaveChangesAsync();
+                            var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                            _dbContext.GenerateInvoice.Add(genInvoice);
+                            await _dbContext.SaveChangesAsync();
 
                             var param1 = new GenerateA0FileDto
                             {
@@ -1924,8 +1924,8 @@ namespace CSI.Application.Services
                                     analyticsDto.IsGenerate = true;
                                 });
 
-                                //_dbContext.BulkUpdate(getAnalytics);
-                                //await _dbContext.SaveChangesAsync();
+                                _dbContext.BulkUpdate(getAnalytics);
+                                await _dbContext.SaveChangesAsync();
                             }
                         }
                     }
