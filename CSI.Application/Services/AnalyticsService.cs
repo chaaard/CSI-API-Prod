@@ -1966,7 +1966,6 @@ namespace CSI.Application.Services
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     await File.WriteAllTextAsync(filePath, content.ToString());
 
-
                     string batchFilePath = generateA0FileDto.BatFilePath;
 
                     string batchFileContent = File.ReadAllText(batchFilePath);
