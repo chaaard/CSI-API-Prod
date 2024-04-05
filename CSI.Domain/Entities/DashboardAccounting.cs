@@ -16,6 +16,5 @@ namespace CSI.Domain.Entities
         public int? FoodPanda { get; set; }
         public int? MetroMart { get; set; }
         public int? LocationCode { get; set; }
-        public bool? IsGenerated { get; set; }
     }
 }
