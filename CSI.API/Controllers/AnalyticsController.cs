@@ -322,5 +322,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("DashboardAccounting")]
+        public async Task<IActionResult> DashboardAccounting(GenerateA0FileDto generateA0FileDto)
+        {
+            var result = await _analyticsService.DashboardAccounting(generateA0FileDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }

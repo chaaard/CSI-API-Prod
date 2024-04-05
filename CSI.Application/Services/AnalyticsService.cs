@@ -9,9 +9,11 @@ using EFCore.BulkExtensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -1367,7 +1369,7 @@ namespace CSI.Application.Services
                         $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                         $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                         $"     WHERE  " +
-                        $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 ) " +
+                        $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.StatusId = 3) " +
                         $" ) a " +
                         $" GROUP BY  " +
                         $"     a.OrderNo,    " +
@@ -1399,6 +1401,29 @@ namespace CSI.Application.Services
 
                 if (result.Any())
                 {
+                    var GetCustomerNo = result
+                            .GroupJoin(
+                                _dbContext.CustomerCodes,
+                                x => x.CustomerId,
+                                y => y.CustomerCode,
+                                (x, y) => new { x, y }
+                            )
+                            .SelectMany(
+                                group => group.y,
+                                (group, y) => y.CustomerNo
+                            )
+                            .FirstOrDefault();
+
+                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
+
+                    var getReference = await _dbContext.Reference
+                       .Where(x => x.CustomerNo == formatCustomerNo)
+                       .Select(n => new
+                       {
+                           n.MerchReference,
+                       })
+                       .FirstOrDefaultAsync();
+
                     var summary = result
                     .GroupBy(r => r.TransactionDate?.Date) // Use ?.Date to handle nullable DateTime?
                     .Select(group => new RecapSummaryDto
@@ -1409,7 +1434,7 @@ namespace CSI.Application.Services
                         NOOFTRX = group.Count(),
                         PERIINVOICEENTRY = group.Sum(r => r.SubTotal),
                         VARIANCE = 0, // Calculate the variance as needed
-                        REMARKS = $"GEI{analyticsParamsDto.storeId[0]}{(group.Key?.ToString("MMddyy") ?? "N/A")}-{group.Count()}" // Use ?.ToString("MMdd") to handle nullable DateTime?
+                        REMARKS = $"{getReference.MerchReference}{analyticsParamsDto.storeId[0]}{(group.Key?.ToString("MMddyy") ?? "N/A")}-{group.Count()}" // Use ?.ToString("MMdd") to handle nullable DateTime?
                     })
                     .ToList();
 
@@ -1937,9 +1962,25 @@ namespace CSI.Application.Services
                         content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{format.FILENAME}|");
                     }
 
-                    // Write content to file
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     File.WriteAllText(filePath, content.ToString());
+
+                    string batchFilePath = generateA0FileDto.BatFilePath + " " + fileName;
+
+                    ProcessStartInfo processStartInfo = new ProcessStartInfo
+                    {
+                        FileName = batchFilePath,
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    Process process = new Process
+                    {
+                        StartInfo = processStartInfo
+                    };
+                    process.Start();
+                    process.WaitForExit();
 
                     return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
@@ -2279,5 +2320,46 @@ namespace CSI.Application.Services
 
             return result;
         }
+        public async Task<List<DashboardAccounting>> DashboardAccounting(GenerateA0FileDto generateA0FileDto)
+        {
+            var result = new List<DashboardAccounting>();
+            var getClubs = await GetClubs();
+            var formatClubs = string.Join(", ", getClubs);
+            DateTime date;
+            if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
+            {
+                result = await _dbContext.DashboardAccounting
+                 .FromSqlRaw($"SELECT  " +    
+                     $"      l.LocationName,  " +       
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011955' THEN a.StatusId ELSE NULL END) AS GrabMart,   " +     
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011929' THEN a.StatusId ELSE NULL END) AS GrabFood,      " +   
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011931' THEN a.StatusId ELSE NULL END) AS [PickARooMerch],     " +   
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011935' THEN a.StatusId ELSE NULL END) AS [PickARooFS],  " +     
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011838' THEN a.StatusId ELSE NULL END) AS [FoodPanda],  " +     
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011855' THEN a.StatusId ELSE NULL END) AS MetroMart, " +   
+                     $"       loc.LocationCode " +   
+                     $"   FROM ( " +   
+                     $"       SELECT LocationCode " +   
+                     $"       FROM tbl_location " +   
+                     $"       WHERE LocationCode IN ({formatClubs}) " +   
+                     $"   ) loc " +   
+                     $"   LEFT JOIN ( " +   
+                     $"       SELECT DISTINCT LocationId, CustomerId, StatusId, TransactionDate, DeleteFlag " +   
+                     $"       FROM tbl_analytics " +   
+                     $"       WHERE CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' " +   
+                     $"           AND CustomerId IN ('9999011955', '9999011929', '9999011931', '9999011935', '9999011838', '9999011855') " +   
+                     $"           AND DeleteFlag = 0 " +   
+                     $"   ) a ON loc.LocationCode = a.LocationId " +   
+                     $"   LEFT JOIN tbl_location l ON l.LocationCode = loc.LocationCode " +   
+                     $"   GROUP BY  " +   
+                     $"       l.LocationName, loc.LocationCode  " +   
+                     $"   ORDER BY  " +   
+                     $"       loc.LocationCode ASC;") 
+                 .ToListAsync();
+            }
+
+            return result;
+        }
+
     }
 }

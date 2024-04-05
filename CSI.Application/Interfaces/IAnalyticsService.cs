@@ -32,5 +32,6 @@ namespace CSI.Application.Interfaces
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
+        Task<List<DashboardAccounting>> DashboardAccounting(GenerateA0FileDto generateA0FileDto);
     }
 }

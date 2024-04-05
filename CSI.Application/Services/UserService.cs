@@ -60,7 +60,7 @@ namespace CSI.Application.Services
                                 FirstName = result.FirstName,
                                 LastName = result.LastName,
                                 Username = result.Username,
-                                IsLogin = result.IsLogin,
+                                IsLogin = false,
                                 RoleId = result.RoleId,
                                 Club = result.Club,
                                 Token = Token,

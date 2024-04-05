@@ -9,6 +9,7 @@ namespace CSI.Application.DTOs
     public class GenerateA0FileDto
     {
         public string? Path { get; set; } = string.Empty;
+        public string? BatFilePath { get; set; } = string.Empty;
         public AnalyticsParamsDto? analyticsParamsDto { get; set; }
     }
 }
