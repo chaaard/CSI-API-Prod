@@ -33,6 +33,7 @@ namespace CSI.Infrastructure.Data
             AdjustmentExceptions = Set<AdjustmentExceptions>();
             GenerateInvoice = Set<GenerateInvoice>();
             Reference = Set<Reference>();
+            DashboardAccounting = Set<DashboardAccounting>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -53,6 +54,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AdjustmentExceptions> AdjustmentExceptions { get; set; }
         public DbSet<GenerateInvoice> GenerateInvoice { get; set; }
         public DbSet<Reference> Reference { get; set; }
+        public DbSet<DashboardAccounting> DashboardAccounting { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -96,6 +98,9 @@ namespace CSI.Infrastructure.Data
             .HasNoKey();
 
             modelBuilder.Entity<AdjustmentExceptions>()
+            .HasNoKey();
+
+            modelBuilder.Entity<DashboardAccounting>()
             .HasNoKey();
 
             modelBuilder.Entity<Roles>()
