@@ -49,7 +49,7 @@ namespace CSI.Application.Services
 
                         if (result.Hash == HashedPassword)
                         {
-                            result.IsLogin = true;
+                            result.IsLogin = false;
                             _ = await _dbContext.SaveChangesAsync();
 
                             Token = _jwtService.GenerateToken(result);
@@ -60,7 +60,7 @@ namespace CSI.Application.Services
                                 FirstName = result.FirstName,
                                 LastName = result.LastName,
                                 Username = result.Username,
-                                IsLogin = false,
+                                IsLogin = true,
                                 RoleId = result.RoleId,
                                 Club = result.Club,
                                 Token = Token,

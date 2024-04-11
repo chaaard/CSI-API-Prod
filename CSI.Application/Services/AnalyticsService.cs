@@ -496,9 +496,12 @@ namespace CSI.Application.Services
                     var groupedByOrderNo = result.GroupBy(m => m.AnalyticsOrderNo);
                     foreach (var group in groupedByOrderNo)
                     {
-                        if (group.Count() > 1)
+                        if (group.Key != null)
                         {
-                            duplicateMatches.AddRange(group.Skip(1)); // Add duplicates to the duplicateMatches list
+                            if (group.Count() > 1)
+                            {
+                                duplicateMatches.AddRange(group.Skip(1)); // Add duplicates to the duplicateMatches list
+                            }
                         }
                         uniqueMatches.Add(group.First()); // Add the first item (unique) to the uniqueMatches list
                     }
