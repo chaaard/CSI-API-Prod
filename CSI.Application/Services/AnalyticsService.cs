@@ -2307,6 +2307,7 @@ namespace CSI.Application.Services
                             IsGenerated = analytics.IsGenerate
                         }
                     )
+                    .OrderBy( x => x.SubmitStatus)
                     .FirstOrDefault();
                     result.Add(GetAnalytics);
                 }
