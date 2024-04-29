@@ -398,7 +398,7 @@ namespace CSI.Application.Services
                                 NonMembershipFee = (decimal?)0.00,
                                 PurchasedAmount = (decimal?)0.00,
                                 Amount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : null,
-                                StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : null,
+                                StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
                                 StoreId = club,
                                 DeleteFlag = false,
                             };
@@ -480,7 +480,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = (decimal?)0.00,
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = worksheet.Cells[row, columnIndexes["amount"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["amount"]].Value?.ToString()) : null,
-                                        StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" ? 4 : null,
+                                        StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
@@ -577,7 +577,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = (decimal?)0.00,
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = worksheet.Cells[row, columnIndexes["subtotal"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["subtotal"]].Value?.ToString()) : null,
-                                        StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" && worksheet.Cells[row, columnIndexes["is payable"]].Value.ToString() == "yes" ? 3 : null,
+                                        StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" && worksheet.Cells[row, columnIndexes["is payable"]].Value.ToString() == "yes" ? 3 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
@@ -663,7 +663,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = NonMembershipFee,
                                         PurchasedAmount = PurchasedAmount,
                                         Amount = NonMembershipFee + PurchasedAmount,
-                                        StatusId = worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Cancelled" ? 4 : null,
+                                        StatusId = worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
@@ -746,7 +746,7 @@ namespace CSI.Application.Services
                                 NonMembershipFee = (decimal?)0.00,
                                 PurchasedAmount = (decimal?)0.00,
                                 Amount = fields[columnIndexes["net sales"]] != "" ? decimal.Parse(fields[columnIndexes["net sales"]]) : (decimal?)0.00,
-                                StatusId = fields[columnIndexes["status"]] == "Completed" || fields[columnIndexes["status"]] == "Delivered" || fields[columnIndexes["status"]] == "Transferred" ? 3 : fields[columnIndexes["status"]] == "Cancelled" ? 4 : null,
+                                StatusId = fields[columnIndexes["status"]] == "Completed" || fields[columnIndexes["status"]] == "Delivered" || fields[columnIndexes["status"]] == "Transferred" ? 3 : fields[columnIndexes["status"]] == "Cancelled" ? 4 : 3,
                                 StoreId = club,
                                 DeleteFlag = false,
                             };
@@ -837,7 +837,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = NonMembershipFee,
                                         PurchasedAmount = PurchasedAmount,
                                         Amount = amount,
-                                        StatusId = fields[columnIndexes["jo delivery status"]] == "Completed" || fields[columnIndexes["jo delivery status"]] == "Delivered" || fields[columnIndexes["jo delivery status"]] == "Transferred" ? 3 : fields[columnIndexes["jo delivery status"]] == "Cancelled" ? 4 : null,
+                                        StatusId = fields[columnIndexes["jo delivery status"]] == "Completed" || fields[columnIndexes["jo delivery status"]] == "Delivered" || fields[columnIndexes["jo delivery status"]] == "Transferred" ? 3 : fields[columnIndexes["jo delivery status"]] == "Cancelled" ? 4 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
@@ -927,7 +927,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = (decimal?)0.00,
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = fields[columnIndexes["amount"]] != "" ? decimal.Parse(fields[columnIndexes["amount"]]) : (decimal?)0.00,
-                                        StatusId = fields[columnIndexes["order status"]] == "Completed" || fields[columnIndexes["order status"]] == "Delivered" || fields[columnIndexes["order status"]] == "Transferred" ? 3 : fields[columnIndexes["order status"]] == "Cancelled" ? 4 : null,
+                                        StatusId = fields[columnIndexes["order status"]] == "Completed" || fields[columnIndexes["order status"]] == "Delivered" || fields[columnIndexes["order status"]] == "Transferred" ? 3 : fields[columnIndexes["order status"]] == "Cancelled" ? 4 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
@@ -1034,7 +1034,7 @@ namespace CSI.Application.Services
                                         NonMembershipFee = (decimal?)0.00,
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = decimal.Parse(fields[columnIndexes["subtotal"]]),
-                                        StatusId = status == "completed" || status == "delivered" ? 3 : status == "cancelled" && isPayable == "yes" ? 3 : null,
+                                        StatusId = status == "completed" || status == "delivered" ? 3 : status == "cancelled" && isPayable == "yes" ? 3 : 3,
                                         StoreId = club,
                                         DeleteFlag = false,
                                     };
