@@ -8,6 +8,7 @@ namespace CSI.Application.DTOs
 {
     public class PaginationDto
     {
+        public int? Id { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public string? SearchQuery { get; set; }

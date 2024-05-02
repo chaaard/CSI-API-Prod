@@ -334,5 +334,81 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("FileDescriptions")]
+        public async Task<IActionResult> FileDescriptions()
+        {
+            var result = await _analyticsService.FileDescriptions();
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("GetAccountingProoflist")]
+        public async Task<IActionResult> GetAccountingProoflist(PaginationDto paginationDto)
+        {
+            var result = await _analyticsService.GetAccountingProoflist(paginationDto);
+
+            if (result.Item1 != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("GetAccountingAnalyitcs")]
+        public async Task<IActionResult> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetAccountingAnalyitcs(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("GetAccountingProofListVariance")]
+        public async Task<IActionResult> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetAccountingProofListVariance(analyticsParamsDto);
+
+                if (result.Item1 != null)
+                {
+                    return (Ok(result));
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
     }
 }

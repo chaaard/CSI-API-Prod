@@ -33,5 +33,9 @@ namespace CSI.Application.Interfaces
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
         Task<List<DashboardAccounting>> DashboardAccounting(GenerateA0FileDto generateA0FileDto);
+        Task<List<FileDescriptions>> FileDescriptions();
+        Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto);
+        Task<List<AnalyticsDto>> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto);
+        Task<(List<AccountingMatchDto>, List<AccountingStatusDto>)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
     }
 }

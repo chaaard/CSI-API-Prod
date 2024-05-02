@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.Application.Services
 {
@@ -396,7 +397,6 @@ namespace CSI.Application.Services
 
             return totalAmounts;
         }
-
 
         public async Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto)
         {
@@ -1925,6 +1925,7 @@ namespace CSI.Application.Services
                                 getAnalytics.ForEach(analyticsDto =>
                                 {
                                     analyticsDto.IsGenerate = true;
+                                    analyticsDto.InvoiceNo = formattedInvoiceNumber;
                                 });
 
                                 _dbContext.BulkUpdate(getAnalytics);
@@ -2284,8 +2285,7 @@ namespace CSI.Application.Services
                 {
                     var GetAnalytics = _dbContext.Locations
                     .Where(location => location.LocationCode == club)
-                    .GroupJoin(
-                        _dbContext.Analytics
+                    .GroupJoin(_dbContext.Analytics
                             .Where(analytics =>
                                 analytics.TransactionDate.Value == date.Date &&
                                 analytics.DeleteFlag == false &&
@@ -2307,7 +2307,7 @@ namespace CSI.Application.Services
                             IsGenerated = analytics.IsGenerate
                         }
                     )
-                    .OrderBy( x => x.SubmitStatus)
+                    .OrderBy(x => x.SubmitStatus)
                     .FirstOrDefault();
                     result.Add(GetAnalytics);
                 }
@@ -2356,5 +2356,264 @@ namespace CSI.Application.Services
             return result;
         }
 
+        public async Task<List<FileDescriptions>> FileDescriptions()
+        {
+            var fileDescriptions = new List<FileDescriptions>();
+
+            fileDescriptions = await _dbContext.FileDescription.ToListAsync();
+
+            return fileDescriptions;
+        }
+
+        public async Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto)
+        {
+            var accountingProoflistDto = new List<AccountingProoflistDto>();
+
+            if (paginationDto.Id == null)
+            {
+                return (accountingProoflistDto, 0);
+            }
+
+            var prooflist = await _dbContext.AccountingProoflists
+                .Where(x => x.FileDescriptionId == paginationDto.Id)
+                .GroupJoin(_dbContext.Locations, x => x.StoreId, y => y.LocationCode, (x, y) => new { x, y })
+                .SelectMany(
+                    xy => xy.y.DefaultIfEmpty(),
+                    (xy, y) => new { xy.x, Location = y }
+                )
+                .Join(_dbContext.CustomerCodes, c => c.x.CustomerId, p => p.CustomerCode, (c, p) => new { c, p })
+                .Select(n => new AccountingProoflistDto
+                {
+                    Id = n.c.x.Id,
+                    CustomerId = n.p.CustomerName,
+                    TransactionDate = n.c.x.TransactionDate,
+                    OrderNo = n.c.x.OrderNo,
+                    NonMembershipFee = n.c.x.NonMembershipFee,
+                    PurchasedAmount = n.c.x.PurchasedAmount,
+                    Amount = n.c.x.Amount,
+                    Status = n.c.x.StatusId,
+                    StoreName = n.c.Location != null ? n.c.Location.LocationName : "No Location",
+                    FileDescriptionId = n.c.x.FileDescriptionId,
+                    DeleteFlag = n.c.x.DeleteFlag,
+                })
+                .ToListAsync();
+
+
+            var totalItemCount = prooflist.Count();
+            var totalPages = (int)Math.Ceiling((double)totalItemCount / paginationDto.PageSize);
+
+            var sortData = prooflist
+                .Skip((paginationDto.PageNumber - 1) * paginationDto.PageSize)
+                .Take(paginationDto.PageSize)
+                .OrderByDescending(x => x.TransactionDate)
+                .ThenBy(x => x.Id)
+                .ToList();
+
+            return (sortData, totalPages);
+        }
+
+
+        public async Task<List<AnalyticsDto>> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var analyticsList = new List<AnalyticsDto>();
+            DateTime date1;
+            DateTime date2;
+            var analytics = new List<AnalyticsDto>();
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date1) && DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out date2))
+            {
+                var result = await _dbContext.Analytics
+                    .Join(_dbContext.Locations, a => a.LocationId, b => b.LocationCode, (a, b) => new { a, b })
+                    .Join(_dbContext.CustomerCodes, c => c.a.CustomerId, d => d.CustomerCode, (c, d) => new { c, d })
+                    .Where(x => x.c.a.TransactionDate.Value.Date >= date1.Date && x.c.a.TransactionDate.Value.Date <= date2.Date
+                        && x.c.a.CustomerId == analyticsParamsDto.memCode[0]
+                        && x.c.a.InvoiceNo != null)
+                    .Select(n => new AnalyticsDto 
+                    {
+                        Id = n.c.a.Id,
+                        CustomerId = n.d.CustomerCode,
+                        LocationName = n.c.b.LocationName,
+                        TransactionDate = n.c.a.TransactionDate,
+                        MembershipNo = n.c.a.MembershipNo,
+                        CashierNo = n.c.a.CashierNo,
+                        RegisterNo = n.c.a.RegisterNo,
+                        TransactionNo = n.c.a.TransactionNo,
+                        OrderNo = n.c.a.OrderNo,
+                        Qty = n.c.a.Qty,
+                        Amount = n.c.a.Amount,
+                        SubTotal = n.c.a.SubTotal,
+                        StatusId = n.c.a.StatusId,
+                        IsUpload = Convert.ToBoolean(n.c.a.IsUpload),
+                        IsGenerate = Convert.ToBoolean(n.c.a.IsGenerate),
+                        IsTransfer = Convert.ToBoolean(n.c.a.IsTransfer),
+                        DeleteFlag = Convert.ToBoolean(n.c.a.DeleteFlag),
+                        InvoiceNo = n.c.a.InvoiceNo
+                    })
+                    .ToListAsync();
+
+                return result;
+            }
+            return analytics;
+        }
+
+        public async Task<(List<AccountingMatchDto>, List<AccountingStatusDto>)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+                DateTime dateFrom;
+                DateTime dateTo;
+                var matchDtos = new List<AccountingMatchDto>();
+                var statusCounts = new List<AccountingStatusDto>
+                {
+                    new AccountingStatusDto { Status = "PAID", Count = 0, TotalAmount = 0 },
+                    new AccountingStatusDto { Status = "UNDERPAID", Count = 0, TotalAmount = 0 },
+                    new AccountingStatusDto { Status = "OVERPAID", Count = 0, TotalAmount = 0 },
+                    new AccountingStatusDto { Status = "NOT REPORTED", Count = 0, TotalAmount = 0 },
+                    new AccountingStatusDto { Status = "UNPAID", Count = 0, TotalAmount = 0 },
+                    new AccountingStatusDto { Status = "ADJUSTMENTS", Count = 0, TotalAmount = 0 }
+                };
+
+                if (DateTime.TryParse(analyticsParamsDto.dates[0], out dateFrom) && DateTime.TryParse(analyticsParamsDto.dates[1], out dateTo))
+                {
+                    var result = await _dbContext.AccountingMatch
+                   .FromSqlRaw($"WITH RankedData AS ( " +
+                               $"SELECT  " +
+                               $"     MAX(a.Id) AS Id, " +
+                               $"     MAX(a.LocationName) AS LocationName, " +
+                               $"     MAX(a.CustomerName) AS CustomerName, " +
+                               $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                               $"     a.OrderNo, " +
+                               $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                               $"     MAX(a.SubTotal) AS SubTotal,  " +
+                               $"     MAX(a.InvoiceNo) AS InvoiceNo, " +
+                               $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                               $"     MAX(CAST(a.StatusId AS INT)) AS StatusId " +
+                               $" FROM ( " +
+                               $"     SELECT   " +
+                               $"        n.[Id], " +
+                               $"        n.LocationId, " +
+                               $"        n.CustomerId, " +
+                               $"        c.CustomerName, " +
+                               $"        l.LocationName, " +
+                               $"        n.[TransactionDate], " +
+                               $"        n.[OrderNo], " +
+                               $"        n.[SubTotal], " +
+                               $"        n.[IsUpload],   " +
+                               $"        n.[StatusId],   " +
+                               $"        n.[IsGenerate],   " +
+                               $"        n.[DeleteFlag],   " +
+                               $"        n.[InvoiceNo],   " +
+                               $"        ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                               $"     FROM tbl_analytics n " +
+                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                               $"     WHERE  " +
+                               $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.StatusId = 3 AND n.IsGenerate = 1 AND n.InvoiceNo IS NOT NULL) " +
+                               $" ) a " +
+                               $" GROUP BY  " +
+                               $"     a.OrderNo,    " +
+                               $"     ABS(a.SubTotal),  " +
+                               $"     a.row_num " +
+                               $" HAVING " +
+                               $"     COUNT(a.OrderNo) = 1 " +
+                               $"), " +
+                               $"FilteredData AS ( " +
+                               $"SELECT " +
+                               $"    Id, " +
+                               $"    CustomerName, " +
+                               $"    LocationName, " +
+                               $"    [TransactionDate], " +
+                               $"    [OrderNo], " +
+                               $"    [SubTotal], " +
+                               $"    [IsUpload], " +
+                               $"    [InvoiceNo] " +
+                               $"FROM RankedData " +
+                               $") " +
+                               $"SELECT " +
+                               $"a.[Id] AS [AnalyticsId], " +
+                               $"a.CustomerName AS [AnalyticsPartner], " +
+                               $"a.LocationName AS [AnalyticsLocation], " +
+                               $"a.InvoiceNo AS [AnalyticsInvoiceNo], " +
+                               $"a.[TransactionDate] AS [AnalyticsTransactionDate], " +
+                               $"a.[OrderNo] AS [AnalyticsOrderNo], " +
+                               $"a.[SubTotal] AS [AnalyticsAmount], " +
+                               $"p.[Id] AS [ProofListId], " +
+                               $"a.InvoiceNo AS [ProofListInvoiceNo], " +
+                               $"p.[TransactionDate] AS [ProofListTransactionDate], " +
+                               $"p.[OrderNo] AS [ProofListOrderNo], " +
+                               $"p.[Amount] AS [ProofListAmount],  " +
+                               $"a.[IsUpload] AS [IsUpload] " +
+                           $"FROM  " +
+                               $"FilteredData a  " +
+                           $"FULL OUTER JOIN  " +
+                               $"(  " +
+                                   $"SELECT  " +
+                                       $"p.[Id], " +
+                                       $"c.CustomerName, " +
+                                       $"l.LocationName,  " +
+                                       $"p.[TransactionDate],  " +
+                                       $"p.[OrderNo], " +
+                                       $"p.[Amount],  " +
+                                       $"p.[DeleteFlag]  " +
+                                  $" FROM " +
+                                  $"     [dbo].[tbl_accounting_prooflist] p  " +
+                                  $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
+                                  $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
+                                  $" WHERE " +
+                                  $"     (CAST(p.TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4  AND p.DeleteFlag = 0)  " +
+                               $") p " +
+                           $"ON a.[OrderNo] = p.[OrderNo] AND a.[TransactionDate] = p.[TransactionDate]" +
+                           $"ORDER BY COALESCE(p.Id, a.Id) DESC; ")
+                   .ToListAsync();
+
+                    matchDtos = result.Select(m => new AccountingMatchDto
+                    {
+                        AnalyticsId = m.AnalyticsId,
+                        AnalyticsInvoiceNo = m.AnalyticsInvoiceNo,
+                        AnalyticsPartner = m.AnalyticsPartner,
+                        AnalyticsLocation = m.AnalyticsLocation,
+                        AnalyticsTransactionDate = m.AnalyticsTransactionDate,
+                        AnalyticsOrderNo = m.AnalyticsOrderNo,
+                        AnalyticsAmount = m.AnalyticsAmount,
+                        ProofListId = m.ProofListId,
+                        Status = (m.AnalyticsAmount == null) ? "NOT REPORTED" : (m.ProofListAmount == null) ? "UNPAID" : m.AnalyticsAmount == m.ProofListAmount ? "PAID" : m.AnalyticsAmount > m.ProofListAmount ? "UNDERPAID" : m.AnalyticsAmount < m.ProofListAmount ? "OVERPAID" : "UNPAID",
+                        ProofListTransactionDate = m.ProofListTransactionDate,
+                        ProofListOrderNo = m.ProofListOrderNo,
+                        ProofListAmount = m.ProofListAmount,
+                        Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
+                    }).ToList();
+
+                    matchDtos = matchDtos
+                        .OrderByDescending(m => m.AnalyticsAmount == null)
+                        .ThenByDescending(m => m.ProofListAmount == null)
+                        .ToList();
+
+
+                    var groupedStatusCounts = matchDtos
+                       .GroupBy(m => m.Status)
+                       .ToList();
+
+                    foreach (var group in groupedStatusCounts)
+                    {
+                        var status = group.Key;
+                        var count = group.Count();
+                        var totalAmount = group.Sum(m => m.AnalyticsAmount ?? m.ProofListAmount);
+
+                        var existingStatus = statusCounts.FirstOrDefault(s => s.Status == status);
+                        if (existingStatus != null)
+                        {
+                            existingStatus.Count = count;
+                            existingStatus.TotalAmount = totalAmount ?? 0;
+                        }
+                    }
+                }
+
+                return (matchDtos, statusCounts);
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
     }
 }

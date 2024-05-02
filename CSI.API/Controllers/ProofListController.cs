@@ -63,5 +63,57 @@ namespace CSI.API.Controllers
                 return StatusCode(500, $"Internal Server Error: {ex.Message}");
             }
         }
+
+        [HttpPost("UploadAccountingProofList")]
+        public async Task<IActionResult> UploadAccountingProofList(List<IFormFile> files, [FromForm] string customerName)
+        {
+            try
+            {
+                var trimCustomerName = customerName.Trim();
+                var result = await _proofListService.ReadAccountingProofList(files, trimCustomerName);
+                return Ok(result);
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499, "Request canceled");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("DeleteAccountingAnalytics")]
+        public async Task<IActionResult> DeleteAccountingAnalytics(int id)
+        {
+            var result = await _proofListService.DeleteAccountingAnalytics(id);
+            return (Ok(result));
+        }
+
+        [HttpPost("GetAccountingPortal")]
+        public async Task<IActionResult> GetAccountingPortal(PortalParamsDto portalParamsDto)
+        {
+            try
+            {
+                var result = await _proofListService.GetAccountingPortal(portalParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
     }
 }
