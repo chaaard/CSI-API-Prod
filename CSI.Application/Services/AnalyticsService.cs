@@ -998,6 +998,7 @@ namespace CSI.Application.Services
                         ProofListOrderNo = null,
                         ProofListAmount = null,
                         Variance = n.AnalyticsAmount,
+                        IsUpload = Convert.ToBoolean(n.IsUpload),
                     }).ToList();
 
                     matchDtos = uniqueMatches.Select(m => new MatchDto
