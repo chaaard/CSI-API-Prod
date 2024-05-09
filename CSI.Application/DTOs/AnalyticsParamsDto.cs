@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CSI.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,5 +13,7 @@ namespace CSI.Application.DTOs
         public List<string> memCode { get; set; } = new List<string>();
         public string? userId { get; set; } = string.Empty;
         public List<int> storeId { get; set; } = new List<int>();
+        public List<string> status { get; set; } = new List<string>();
+        public bool isView { get; set; }
     }
 }

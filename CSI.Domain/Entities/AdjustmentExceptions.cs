@@ -21,7 +21,9 @@ namespace CSI.Application.DTOs
         public int? AnalyticsId { get; set; }
         public int? ProoflistId { get; set; }
         public string OldJO { get; set; }
+        public string? NewJO { get; set; }
         public string CustomerIdOld { get; set; }
+        public string? CustomerIdNew { get; set; }
         public string? DisputeReferenceNumber { get; set; } = string.Empty;
         public decimal? DisputeAmount { get; set; }
         public DateTime? DateDisputeFiled { get; set; }
@@ -30,6 +32,7 @@ namespace CSI.Application.DTOs
         public string? AccountsPaymentTransNo { get; set; } = string.Empty;
         public decimal? AccountsPaymentAmount { get; set; }
         public int? ReasonId { get; set; }
+        public string? ReasonDesc { get; set; }
         public string? Descriptions { get; set; } = string.Empty;
     }
 }
