@@ -26,5 +26,6 @@ namespace CSI.Domain.Entities
         public bool? IsGenerate { get; set; }
         public bool? IsTransfer { get; set; }
         public bool? DeleteFlag { get; set; }
+        public string? InvoiceNo { get; set; } = string.Empty;
     }
 }

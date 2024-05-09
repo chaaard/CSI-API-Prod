@@ -17,6 +17,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.Application.Services
 {
@@ -396,7 +397,6 @@ namespace CSI.Application.Services
 
             return totalAmounts;
         }
-
 
         public async Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto)
         {
@@ -1926,6 +1926,7 @@ namespace CSI.Application.Services
                                 getAnalytics.ForEach(analyticsDto =>
                                 {
                                     analyticsDto.IsGenerate = true;
+                                    analyticsDto.InvoiceNo = formattedInvoiceNumber;
                                 });
 
                                 _dbContext.BulkUpdate(getAnalytics);
@@ -2285,8 +2286,7 @@ namespace CSI.Application.Services
                 {
                     var GetAnalytics = _dbContext.Locations
                     .Where(location => location.LocationCode == club)
-                    .GroupJoin(
-                        _dbContext.Analytics
+                    .GroupJoin(_dbContext.Analytics
                             .Where(analytics =>
                                 analytics.TransactionDate.Value == date.Date &&
                                 analytics.DeleteFlag == false &&
@@ -2308,7 +2308,7 @@ namespace CSI.Application.Services
                             IsGenerated = analytics.IsGenerate
                         }
                     )
-                    .OrderBy( x => x.SubmitStatus)
+                    .OrderBy(x => x.SubmitStatus)
                     .FirstOrDefault();
                     result.Add(GetAnalytics);
                 }

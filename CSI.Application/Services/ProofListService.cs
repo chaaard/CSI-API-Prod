@@ -17,6 +17,9 @@ using CSI.Application.DTOs;
 using AutoMapper.Configuration.Annotations;
 using EFCore.BulkExtensions;
 using Newtonsoft.Json;
+using SQLitePCL;
+using NetTopologySuite.Geometries;
+using System.Globalization;
 
 namespace CSI.Application.Services
 {
@@ -1059,8 +1062,7 @@ namespace CSI.Application.Services
             }
         }
 
-
-        public int? GetLocationId(string? location, List<Location> locations)
+        public int? GetLocationId(string? location, List<Domain.Entities.Location> locations)
         {
             if (location != null || location != string.Empty)
             {
