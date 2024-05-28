@@ -2708,6 +2708,9 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                throw;
+            }
+        }
         public async void Logs(LogsDto logs)
         {
             try
@@ -2732,7 +2735,7 @@ namespace CSI.Application.Services
             {
                 if (refreshAnalyticsDto.memCode[0] != string.Empty)
                 {
-                    string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits => 
+                    string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
                         $"(CAST(a.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
                         $"CAST(a.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
                         $"a.CustomerId LIKE '%{last6Digits}%' AND " +
@@ -2811,10 +2814,11 @@ namespace CSI.Application.Services
                     .ThenBy(x => x.LocationName)
                     .ToList();
 
-                    
+
                 }
             }
             return query;
+        }
         public async Task<List<Logs>> GetLogs()
         {
             try
