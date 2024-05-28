@@ -42,6 +42,9 @@ namespace CSI.Application.Services
             var club = Convert.ToInt32(strClub);
             var proofList = new List<Prooflist>();
             var param = new AnalyticsParamsDto();
+            var rowsCountOld = 0;
+            var rowsCountNew = 0;
+            decimal totalAmount = 0;
 
             if (analyticsParamsDto != null)
             {
@@ -60,11 +63,29 @@ namespace CSI.Application.Services
 
             customers.TryGetValue(customerName, out string valueCust);
             DateTime date;
+            DateTime date1 = new DateTime();
             if (DateTime.TryParse(selectedDate, out date))
             {
                 var GetAnalytics = await _dbContext.Analytics.Where(x => x.CustomerId.Contains(valueCust) && x.LocationId == club && x.TransactionDate == date).AnyAsync();
                 if (!GetAnalytics)
                 {
+                    var logsDto = new LogsDto
+                    {
+                        Username = "treasury"+strClub,
+                        Date = date1,
+                        Action = "Upload Analytics",
+                        Remarks = "Error: No analytics found.",
+                        RowsCountBefore = 0,
+                        RowsCountAfter = 0,
+                        TotalAmount = 0,
+                        Club = Convert.ToInt32(strClub),
+                        Filename = "",
+                        ActionId = 0,
+                        AnalyticsId = 0,
+                        OldValue = "",
+                        NewValue = ""
+                    };
+                    _iAnalyticsService.Logs(logsDto);
                     return (proofList, "No analytics found.");
                 }
             }
@@ -166,6 +187,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + strClub,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = "Error: No worksheets found in the workbook.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = Convert.ToInt32(strClub),
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (null, "No worksheets found in the workbook.");
                                 }
                             }
@@ -258,6 +296,23 @@ namespace CSI.Application.Services
                         }
                         else
                         {
+                            var logsDto = new LogsDto
+                            {
+                                Username = "treasury" + strClub,
+                                Date = date1,
+                                Action = "Upload Analytics",
+                                Remarks = "Error: No worksheets.",
+                                RowsCountBefore = 0,
+                                RowsCountAfter = 0,
+                                TotalAmount = 0,
+                                Club = Convert.ToInt32(strClub),
+                                Filename = "",
+                                ActionId = 0,
+                                AnalyticsId = 0,
+                                OldValue = "",
+                                NewValue = ""
+                            };
+                            _iAnalyticsService.Logs(logsDto);
                             return (null, "No worksheets.");
                         }
                     }
@@ -267,7 +322,7 @@ namespace CSI.Application.Services
                 {
                     customers.TryGetValue(customerName, out string value);
                     var convertDate = GetDateTime(selectedDate);
-                    DeleteRecords(club, convertDate, value);
+                    rowsCountOld = await DeleteRecords(club, convertDate, value);
                 }
 
                 if (proofList != null)
@@ -275,32 +330,90 @@ namespace CSI.Application.Services
                     await _dbContext.Prooflist.AddRangeAsync(proofList);
                     await _dbContext.SaveChangesAsync();
                     await _iAnalyticsService.UpdateUploadStatus(param);
+                    rowsCountNew = proofList.Count;
+                    totalAmount = proofList.Sum(x => x.Amount) ?? 0;
+                    var logsDto = new LogsDto
+                    {
+                        Username = "treasury" + strClub,
+                        Date = date1,
+                        Action = "Upload Analytics",
+                        Remarks = "Success",
+                        RowsCountBefore = rowsCountOld,
+                        RowsCountAfter = rowsCountNew,
+                        TotalAmount = totalAmount,
+                        Club = Convert.ToInt32(strClub),
+                        Filename = "",
+                        ActionId = 0,
+                        AnalyticsId = 0,
+                        OldValue = "",
+                        NewValue = ""
+                    };
+                    _iAnalyticsService.Logs(logsDto);
 
                     return (proofList, "Success");
                 }
                 else
                 {
+                    var logsDto = new LogsDto
+                    {
+                        Username = "treasury" + strClub,
+                        Date = date1,
+                        Action = "Upload Analytics",
+                        Remarks = "Error: No list found.",
+                        RowsCountBefore = 0,
+                        RowsCountAfter = 0,
+                        TotalAmount = 0,
+                        Club = Convert.ToInt32(strClub),
+                        Filename = "",
+                        ActionId = 0,
+                        AnalyticsId = 0,
+                        OldValue = "",
+                        NewValue = ""
+                    };
+                    _iAnalyticsService.Logs(logsDto);
                     return (proofList, "No list found.");
                 }
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + strClub,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = Convert.ToInt32(strClub),
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (null, $"Please check error in row {row}: {ex.Message}");
                 throw;
             }
         }
 
-        private void DeleteRecords(int club, DateTime? selectedDate, string customerId)
+        private async Task<int> DeleteRecords(int club, DateTime? selectedDate, string customerId)
         {
+            var rowsCount = 0;
             var dataToDelete = _dbContext.Prooflist
                 .Where(x => x.CustomerId.Contains(customerId) && x.TransactionDate == selectedDate && x.StoreId == club)
                 .ToList();
+
+            rowsCount = dataToDelete.Count;
 
             if (dataToDelete != null)
             {
                 _dbContext.Prooflist.RemoveRange(dataToDelete);
                 _dbContext.SaveChanges();
             }
+
+            return rowsCount;
         }
 
         private bool DataExistsInDatabase(List<Prooflist> grabProofList)
@@ -340,7 +453,7 @@ namespace CSI.Application.Services
         {
             var getLocation = _dbContext.Locations.ToList();
             var grabFoodProofList = new List<Prooflist>();
-
+            DateTime date1 = new DateTime();
             // Define expected headers
             string[] expectedHeaders = { "store name", "updated on", "type", "status", "short order id", "net sales" };
 
@@ -363,6 +476,24 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            Username = "treasury" + club,
+                            Date = date1,
+                            Action = "Upload Analytics",
+                            Remarks = $"Error: Column not found.",
+                            RowsCountBefore = 0,
+                            RowsCountAfter = 0,
+                            TotalAmount = 0,
+                            Club = club,
+                            Filename = "",
+                            ActionId = 0,
+                            AnalyticsId = 0,
+                            OldValue = "",
+                            NewValue = ""
+                        };
+                        _iAnalyticsService.Logs(logsDto);
+
                         return (grabFoodProofList, $"Column not found.");
                     }
                 }
@@ -371,6 +502,23 @@ namespace CSI.Application.Services
 
                 if (merchantName != customerName)
                 {
+                    var logsDto = new LogsDto
+                    {
+                        Username = "treasury" + club,
+                        Date = date1,
+                        Action = "Upload Analytics",
+                        Remarks = $"Error: Uploaded file merchant do not match.",
+                        RowsCountBefore = 0,
+                        RowsCountAfter = 0,
+                        TotalAmount = 0,
+                        Club = club,
+                        Filename = "",
+                        ActionId = 0,
+                        AnalyticsId = 0,
+                        OldValue = "",
+                        NewValue = ""
+                    };
+                    _iAnalyticsService.Logs(logsDto);
                     return (grabFoodProofList, "Uploaded file merchant do not match.");
                 }
 
@@ -409,6 +557,23 @@ namespace CSI.Application.Services
                         }
                         else
                         {
+                            var logsDto = new LogsDto
+                            {
+                                Username = "treasury" + club,
+                                Date = date1,
+                                Action = "Upload Analytics",
+                                Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                RowsCountBefore = 0,
+                                RowsCountAfter = 0,
+                                TotalAmount = 0,
+                                Club = club,
+                                Filename = "",
+                                ActionId = 0,
+                                AnalyticsId = 0,
+                                OldValue = "",
+                                NewValue = ""
+                            };
+                            _iAnalyticsService.Logs(logsDto);
                             return (grabFoodProofList, "Uploaded file transaction dates do not match.");
                         }
                     }
@@ -418,6 +583,23 @@ namespace CSI.Application.Services
             }
             catch (Exception)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Error extracting proof list.",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (grabFoodProofList, "Error extracting proof list.");
             }
         }
@@ -428,7 +610,7 @@ namespace CSI.Application.Services
 
             // Define expected headers
             string[] expectedHeaders = { "order date", "order number", "order status", "amount" };
-
+            DateTime date1 = new DateTime();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
             try
@@ -448,6 +630,23 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            Username = "treasury" + club,
+                            Date = date1,
+                            Action = "Upload Analytics",
+                            Remarks = $"Error: Column not found.",
+                            RowsCountBefore = 0,
+                            RowsCountAfter = 0,
+                            TotalAmount = 0,
+                            Club = club,
+                            Filename = "",
+                            ActionId = 0,
+                            AnalyticsId = 0,
+                            OldValue = "",
+                            NewValue = ""
+                        };
+                        _iAnalyticsService.Logs(logsDto);
                         return (pickARooProofList, $"Column not found.");
                     }
                 }
@@ -491,6 +690,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (pickARooProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -502,6 +718,23 @@ namespace CSI.Application.Services
             }
             catch (Exception)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Error extracting proof list.",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (pickARooProofList, "Error extracting proof list.");
             }
         }
@@ -513,7 +746,7 @@ namespace CSI.Application.Services
 
             // Define expected headers
             string[] expectedHeaders = { "order id", "order status", "delivered at", "subtotal", "cancelled at", "is payable" };
-
+            DateTime date1 = new DateTime();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
             try
@@ -533,6 +766,23 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            Username = "treasury" + club,
+                            Date = date1,
+                            Action = "Upload Analytics",
+                            Remarks = $"Error: Column not found.",
+                            RowsCountBefore = 0,
+                            RowsCountAfter = 0,
+                            TotalAmount = 0,
+                            Club = club,
+                            Filename = "",
+                            ActionId = 0,
+                            AnalyticsId = 0,
+                            OldValue = "",
+                            NewValue = ""
+                        };
+                        _iAnalyticsService.Logs(logsDto);
                         return (foodPandaProofList, $"Column not found.");
                     }
                 }
@@ -588,6 +838,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (foodPandaProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -599,6 +866,23 @@ namespace CSI.Application.Services
             }
             catch (Exception)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Error extracting proof list.",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (foodPandaProofList, "Error extracting proof list.");
             }
         }
@@ -609,7 +893,7 @@ namespace CSI.Application.Services
 
             // Define expected headers
             string[] expectedHeaders = { "jo #", "jo delivery status", "completed date", "non membership fee", "purchased amount" };
-
+            DateTime date1 = new DateTime();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
             try
@@ -629,6 +913,23 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            Username = "treasury" + club,
+                            Date = date1,
+                            Action = "Upload Analytics",
+                            Remarks = $"Error: Column not found.",
+                            RowsCountBefore = 0,
+                            RowsCountAfter = 0,
+                            TotalAmount = 0,
+                            Club = club,
+                            Filename = "",
+                            ActionId = 0,
+                            AnalyticsId = 0,
+                            OldValue = "",
+                            NewValue = ""
+                        };
+                        _iAnalyticsService.Logs(logsDto);
                         return (metroMartProofList, $"Column not found.");
                     }
                 }
@@ -674,6 +975,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (metroMartProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -685,6 +1003,23 @@ namespace CSI.Application.Services
             }
             catch (Exception)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Error extracting proof list.",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (metroMartProofList, "Error extracting proof list.");
             }
         }
@@ -695,7 +1030,7 @@ namespace CSI.Application.Services
             int rowCount = 0;
             var grabFoodProofLists = new List<Prooflist>();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
-
+            DateTime date1 = new DateTime();
             try
             {
                 string[] expectedHeaders = { "store name", "updated on", "type", "status", "short order id", "net sales" };
@@ -724,6 +1059,23 @@ namespace CSI.Application.Services
                         {
                             if (!columnIndexes.ContainsKey(expectedHeader.ToLower()))
                             {
+                                var logsDto = new LogsDto
+                                {
+                                    Username = "treasury" + club,
+                                    Date = date1,
+                                    Action = "Upload Analytics",
+                                    Remarks = $"Error: Column not found.",
+                                    RowsCountBefore = 0,
+                                    RowsCountAfter = 0,
+                                    TotalAmount = 0,
+                                    Club = club,
+                                    Filename = "",
+                                    ActionId = 0,
+                                    AnalyticsId = 0,
+                                    OldValue = "",
+                                    NewValue = ""
+                                };
+                                _iAnalyticsService.Logs(logsDto);
                                 return (grabFoodProofLists, $"Column not found.");
                             }
                         }
@@ -759,6 +1111,23 @@ namespace CSI.Application.Services
                         }
                         else
                         {
+                            var logsDto = new LogsDto
+                            {
+                                Username = "treasury" + club,
+                                Date = date1,
+                                Action = "Upload Analytics",
+                                Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                RowsCountBefore = 0,
+                                RowsCountAfter = 0,
+                                TotalAmount = 0,
+                                Club = club,
+                                Filename = "",
+                                ActionId = 0,
+                                AnalyticsId = 0,
+                                OldValue = "",
+                                NewValue = ""
+                            };
+                            _iAnalyticsService.Logs(logsDto);
                             return (grabFoodProofLists, "Uploaded file transaction dates do not match.");
                         }
                     }
@@ -768,6 +1137,23 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Please check error in row {rowCount}: {ex.Message}",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (null, $"Please check error in row {rowCount}: {ex.Message}");
             }
         }
@@ -778,6 +1164,7 @@ namespace CSI.Application.Services
             int rowCount = 0;
             var metroMartProofLists = new List<Prooflist>();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
+            DateTime date1 = new DateTime();
             try
             {
                 string[] expectedHeaders = { "jo #", "jo delivery status", "completed date", "non membership fee", "purchased amount" };
@@ -806,6 +1193,23 @@ namespace CSI.Application.Services
                         {
                             if (!columnIndexes.ContainsKey(expectedHeader.ToLower()))
                             {
+                                var logsDto = new LogsDto
+                                {
+                                    Username = "treasury" + club,
+                                    Date = date1,
+                                    Action = "Upload Analytics",
+                                    Remarks = $"Error: Column not found.",
+                                    RowsCountBefore = 0,
+                                    RowsCountAfter = 0,
+                                    TotalAmount = 0,
+                                    Club = club,
+                                    Filename = "",
+                                    ActionId = 0,
+                                    AnalyticsId = 0,
+                                    OldValue = "",
+                                    NewValue = ""
+                                };
+                                _iAnalyticsService.Logs(logsDto);
                                 return (metroMartProofLists, $"Column not found.");
                             }
                         }
@@ -850,6 +1254,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (metroMartProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -861,6 +1282,23 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (null, $"Please check error in row {row}: {ex.Message}");
             }
         }
@@ -871,7 +1309,7 @@ namespace CSI.Application.Services
             int rowCount = 0;
             var pickARooProofLists = new List<Prooflist>();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
-
+            DateTime date1 = new DateTime();
             try
             {
                 string[] expectedHeaders = { "order date", "order number", "order status", "amount" };
@@ -900,6 +1338,23 @@ namespace CSI.Application.Services
                         {
                             if (!columnIndexes.ContainsKey(expectedHeader.ToLower()))
                             {
+                                var logsDto = new LogsDto
+                                {
+                                    Username = "treasury" + club,
+                                    Date = date1,
+                                    Action = "Upload Analytics",
+                                    Remarks = $"Error: Column not found.",
+                                    RowsCountBefore = 0,
+                                    RowsCountAfter = 0,
+                                    TotalAmount = 0,
+                                    Club = club,
+                                    Filename = "",
+                                    ActionId = 0,
+                                    AnalyticsId = 0,
+                                    OldValue = "",
+                                    NewValue = ""
+                                };
+                                _iAnalyticsService.Logs(logsDto);
                                 return (pickARooProofLists, $"Column not found.");
                             }
                         }
@@ -940,6 +1395,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (pickARooProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -951,6 +1423,23 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Please check error in row {rowCount}: {ex.Message}",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (null, $"Please check error in row {rowCount}: {ex.Message}");
             }
         }
@@ -961,6 +1450,7 @@ namespace CSI.Application.Services
             int rowCount = 0;
             var foodPandaProofLists = new List<Prooflist>();
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
+            DateTime date1 = new DateTime();
             try
             {
                 string[] expectedHeaders = { "order id", "order status", "delivered at", "subtotal", "cancelled at", "is payable" };
@@ -989,6 +1479,23 @@ namespace CSI.Application.Services
                         {
                             if (!columnIndexes.ContainsKey(expectedHeader.ToLower()))
                             {
+                                var logsDto = new LogsDto
+                                {
+                                    Username = "treasury" + club,
+                                    Date = date1,
+                                    Action = "Upload Analytics",
+                                    Remarks = $"Error: Column not found.",
+                                    RowsCountBefore = 0,
+                                    RowsCountAfter = 0,
+                                    TotalAmount = 0,
+                                    Club = club,
+                                    Filename = "",
+                                    ActionId = 0,
+                                    AnalyticsId = 0,
+                                    OldValue = "",
+                                    NewValue = ""
+                                };
+                                _iAnalyticsService.Logs(logsDto);
                                 return (foodPandaProofLists, $"Column not found.");
                             }
                         }
@@ -1047,6 +1554,23 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        Username = "treasury" + club,
+                                        Date = date1,
+                                        Action = "Upload Analytics",
+                                        Remarks = $"Error: Uploaded file transaction dates do not match.",
+                                        RowsCountBefore = 0,
+                                        RowsCountAfter = 0,
+                                        TotalAmount = 0,
+                                        Club = club,
+                                        Filename = "",
+                                        ActionId = 0,
+                                        AnalyticsId = 0,
+                                        OldValue = "",
+                                        NewValue = ""
+                                    };
+                                    _iAnalyticsService.Logs(logsDto);
                                     return (foodPandaProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -1058,6 +1582,23 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    Username = "treasury" + club,
+                    Date = date1,
+                    Action = "Upload Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    RowsCountBefore = 0,
+                    RowsCountAfter = 0,
+                    TotalAmount = 0,
+                    Club = club,
+                    Filename = "",
+                    ActionId = 0,
+                    AnalyticsId = 0,
+                    OldValue = "",
+                    NewValue = ""
+                };
+                _iAnalyticsService.Logs(logsDto);
                 return (null, $"Please check error in row {row}: {ex.Message}");
             }
         }

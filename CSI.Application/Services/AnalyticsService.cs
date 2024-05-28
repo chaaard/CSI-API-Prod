@@ -663,6 +663,7 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -2707,6 +2708,17 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+        public async void Logs(LogsDto logs)
+        {
+            try
+            {
+                var logsMap = _mapper.Map<LogsDto, Logs>(logs);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+
                 throw;
             }
         }
@@ -2803,6 +2815,18 @@ namespace CSI.Application.Services
                 }
             }
             return query;
+        public async Task<List<Logs>> GetLogs()
+        {
+            try
+            {
+                var logList = await _dbContext.Logs.ToListAsync();
+                return logList;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
         }
     }
 }

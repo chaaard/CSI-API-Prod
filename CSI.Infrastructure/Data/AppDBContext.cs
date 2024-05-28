@@ -37,6 +37,8 @@ namespace CSI.Infrastructure.Data
             DashboardAccounting = Set<DashboardAccounting>();
             FileDescription = Set<FileDescriptions>();
             AccountingProoflists = Set<AccountingProoflist>();
+            Logs = Set<Logs>();
+
         }
 
         public DbSet<User> Users { get; set; }
@@ -61,6 +63,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<DashboardAccounting> DashboardAccounting { get; set; }
         public DbSet<FileDescriptions> FileDescription { get; set; }
         public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
+        public DbSet<Logs> Logs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +132,8 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<AccountingProoflist>()
            .ToTable("tbl_accounting_prooflist");
+            modelBuilder.Entity<Logs>()
+            .ToTable("tbl_logs");
         }
     }
 }
