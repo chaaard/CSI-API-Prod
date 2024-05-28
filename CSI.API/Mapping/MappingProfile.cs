@@ -13,6 +13,7 @@ namespace CSI.API.Mapping
             CreateMap<AnalyticsProoflistDto, AnalyticsProoflist>();
             CreateMap<AnalyticsDto, Analytics>(); 
             CreateMap<GenerateInvoiceDto, GenerateInvoice>();
+            CreateMap<LogsDto, Logs>();
         }
     }
 }

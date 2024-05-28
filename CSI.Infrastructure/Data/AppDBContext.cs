@@ -27,6 +27,7 @@ namespace CSI.Infrastructure.Data
             Actions = Set<Actions>();
             Reasons = Set<Reasons>();
             Match = Set<Match>();
+            AccountingMatch = Set<AccountingMatch>();
             Roles = Set<Roles>();
             AnalyticsView = Set<AnalyticsView>();
             Source = Set<Source>();
@@ -34,6 +35,10 @@ namespace CSI.Infrastructure.Data
             GenerateInvoice = Set<GenerateInvoice>();
             Reference = Set<Reference>();
             DashboardAccounting = Set<DashboardAccounting>();
+            FileDescription = Set<FileDescriptions>();
+            AccountingProoflists = Set<AccountingProoflist>();
+            Logs = Set<Logs>();
+
         }
 
         public DbSet<User> Users { get; set; }
@@ -48,6 +53,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<Actions> Actions { get; set; }
         public DbSet<Reasons> Reasons { get; set; }
         public DbSet<Match> Match { get; set; }
+        public DbSet<AccountingMatch> AccountingMatch { get; set; }
         public DbSet<Roles> Roles { get; set; }
         public DbSet<AnalyticsView> AnalyticsView { get; set; }
         public DbSet<Source> Source { get; set; }
@@ -55,6 +61,9 @@ namespace CSI.Infrastructure.Data
         public DbSet<GenerateInvoice> GenerateInvoice { get; set; }
         public DbSet<Reference> Reference { get; set; }
         public DbSet<DashboardAccounting> DashboardAccounting { get; set; }
+        public DbSet<FileDescriptions> FileDescription { get; set; }
+        public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
+        public DbSet<Logs> Logs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -94,6 +103,9 @@ namespace CSI.Infrastructure.Data
             modelBuilder.Entity<Match>()
             .HasNoKey();
 
+            modelBuilder.Entity<AccountingMatch>()
+           .HasNoKey();
+
             modelBuilder.Entity<AnalyticsView>()
             .HasNoKey();
 
@@ -114,6 +126,14 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<Reference>()
            .ToTable("tbl_reference");
+
+            modelBuilder.Entity<FileDescriptions>()
+            .ToTable("tbl_file_descriptions");
+
+            modelBuilder.Entity<AccountingProoflist>()
+           .ToTable("tbl_accounting_prooflist");
+            modelBuilder.Entity<Logs>()
+            .ToTable("tbl_logs");
         }
     }
 }
