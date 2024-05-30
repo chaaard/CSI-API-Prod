@@ -411,6 +411,20 @@ namespace CSI.API.Controllers
             }
         }
 
+
+        [HttpPost("CreateAnalytics")]
+        public async Task<IActionResult> CreateAnalytics(AnalyticsAddDto analyticsAddDto)
+        {
+            // var result = await _analyticsService.CreateAnalytics(analyticsAddDto);
+            await _analyticsService.CreateAnalytics(analyticsAddDto);
+
+            // if(result != null) BadRequest();
+
+            return Ok("Successfully Created");
+        }
+
+
+
         [HttpPost("ExportExceptions")]
         public async Task<IActionResult> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto)
         {

@@ -38,6 +38,7 @@ namespace CSI.Application.Interfaces
         Task<List<AnalyticsDto>> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<AccountingMatchDto>, List<AccountingStatusDto>)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<List<ExceptionReportDto>> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto);
+        Task<Analytics> CreateAnalytics(AnalyticsAddDto analyticsAddDto);
         void Logs(LogsDto logs);
         Task<List<Logs>> GetLogs();
     }
