@@ -12,6 +12,11 @@ namespace CSI.API.Mapping
             CreateMap<AdjustmentAddDto, Adjustments>();
             CreateMap<AnalyticsProoflistDto, AnalyticsProoflist>();
             CreateMap<AnalyticsDto, Analytics>(); 
+
+            CreateMap<AnalyticsAddDto, Analytics>()
+                .ForMember(x => x.CustomerId, o => o.MapFrom(s => s.Merchant))
+                .ForMember(x => x.LocationId, o => o.MapFrom(s => s.Club)); 
+
             CreateMap<GenerateInvoiceDto, GenerateInvoice>();
             CreateMap<LogsDto, Logs>();
         }

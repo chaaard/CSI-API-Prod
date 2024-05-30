@@ -2819,6 +2819,19 @@ namespace CSI.Application.Services
             }
             return query;
         }
+
+        //**Create Manual Add
+        public async Task<Analytics> CreateAnalytics(AnalyticsAddDto createAnalyticsDto)
+        {
+            var analytics = _mapper.Map<AnalyticsAddDto, 
+                            Analytics>(createAnalyticsDto);
+
+            _dbContext.Analytics.Add(analytics);
+            await _dbContext.SaveChangesAsync();
+
+            return analytics;
+        }
+
         public async Task<List<Logs>> GetLogs()
         {
             try
