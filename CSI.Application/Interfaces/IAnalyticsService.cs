@@ -23,12 +23,12 @@ namespace CSI.Application.Interfaces
         Task<List<GenerateInvoice>> GetGeneratedInvoice(AnalyticsParamsDto analyticsParamsDto);
         Task<List<int>> GetClubs();
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToDelete(AnalyticsToDeleteDto analyticsToDelete);
-        Task<bool> DeleteAnalytics(int id);
+        Task<bool> DeleteAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         bool CheckFolderPath(string path);
         Task<(string, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
-        Task<bool> RevertAnalytics(int id);
+        Task<bool> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
@@ -39,7 +39,7 @@ namespace CSI.Application.Interfaces
         Task<(List<AccountingMatchDto>, List<AccountingStatusDto>)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<List<ExceptionReportDto>> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto);
         Task<Analytics> CreateAnalytics(AnalyticsAddDto analyticsAddDto);
-        void Logs(LogsDto logs);
         Task<List<Logs>> GetLogs();
+        void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto);
     }
 }

@@ -63,7 +63,7 @@ namespace CSI.API.Controllers
         }
 
         [HttpPut("UpdateCustomerCodeByIdAsync")]
-        public async Task<IActionResult> UpdateCustomerCodeByIdAsync(CustomerCodes customerCode)
+        public async Task<IActionResult> UpdateCustomerCodeByIdAsync(CustomerCodeDto customerCode)
         {
             var result = await _customerCodeService.UpdateCustomerCodeByIdAsync(customerCode);
 

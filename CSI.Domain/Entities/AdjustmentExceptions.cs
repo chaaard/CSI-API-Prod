@@ -20,10 +20,10 @@ namespace CSI.Application.DTOs
         public string? LocationName { get; set; } = string.Empty;
         public int? AnalyticsId { get; set; }
         public int? ProoflistId { get; set; }
-        public string OldJO { get; set; }
+        public string OldJO { get; set; } = string.Empty;
         public string? NewJO { get; set; }
-        public string CustomerIdOld { get; set; }
-        public string? CustomerIdNew { get; set; }
+        public string CustomerIdOld { get; set; } = string.Empty;
+        public string? CustomerIdNew { get; set; } = null;
         public string? DisputeReferenceNumber { get; set; } = string.Empty;
         public decimal? DisputeAmount { get; set; }
         public DateTime? DateDisputeFiled { get; set; }

@@ -9,6 +9,8 @@ namespace CSI.Application.DTOs
     public class UpdateAnalyticsDto
     {
         public int Id { get; set; }
-        public string CustomerId { get; set; } = string.Empty;
+        public string? CustomerId { get; set; } = string.Empty;
+        public string? UserId { get; set; } = string.Empty;
+        public string? StoreId { get; set; } = string.Empty;
     }
 }

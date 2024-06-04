@@ -13,8 +13,8 @@ namespace CSI.Application.Interfaces
     {
         Task<(List<Prooflist>?, string?)> ReadProofList(List<IFormFile> files, string customerName, string strClub, string selectedDate, string analyticsParamsDto);
         Task<List<PortalDto>> GetPortal(PortalParamsDto portalParamsDto);
-        Task<(List<AccountingProoflist>?, string?)> ReadAccountingProofList(List<IFormFile> files, string customerName);
-        Task<bool> DeleteAccountingAnalytics(int id);
+        Task<(List<AccountingProoflist>?, string?)> ReadAccountingProofList(List<IFormFile> files, string customerName, string userId, string club);
+        Task<bool> DeleteAccountingAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         Task<List<PortalDto>> GetAccountingPortal(PortalParamsDto portalParamsDto);
     }
 }
