@@ -1,5 +1,6 @@
 
-﻿using CSI.Application.DTOs;
+using AutoMapper;
+using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
 using CSI.Domain.Entities;
 using CSI.Infrastructure.Data;
@@ -13,11 +14,13 @@ namespace CSI.Application.Services
     {
         private readonly AppDBContext _dbContext;
         private readonly IConfiguration _configuration;
+        private readonly IMapper _mapper;
 
-        public CustomerCodeService(IConfiguration configuration, AppDBContext dBContext)
+        public CustomerCodeService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper)
         {
             _configuration = configuration;
             _dbContext = dBContext;
+            _mapper = mapper;
         }
 
         public async Task<(List<CustomerCodeDto>, int totalPages)> GetCustomerCodesAsync(PaginationDto pagination)
@@ -91,23 +94,61 @@ namespace CSI.Application.Services
             return getCustomerCodes;
         }
 
-        public async Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodes customerCode)
+        public async Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodeDto customerCode)
         {
-            var getCustomerCode = await _dbContext.CustomerCodes.SingleOrDefaultAsync(x => x.Id == customerCode.Id);
-
-            if (getCustomerCode != null)
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                getCustomerCode.CustomerName = customerCode.CustomerName;
-                getCustomerCode.CustomerCode = customerCode.CustomerCode;
-                getCustomerCode.CustomerNo = customerCode.CustomerNo;
-                getCustomerCode.DeleteFlag = customerCode.DeleteFlag;
-                await _dbContext.SaveChangesAsync();
+                var getCustomerCode = await _dbContext.CustomerCodes.SingleOrDefaultAsync(x => x.Id == customerCode.Id);
 
-                return getCustomerCode;
+                if (getCustomerCode != null)
+                {
+                    var oldCustomerName = getCustomerCode.CustomerName;
+                    var oldCustomerCode = getCustomerCode.CustomerCode;
+                    var oldCustomerNo = getCustomerCode.CustomerNo;
+                    var oldDeleteFlag = getCustomerCode.DeleteFlag;
+                    getCustomerCode.CustomerName = customerCode.CustomerName;
+                    getCustomerCode.CustomerCode = customerCode.CustomerCode;
+                    getCustomerCode.CustomerNo = customerCode.CustomerNo;
+                    getCustomerCode.DeleteFlag = customerCode.DeleteFlag;
+                    await _dbContext.SaveChangesAsync();
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = customerCode.UserId,
+                        Date = DateTime.Now,
+                        Action = "Update Merchant",
+                        Remarks = $"Id: {customerCode.Id} : " +
+                                  $"CustomerName: {oldCustomerName} -> {customerCode.CustomerName}, " +
+                                  $"CustomerCode: {oldCustomerCode} -> {customerCode.CustomerCode}, " +
+                                  $"CustomerNo: {oldCustomerNo} -> {customerCode.CustomerNo}, " +
+                                  $"DeleteFlag: {oldDeleteFlag} -> {customerCode.DeleteFlag}"
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return getCustomerCode;
+                }
+                else
+                {
+                    return new CustomerCodes();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return new CustomerCodes();
+                logsDto = new LogsDto
+                {
+                    UserId = customerCode.UserId,
+                    Date = DateTime.Now,
+                    Action = "Update Merchant",
+                    Remarks = $"Error: {ex.Message}",
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
         }
 

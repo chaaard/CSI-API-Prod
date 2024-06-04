@@ -15,5 +15,7 @@ namespace CSI.Application.DTOs
         public List<int> storeId { get; set; } = new List<int>();
         public List<string> status { get; set; } = new List<string>();
         public bool isView { get; set; }
+        public string? action { get; set; } = string.Empty;
+        public string fileName { get; set; } = string.Empty;
     }
 }

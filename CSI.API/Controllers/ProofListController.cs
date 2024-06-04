@@ -65,12 +65,12 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("UploadAccountingProofList")]
-        public async Task<IActionResult> UploadAccountingProofList(List<IFormFile> files, [FromForm] string customerName)
+        public async Task<IActionResult> UploadAccountingProofList(List<IFormFile> files, [FromForm] string customerName, [FromForm] string strClub, [FromForm] string userId)
         {
             try
             {
                 var trimCustomerName = customerName.Trim();
-                var result = await _proofListService.ReadAccountingProofList(files, trimCustomerName);
+                var result = await _proofListService.ReadAccountingProofList(files, trimCustomerName, userId, strClub);
                 return Ok(result);
             }
             catch (OperationCanceledException)
@@ -84,9 +84,9 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("DeleteAccountingAnalytics")]
-        public async Task<IActionResult> DeleteAccountingAnalytics(int id)
+        public async Task<IActionResult> DeleteAccountingAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = await _proofListService.DeleteAccountingAnalytics(id);
+            var result = await _proofListService.DeleteAccountingAnalytics(updateAnalyticsDto);
             return (Ok(result));
         }
 

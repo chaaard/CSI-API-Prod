@@ -8,6 +8,7 @@ namespace CSI.Application.DTOs
 {
     public class AnalyticsAddDto
     {
+        public string? UserId { get; set; } = string.Empty;
         [Required]
         public string? Merchant { get; set; } = string.Empty;
         [Required]

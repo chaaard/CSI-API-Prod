@@ -588,6 +588,9 @@ namespace CSI.Application.Services
             List<string> memCodeLast6Digits = analyticsParam.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
             string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%''"));
             string storeList = $"CSSTOR IN ({string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))})";
+            string clubLogs = $"{string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", analyticsParam.memCode.Select(code => $"{code}"))}";
+            int analyticsCount = 0;
 
             DateTime date;
             if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
@@ -596,6 +599,8 @@ namespace CSI.Application.Services
                    .Where(a => a.TransactionDate == date &&
                                a.CustomerId.Contains(memCodeLast6Digits[0]) &&
                                a.LocationId == analyticsParam.storeId[0]);
+
+                analyticsCount = analyticsToDelete.Count();
 
                 var portalToDelete = _dbContext.Prooflist
                  .Where(a => a.TransactionDate == date &&
@@ -663,7 +668,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -681,6 +697,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -699,6 +727,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -713,6 +753,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -829,9 +881,46 @@ namespace CSI.Application.Services
                         var result = await CreateAnalyticsProofList(param);
                     }
                 }
+
+                var analytics = await _dbContext.Analytics
+                 .Where(a => a.TransactionDate == date &&
+                             a.CustomerId.Contains(memCodeLast6Digits[0]) &&
+                             a.LocationId == analyticsParam.storeId[0])
+                 .ToListAsync();
+
+                var analyticsNewRows = analytics.Count();
+                var totalAmount = analytics.Sum(x => x.SubTotal);
+
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Success",
+                    RowsCountBefore = analyticsCount,
+                    RowsCountAfter = analyticsNewRows,
+                    TotalAmount = totalAmount,
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -1072,33 +1161,83 @@ namespace CSI.Application.Services
 
         public async Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
-            var isPending = true;
-            var result = await ReturnAnalytics(analyticsParamsDto);
-
-            var CheckIfUpload = result.Where(x => x.IsUpload == true).Any();
-
-            if (!CheckIfUpload)
+            string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                return false;
+                var isPending = true;
+                var result = await ReturnAnalytics(analyticsParamsDto);
+
+                var CheckIfUpload = result.Where(x => x.IsUpload == true).Any();
+
+                if (!CheckIfUpload)
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = analyticsParamsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Submit Analytics",
+                        Remarks = $"Error: Can't submit analytics.",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return false;
+                }
+
+                foreach (var analytics in result)
+                {
+                    analytics.StatusId = 3;
+                }
+
+                var analyticsEntityList = result.Select(analyticsDto =>
+                {
+                    var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                    analyticsEntity.StatusId = 3;
+                    analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                    return analyticsEntity;
+                }).ToList();
+
+                _dbContext.BulkUpdate(analyticsEntityList);
+                await _dbContext.SaveChangesAsync();
+
+                logsDto = new LogsDto
+                {
+                    UserId = analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Submit Analytics",
+                    Remarks = $"Success",
+                    RowsCountAfter = analyticsEntityList.Count(),
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
+                return isPending;
             }
-
-            foreach (var analytics in result)
+            catch (Exception ex)
             {
-                analytics.StatusId = 3;
+                logsDto = new LogsDto
+                {
+                    UserId = analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Submit Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
-
-            var analyticsEntityList = result.Select(analyticsDto =>
-            {
-                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                analyticsEntity.StatusId = 3;
-                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                return analyticsEntity;
-            }).ToList();
-
-            _dbContext.BulkUpdate(analyticsEntityList);
-            await _dbContext.SaveChangesAsync();
-
-            return isPending;
         }
 
         public async Task<bool> SubmitAnalyticsUpdate(RefreshAnalyticsDto analyticsParam)
@@ -1320,134 +1459,158 @@ namespace CSI.Application.Services
 
         public async Task<(List<WeeklyReportDto>, List<RecapSummaryDto>)> GenerateWeeklyReport(AnalyticsParamsDto analyticsParamsDto)
         {
-            var weeklyReportList = new List<WeeklyReportDto>();
-            var recapList = new List<RecapSummaryDto>();
-            DateTime dateFrom;
-            DateTime dateTo;
-            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
-            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out dateFrom) &&
-                 DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out dateTo))
+            string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                var result = await _dbContext.AnalyticsView
-                       .FromSqlRaw($" SELECT  " +
-                        $"     MAX(a.Id) AS Id, " +
-                        $"     MAX(a.CustomerId) AS CustomerId, " +
-                        $"     MAX(a.CustomerName) AS CustomerName, " +
-                        $"     MAX(a.LocationId) AS LocationId, " +
-                        $"     MAX(a.LocationName) AS LocationName, " +
-                        $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                        $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                        $"     MAX(a.CashierNo) AS CashierNo, " +
-                        $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                        $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                        $"     a.OrderNo, " +
-                        $"     MAX(a.Qty) AS Qty, " +
-                        $"     MAX(a.Amount) AS Amount, " +
-                        $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                        $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                        $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                        $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                        $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                        $"     MAX(a.SubTotal) AS SubTotal  " +
-                        $" FROM ( " +
-                        $"     SELECT   " +
-                        $"         n.Id, " +
-                        $"         n.CustomerId,  " +
-                        $"         c.CustomerName,  " +
-                        $"         n.LocationId,  " +
-                        $"         l.LocationName,  " +
-                        $"         n.TransactionDate,   " +
-                        $"         n.MembershipNo,   " +
-                        $"         n.CashierNo,  " +
-                        $"         n.RegisterNo,  " +
-                        $"         n.TransactionNo,  " +
-                        $"         n.OrderNo,  " +
-                        $"         n.Qty,  " +
-                        $"         n.Amount,  " +
-                        $"         n.SubTotal, " +
-                        $"         n.StatusId, " +
-                        $"         n.DeleteFlag,   " +
-                        $"         n.IsUpload,   " +
-                        $"         n.IsGenerate,   " +
-                        $"         n.IsTransfer,   " +
-                        $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
-                        $"     FROM tbl_analytics n " +
-                        $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                        $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                        $"     WHERE  " +
-                        $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.StatusId = 3) " +
-                        $" ) a " +
-                        $" GROUP BY  " +
-                        $"     a.OrderNo,    " +
-                        $"     ABS(a.SubTotal),  " +
-                        $"     a.row_num " +
-                        $" HAVING " +
-                        $"     COUNT(a.OrderNo) = 1 " +
-                        $" ORDER BY MAX(a.TransactionDate) ASC")
-                       .ToListAsync();
-
-                weeklyReportList = result.Select(n => new WeeklyReportDto
+                var weeklyReportList = new List<WeeklyReportDto>();
+                var recapList = new List<RecapSummaryDto>();
+                DateTime dateFrom;
+                DateTime dateTo;
+                List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+                if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out dateFrom) &&
+                     DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out dateTo))
                 {
-                    LocationName = n.LocationName,
-                    TransactionDate = n.TransactionDate,
-                    MembershipNo = n.MembershipNo,
-                    RegisterNo = n.RegisterNo,
-                    TransactionNo = n.TransactionNo,
-                    OrderNo = n.OrderNo,
-                    Qty = n.Qty,
-                    Amount = n.Amount,
-                    SubTotal = n.SubTotal,
-                    Member = null,
-                    NonMember = null,
-                    OriginalAmout = n.SubTotal,
-                    AccountsPayment = "",
-                    APTRX = "",
-                    TotalBilled = null
-                }).ToList();
+                    var result = await _dbContext.AnalyticsView
+                           .FromSqlRaw($" SELECT  " +
+                            $"     MAX(a.Id) AS Id, " +
+                            $"     MAX(a.CustomerId) AS CustomerId, " +
+                            $"     MAX(a.CustomerName) AS CustomerName, " +
+                            $"     MAX(a.LocationId) AS LocationId, " +
+                            $"     MAX(a.LocationName) AS LocationName, " +
+                            $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                            $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                            $"     MAX(a.CashierNo) AS CashierNo, " +
+                            $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                            $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                            $"     a.OrderNo, " +
+                            $"     MAX(a.Qty) AS Qty, " +
+                            $"     MAX(a.Amount) AS Amount, " +
+                            $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                            $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                            $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                            $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                            $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                            $"     MAX(a.SubTotal) AS SubTotal  " +
+                            $" FROM ( " +
+                            $"     SELECT   " +
+                            $"         n.Id, " +
+                            $"         n.CustomerId,  " +
+                            $"         c.CustomerName,  " +
+                            $"         n.LocationId,  " +
+                            $"         l.LocationName,  " +
+                            $"         n.TransactionDate,   " +
+                            $"         n.MembershipNo,   " +
+                            $"         n.CashierNo,  " +
+                            $"         n.RegisterNo,  " +
+                            $"         n.TransactionNo,  " +
+                            $"         n.OrderNo,  " +
+                            $"         n.Qty,  " +
+                            $"         n.Amount,  " +
+                            $"         n.SubTotal, " +
+                            $"         n.StatusId, " +
+                            $"         n.DeleteFlag,   " +
+                            $"         n.IsUpload,   " +
+                            $"         n.IsGenerate,   " +
+                            $"         n.IsTransfer,   " +
+                            $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                            $"     FROM tbl_analytics n " +
+                            $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                            $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                            $"     WHERE  " +
+                            $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.StatusId = 3) " +
+                            $" ) a " +
+                            $" GROUP BY  " +
+                            $"     a.OrderNo,    " +
+                            $"     ABS(a.SubTotal),  " +
+                            $"     a.row_num " +
+                            $" HAVING " +
+                            $"     COUNT(a.OrderNo) = 1 " +
+                            $" ORDER BY MAX(a.TransactionDate) ASC")
+                           .ToListAsync();
 
-                if (result.Any())
-                {
-                    var GetCustomerNo = result
-                            .GroupJoin(
-                                _dbContext.CustomerCodes,
-                                x => x.CustomerId,
-                                y => y.CustomerCode,
-                                (x, y) => new { x, y }
-                            )
-                            .SelectMany(
-                                group => group.y,
-                                (group, y) => y.CustomerNo
-                            )
-                            .FirstOrDefault();
-
-                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
-
-                    var getReference = await _dbContext.Reference
-                       .Where(x => x.CustomerNo == formatCustomerNo)
-                       .Select(n => new
-                       {
-                           n.MerchReference,
-                       })
-                       .FirstOrDefaultAsync();
-
-                    var summary = result
-                    .GroupBy(r => r.TransactionDate?.Date) // Use ?.Date to handle nullable DateTime?
-                    .Select(group => new RecapSummaryDto
+                    weeklyReportList = result.Select(n => new WeeklyReportDto
                     {
-                        DAYOFWEEK = group.Key?.ToString("ddd") ?? "N/A", // Handle null case
-                        DATE = group.Key.HasValue ? group.Key.Value.ToString("M/d/yyyy") : "N/A", // Handle null case directly
-                        SAAMOUNT = group.Sum(r => r.SubTotal),
-                        NOOFTRX = group.Count(),
-                        PERIINVOICEENTRY = group.Sum(r => r.SubTotal),
-                        VARIANCE = 0, // Calculate the variance as needed
-                        REMARKS = $"{getReference.MerchReference}{analyticsParamsDto.storeId[0]}{(group.Key?.ToString("MMddyy") ?? "N/A")}-{group.Count()}" // Use ?.ToString("MMdd") to handle nullable DateTime?
-                    })
-                    .ToList();
+                        LocationName = n.LocationName,
+                        TransactionDate = n.TransactionDate,
+                        MembershipNo = n.MembershipNo,
+                        RegisterNo = n.RegisterNo,
+                        TransactionNo = n.TransactionNo,
+                        OrderNo = n.OrderNo,
+                        Qty = n.Qty,
+                        Amount = n.Amount,
+                        SubTotal = n.SubTotal,
+                        Member = null,
+                        NonMember = null,
+                        OriginalAmout = n.SubTotal,
+                        AccountsPayment = "",
+                        APTRX = "",
+                        TotalBilled = null
+                    }).ToList();
 
-                    recapList.AddRange(summary);
+                    if (result.Any())
+                    {
+                        var GetCustomerNo = result
+                                .GroupJoin(
+                                    _dbContext.CustomerCodes,
+                                    x => x.CustomerId,
+                                    y => y.CustomerCode,
+                                    (x, y) => new { x, y }
+                                )
+                                .SelectMany(
+                                    group => group.y,
+                                    (group, y) => y.CustomerNo
+                                )
+                                .FirstOrDefault();
+
+                        var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
+
+                        var getReference = await _dbContext.Reference
+                           .Where(x => x.CustomerNo == formatCustomerNo)
+                           .Select(n => new
+                           {
+                               n.MerchReference,
+                           })
+                           .FirstOrDefaultAsync();
+
+                        var summary = result
+                        .GroupBy(r => r.TransactionDate?.Date) // Use ?.Date to handle nullable DateTime?
+                        .Select(group => new RecapSummaryDto
+                        {
+                            DAYOFWEEK = group.Key?.ToString("ddd") ?? "N/A", // Handle null case
+                            DATE = group.Key.HasValue ? group.Key.Value.ToString("M/d/yyyy") : "N/A", // Handle null case directly
+                            SAAMOUNT = group.Sum(r => r.SubTotal),
+                            NOOFTRX = group.Count(),
+                            PERIINVOICEENTRY = group.Sum(r => r.SubTotal),
+                            VARIANCE = 0, // Calculate the variance as needed
+                            REMARKS = $"{getReference.MerchReference}{analyticsParamsDto.storeId[0]}{(group.Key?.ToString("MMddyy") ?? "N/A")}-{group.Count()}" // Use ?.ToString("MMdd") to handle nullable DateTime?
+                        })
+                        .ToList();
+
+                        recapList.AddRange(summary);
+                    }
                 }
+                return (weeklyReportList, recapList);
             }
-            return (weeklyReportList, recapList);
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = analyticsParamsDto.action,
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    Filename = analyticsParamsDto.fileName,
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
         public async Task<(List<AnalyticsDto>, int)> GetAnalyticsToDelete(AnalyticsToDeleteDto analyticsToDelete)
@@ -1677,61 +1840,157 @@ namespace CSI.Application.Services
             return isPending;
         }
 
-        public async Task<bool> DeleteAnalytics(int id)
+        public async Task<bool> DeleteAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = false;
-
-            var GetAnalytics = await _dbContext.Analytics
-                .Where(x => x.Id == id)
-                .FirstOrDefaultAsync();
-
-            if (GetAnalytics != null)
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                GetAnalytics.DeleteFlag = true;
-                await _dbContext.SaveChangesAsync();
-                result = true;
-            }
+                var result = false;
 
-            return result;
+                var GetAnalytics = await _dbContext.Analytics
+                    .Where(x => x.Id == updateAnalyticsDto.Id)
+                    .FirstOrDefaultAsync();
+
+                if (GetAnalytics != null)
+                {
+                    GetAnalytics.DeleteFlag = true;
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = updateAnalyticsDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Manual Delete Analytics",
+                        Remarks = $"Successfully Deleted",
+                        AnalyticsId = updateAnalyticsDto.Id
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = updateAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Manual Delete Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    AnalyticsId = updateAnalyticsDto.Id
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
-        public async Task<bool> RevertAnalytics(int id)
+        public async Task<bool> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = false;
-
-            var GetAnalytics = await _dbContext.Analytics
-                .Where(x => x.Id == id)
-                .FirstOrDefaultAsync();
-
-            if (GetAnalytics != null)
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                GetAnalytics.DeleteFlag = false;
-                await _dbContext.SaveChangesAsync();
-                result = true;
-            }
+                var result = false;
 
-            return result;
+                var GetAnalytics = await _dbContext.Analytics
+                    .Where(x => x.Id == updateAnalyticsDto.Id)
+                    .FirstOrDefaultAsync();
+
+                if (GetAnalytics != null)
+                {
+                    GetAnalytics.DeleteFlag = false;
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = updateAnalyticsDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Manual Revert Analytics",
+                        Remarks = $"Successfully Reverted",
+                        AnalyticsId = updateAnalyticsDto.Id
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = updateAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Manual Revert Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    AnalyticsId = updateAnalyticsDto.Id
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
         public async Task<bool> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = false;
-
-            var GetAnalytics = await _dbContext.Analytics
-                .Where(x => x.Id == updateAnalyticsDto.Id)
-                .FirstOrDefaultAsync();
-
-
-
-            if (GetAnalytics != null)
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                GetAnalytics.CustomerId = updateAnalyticsDto.CustomerId;
-                GetAnalytics.IsTransfer = true;
-                await _dbContext.SaveChangesAsync();
-                result = true;
-            }
+                var result = false;
 
-            return result;
+                var GetAnalytics = await _dbContext.Analytics
+                    .Where(x => x.Id == updateAnalyticsDto.Id)
+                    .FirstOrDefaultAsync();
+
+                if (GetAnalytics != null)
+                {
+                    var GetOldCustomerId = GetAnalytics.CustomerId;
+                    GetAnalytics.CustomerId = updateAnalyticsDto.CustomerId;
+                    GetAnalytics.IsTransfer = true;
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = updateAnalyticsDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Manual Transfer Merchant",
+                        Remarks = $"Id: {updateAnalyticsDto.Id} : " +
+                                  $"Customer Id: {GetOldCustomerId} -> {updateAnalyticsDto.CustomerId}, ",
+                        AnalyticsId = updateAnalyticsDto.Id
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = updateAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Manual Transfer Merchant",
+                    Remarks = $"Error: {ex.Message}",
+                    AnalyticsId = updateAnalyticsDto.Id
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
         public bool CheckFolderPath(string path)
@@ -1755,12 +2014,16 @@ namespace CSI.Application.Services
 
         public async Task<(string, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto)
         {
+            string clubLogs = $"{string.Join(", ", generateA0FileDto.analyticsParamsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", generateA0FileDto.analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
             try
             {
                 //var result = false;
                 var fileName = "";
                 var formattedList = new List<string>();
-
+                var invoiceNo = "";
                 var invoiceAnalytics = new List<InvoiceDto>();
                 var isPending = false;
                 DateTime currentDate = DateTime.Now;
@@ -1780,6 +2043,18 @@ namespace CSI.Application.Services
 
                     if (getSubmittedInvoice.Count() == 0)
                     {
+                        logsDto = new LogsDto
+                        {
+                            UserId = generateA0FileDto.analyticsParamsDto.userId,
+                            Date = DateTime.Now,
+                            Action = "Generate A01 Invoice",
+                            Remarks = $"Error: Error generating invoice. Please check and try again.",
+                            Club = clubLogs,
+                            CustomerId = merchantLogs
+                        };
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
                         return ("Error generating invoice. Please check and try again.", fileName, "");
                     }
 
@@ -1964,7 +2239,7 @@ namespace CSI.Application.Services
                             FILENAME = item.FILENAME
                         };
 
-
+                        invoiceNo = format.HDR_TRX_NUMBER;
                         fileName = format.FILENAME;
                         content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{format.FILENAME}|");
                     }
@@ -1972,25 +2247,56 @@ namespace CSI.Application.Services
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
                     await File.WriteAllTextAsync(filePath, content.ToString());
 
+                    logsDto = new LogsDto
+                    {
+                        UserId = generateA0FileDto.analyticsParamsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Generate A01 Invoice",
+                        Remarks = $"Invoice No: {invoiceNo} : " +
+                                  $"Invoice Generated Successfully ",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs,
+                        Filename = fileName
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
                     return ("Invoice Generated Successfully", fileName, content.ToString());
                 }
                 else
                 {
+                    logsDto = new LogsDto
+                    {
+                        UserId = generateA0FileDto.analyticsParamsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Generate A01 Invoice",
+                        Remarks = $"Error: Error generating invoice. Please check and try again.",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
                     return ("Error generating invoice. Please check and try again.", fileName, "");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                logsDto = new LogsDto
+                {
+                    UserId = generateA0FileDto.analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Generate A01 Invoice",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 throw;
             }
-        }
-
-        static void ExecuteBatchFile(string filePath)
-        {
-            Process process = new Process();
-            process.StartInfo.FileName = filePath;
-            process.Start();
         }
 
         public string FormatDate(DateTime? value)
@@ -2023,6 +2329,11 @@ namespace CSI.Application.Services
             List<string> memCodeLast6Digits = analyticsParam.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
             string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%''"));
             string storeList = $"CSSTOR IN ({string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))})";
+            string clubLogs = $"{string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", analyticsParam.memCode.Select(code => $"{code}"))}";
+            int analyticsCount = 0;
+            int analyticsNewRows = 0;
+            decimal totalAmount = 0;
 
             DateTime date;
             if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
@@ -2035,6 +2346,8 @@ namespace CSI.Application.Services
                         .Where(a => a.TransactionDate == date.Date &&
                              a.CustomerId.Contains(memCodeLast6Digits[j]) &&
                              a.LocationId == analyticsParam.storeId[i]);
+
+                        analyticsCount += analyticsToDelete.Count();
 
                         var portalToDelete = _dbContext.Prooflist
                          .Where(a => a.TransactionDate == date.Date &&
@@ -2104,6 +2417,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -2121,6 +2446,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -2138,6 +2475,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -2152,6 +2501,18 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -2268,9 +2629,54 @@ namespace CSI.Application.Services
                         var result = await CreateAnalyticsProofList(param);
                     }
                 }
+
+                if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
+                {
+                    for (int i = 0; i < analyticsParam.storeId.Count(); i++)
+                    {
+                        for (int j = 0; j < memCodeLast6Digits.Count(); j++)
+                        {
+                            var analyticsToDelete = _dbContext.Analytics
+                            .Where(a => a.TransactionDate == date.Date &&
+                                 a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                                 a.LocationId == analyticsParam.storeId[i]);
+
+                            analyticsNewRows += analyticsToDelete.Count();
+                            totalAmount += analyticsToDelete.Sum(x => x.SubTotal);
+                        }
+                    }
+                }
+
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Analytics",
+                    Remarks = $"Successfuly Refreshed",
+                    RowsCountBefore = analyticsCount,
+                    RowsCountAfter = analyticsNewRows,
+                    TotalAmount = totalAmount,
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = analyticsParam.userId,
+                    Date = DateTime.Now,
+                    Action = "Manual Refresh Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 await DropTables(strStamp);
                 throw;
             }
@@ -2278,44 +2684,78 @@ namespace CSI.Application.Services
 
         public async Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto)
         {
-            var result = new List<AccntGenerateInvoiceDto>();
-            var getClubs = await GetClubs();
-            foreach (var club in getClubs)
+            string clubLogs = $"{string.Join(", ", generateA0FileDto.analyticsParamsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", generateA0FileDto.analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+            try
             {
-                DateTime date;
-                if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
+                var result = new List<AccntGenerateInvoiceDto>();
+                var getClubs = await GetClubs();
+                foreach (var club in getClubs)
                 {
-                    var GetAnalytics = _dbContext.Locations
-                    .Where(location => location.LocationCode == club)
-                    .GroupJoin(_dbContext.Analytics
-                            .Where(analytics =>
-                                analytics.TransactionDate.Value == date.Date &&
-                                analytics.DeleteFlag == false &&
-                                analytics.CustomerId.Contains(generateA0FileDto.analyticsParamsDto.memCode[0])),
-                        location => location.LocationCode,
-                        analytics => analytics.LocationId,
-                        (location, analyticsGroup) => new { location, analyticsGroup }
-                    )
-                    .SelectMany(
-                        x => x.analyticsGroup.DefaultIfEmpty(),
-                        (x, analytics) => new AccntGenerateInvoiceDto
-                        {
-                            Id = analytics != null ? analytics.Id : 0,
-                            CustomerId = analytics != null ? analytics.CustomerId : null,
-                            Date = date,
-                            Location = x.location.LocationName,
-                            LocationId = x.location.LocationCode,
-                            SubmitStatus = analytics != null ? analytics.StatusId : 0,
-                            IsGenerated = analytics.IsGenerate
-                        }
-                    )
-                    .OrderBy(x => x.SubmitStatus)
-                    .FirstOrDefault();
-                    result.Add(GetAnalytics);
+                    DateTime date;
+                    if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
+                    {
+                        var GetAnalytics = _dbContext.Locations
+                        .Where(location => location.LocationCode == club)
+                        .GroupJoin(_dbContext.Analytics
+                                .Where(analytics =>
+                                    analytics.TransactionDate.Value == date.Date &&
+                                    analytics.DeleteFlag == false &&
+                                    analytics.CustomerId.Contains(generateA0FileDto.analyticsParamsDto.memCode[0])),
+                            location => location.LocationCode,
+                            analytics => analytics.LocationId,
+                            (location, analyticsGroup) => new { location, analyticsGroup }
+                        )
+                        .SelectMany(
+                            x => x.analyticsGroup.DefaultIfEmpty(),
+                            (x, analytics) => new AccntGenerateInvoiceDto
+                            {
+                                Id = analytics != null ? analytics.Id : 0,
+                                CustomerId = analytics != null ? analytics.CustomerId : null,
+                                Date = date,
+                                Location = x.location.LocationName,
+                                LocationId = x.location.LocationCode,
+                                SubmitStatus = analytics != null ? analytics.StatusId : 0,
+                                IsGenerated = analytics.IsGenerate
+                            }
+                        )
+                        .OrderBy(x => x.SubmitStatus)
+                        .FirstOrDefault();
+                        result.Add(GetAnalytics);
+                    }
                 }
-            }
 
-            return result;
+                var logsDto = new LogsDto
+                {
+                    UserId = generateA0FileDto.analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Generate Invoice",
+                    Remarks = $"Successfully Refreshed",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                var logsDto = new LogsDto
+                {
+                    UserId = generateA0FileDto.analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Refresh Generate Invoice",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
         public async Task<List<DashboardAccounting>> DashboardAccounting(GenerateA0FileDto generateA0FileDto)
         {
@@ -2711,125 +3151,163 @@ namespace CSI.Application.Services
                 throw;
             }
         }
-        public async void Logs(LogsDto logs)
-        {
-            try
-            {
-                var logsMap = _mapper.Map<LogsDto, Logs>(logs);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
-        }
 
         public async Task<List<ExceptionReportDto>> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto)
         {
-            DateTime dateFrom;
-            DateTime dateTo;
-            var query = new List<ExceptionReportDto>();
-            if (DateTime.TryParse(refreshAnalyticsDto.dates[0].ToString(), out dateFrom) && DateTime.TryParse(refreshAnalyticsDto.dates[1].ToString(), out dateTo))
+            string clubLogs = $"{string.Join(", ", refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                if (refreshAnalyticsDto.memCode[0] != string.Empty)
+                DateTime dateFrom;
+                DateTime dateTo;
+                var query = new List<ExceptionReportDto>();
+                if (DateTime.TryParse(refreshAnalyticsDto.dates[0].ToString(), out dateFrom) && DateTime.TryParse(refreshAnalyticsDto.dates[1].ToString(), out dateTo))
                 {
-                    string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
-                        $"(CAST(a.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
-                        $"CAST(a.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
-                        $"a.CustomerId LIKE '%{last6Digits}%' AND " +
-                        $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
-                        $"a.DeleteFlag = 0 )"));
-                    string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
-                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
-                        $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
-                        $"p.CustomerId LIKE '%{last6Digits}%' AND " +
-                        $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
-                        $"p.DeleteFlag = 0 )"));
-                    var result = await _dbContext.AdjustmentExceptions
-                       .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
-                                $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                $"adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                $"adj.Descriptions " +
-                                $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId " +
-                                $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
-                                $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                $"WHERE {cstDocCondition} " +
-                                $"UNION ALL " +
-                                $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
-                                $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                $"	adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                $"	adj.Descriptions " +
-                                $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId " +
-                                $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
-                                $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                $"WHERE {cstDocCondition1} " +
-                                $" ORDER BY so.SourceType, a.SubTotal ASC ")
-                       .ToListAsync();
-
-                    query = result.Select(m => new ExceptionReportDto
+                    if (refreshAnalyticsDto.memCode[0] != string.Empty)
                     {
-                        Id = m.Id,
-                        CustomerId = m.CustomerName,
-                        JoNumber = m.OrderNo,
-                        TransactionDate = m.TransactionDate,
-                        Amount = m.SubTotal,
-                        AdjustmentType = m.Action,
-                        Source = m.SourceType,
-                        Status = m.StatusName,
-                        LocationName = m.LocationName,
-                        OldJo = m.OldJO,
-                        NewJo = m.NewJO,
-                        OldCustomerId = m.CustomerIdOld,
-                        NewCustomerId = m.CustomerIdNew,
-                        DisputeReferenceNumber = m.DisputeReferenceNumber,
-                        DisputeAmount = m.DisputeAmount,
-                        DateDisputeFiled = m.DateDisputeFiled,
-                        DescriptionOfDispute = m.DescriptionOfDispute,
-                        AccountsPaymentDate = m.AccountsPaymentDate,
-                        AccountsPaymentTransNo = m.AccountsPaymentTransNo,
-                        AccountsPaymentAmount = m.AccountsPaymentAmount,
-                        ReasonDesc = m.ReasonDesc,
-                        Descriptions = m.Descriptions
-                    })
-                    .OrderBy(x => x.TransactionDate)
-                    .ThenBy(x => x.CustomerId)
-                    .ThenBy(x => x.LocationName)
-                    .ToList();
+                        string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
+                            $"(CAST(a.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
+                            $"CAST(a.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
+                            $"a.CustomerId LIKE '%{last6Digits}%' AND " +
+                            $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
+                            $"a.DeleteFlag = 0 )"));
+                        string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
+                            $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
+                            $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
+                            $"p.CustomerId LIKE '%{last6Digits}%' AND " +
+                            $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
+                            $"p.DeleteFlag = 0 )"));
+                        var result = await _dbContext.AdjustmentExceptions
+                           .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
+                                    $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
+                                    $"adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                                    $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
+                                    $"adj.Descriptions " +
+                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
+                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
+                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
+                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId " +
+                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
+                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
+                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
+                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
+                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
+                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
+                                    $"WHERE {cstDocCondition} " +
+                                    $"UNION ALL " +
+                                    $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
+                                    $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
+                                    $"	adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                                    $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
+                                    $"	adj.Descriptions " +
+                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
+                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
+                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
+                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId " +
+                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
+                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
+                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
+                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
+                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
+                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
+                                    $"WHERE {cstDocCondition1} " +
+                                    $" ORDER BY so.SourceType, a.SubTotal ASC ")
+                           .ToListAsync();
 
-
+                        query = result.Select(m => new ExceptionReportDto
+                        {
+                            Id = m.Id,
+                            CustomerId = m.CustomerName,
+                            JoNumber = m.OrderNo,
+                            TransactionDate = m.TransactionDate,
+                            Amount = m.SubTotal,
+                            AdjustmentType = m.Action,
+                            Source = m.SourceType,
+                            Status = m.StatusName,
+                            LocationName = m.LocationName,
+                            OldJo = m.OldJO,
+                            NewJo = m.NewJO,
+                            OldCustomerId = m.CustomerIdOld,
+                            NewCustomerId = m.CustomerIdNew,
+                            DisputeReferenceNumber = m.DisputeReferenceNumber,
+                            DisputeAmount = m.DisputeAmount,
+                            DateDisputeFiled = m.DateDisputeFiled,
+                            DescriptionOfDispute = m.DescriptionOfDispute,
+                            AccountsPaymentDate = m.AccountsPaymentDate,
+                            AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                            AccountsPaymentAmount = m.AccountsPaymentAmount,
+                            ReasonDesc = m.ReasonDesc,
+                            Descriptions = m.Descriptions
+                        })
+                        .OrderBy(x => x.TransactionDate)
+                        .ThenBy(x => x.CustomerId)
+                        .ThenBy(x => x.LocationName)
+                        .ToList();
+                    }
                 }
+                return query;
             }
-            return query;
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Exception Report",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
         //**Create Manual Add
         public async Task<Analytics> CreateAnalytics(AnalyticsAddDto createAnalyticsDto)
         {
-            var analytics = _mapper.Map<AnalyticsAddDto, 
-                            Analytics>(createAnalyticsDto);
+            try
+            {
+                var analytics = _mapper.Map<AnalyticsAddDto,Analytics>(createAnalyticsDto);
+                _dbContext.Analytics.Add(analytics);
+                await _dbContext.SaveChangesAsync();
 
-            _dbContext.Analytics.Add(analytics);
-            await _dbContext.SaveChangesAsync();
+                var logsDto = new LogsDto
+                {
+                    UserId = createAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Manual Add Analytics",
+                    Remarks = $"Successfully Added",
+                    Club = createAnalyticsDto.Club.ToString(),
+                    CustomerId = createAnalyticsDto.Merchant,
+                    AnalyticsId = analytics.Id,
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
 
-            return analytics;
+                return analytics;
+            }
+            catch (Exception ex)
+            {
+                var logsDto = new LogsDto
+                {
+                    UserId = createAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Manual Add Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = createAnalyticsDto.Club.ToString(),
+                    CustomerId = createAnalyticsDto.Merchant
+                };
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
 
         public async Task<List<Logs>> GetLogs()
@@ -2838,6 +3316,35 @@ namespace CSI.Application.Services
             {
                 var logList = await _dbContext.Logs.ToListAsync();
                 return logList;
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
+        public void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            string clubLogs = $"{string.Join(", ", refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = refreshAnalyticsDto.action,
+                    Remarks = refreshAnalyticsDto.remarks != string.Empty || refreshAnalyticsDto.remarks != null ? refreshAnalyticsDto.remarks : $"Successfully Generated",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    Filename = refreshAnalyticsDto.fileName,
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChanges(); 
             }
             catch (Exception)
             {

@@ -7,6 +7,7 @@ using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
+using AutoMapper;
 
 namespace CSI.Application.Services
 {
@@ -15,14 +16,16 @@ namespace CSI.Application.Services
         private readonly AppDBContext _dbContext;
         private readonly IPasswordHashService _passwordHashService;
         private readonly IJwtService _jwtService;
+        private readonly IMapper _mapper;
         private readonly int saltiness = 70;
         private readonly int nIterations = 10101;
 
-        public UserService(AppDBContext dbContext, IPasswordHashService passwordHashService, IJwtService jwtService)
+        public UserService(AppDBContext dbContext, IPasswordHashService passwordHashService, IJwtService jwtService, IMapper mapper)
         {
             _dbContext = dbContext;
             _passwordHashService = passwordHashService;
             _jwtService = jwtService;
+            _mapper = mapper;
         }
 
         public async Task<UserDto> AuthenticateAsync(string username, string password)
@@ -30,6 +33,9 @@ namespace CSI.Application.Services
             int salt = Convert.ToInt32(saltiness);
             int iterations = Convert.ToInt32(nIterations);
             string Token = "";
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+            var strClub = string.Empty;
 
             if (username != null && password != null)
             {
@@ -43,6 +49,7 @@ namespace CSI.Application.Services
                 }
                 else
                 {
+                    strClub = result.Club.ToString();
                     if (!result.IsLogin)
                     {
                         var HashedPassword = _passwordHashService.HashPassword(password, result.Salt, iterations, salt);
@@ -53,6 +60,20 @@ namespace CSI.Application.Services
                             _ = await _dbContext.SaveChangesAsync();
 
                             Token = _jwtService.GenerateToken(result);
+
+                            logsDto = new LogsDto
+                            {
+                                UserId = result.Id.ToString(),
+                                Date = DateTime.Now,
+                                Action = "Login",
+                                Remarks = $"Login Successful",
+                                Club = strClub,
+                            };
+
+                            logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            await _dbContext.SaveChangesAsync();
+
                             return new UserDto
                             {
                                 Id = result.Id,
@@ -70,6 +91,19 @@ namespace CSI.Application.Services
 
                         return new UserDto();
                     }
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = result.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Login",
+                        Remarks = $"User is already logged in.",
+                        Club = strClub,
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
 
                     return new UserDto
                     {
@@ -166,6 +200,8 @@ namespace CSI.Application.Services
 
         public async Task<UserDto> Logout(string username)
         {
+            var logsDto = new LogsDto();
+            var strClub = string.Empty;
             if (username != null)
             {
                 var result = await _dbContext.Users
@@ -178,9 +214,22 @@ namespace CSI.Application.Services
                 }
                 else
                 {
-                   
+                    strClub = result.Club.ToString();
                     result.IsLogin = false;
                     _ = await _dbContext.SaveChangesAsync();
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = result.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Logout",
+                        Remarks = $"Logout Successful",
+                        Club = strClub,
+                    };
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
 
                     return new UserDto
                     {
@@ -194,9 +243,7 @@ namespace CSI.Application.Services
                         Club = result.Club,
                         Token = "",
                         Message = "Logout Successful"
-                    };
-                   
-                    return new UserDto();
+                    };                
                 }
             }
             else
@@ -250,89 +297,5 @@ namespace CSI.Application.Services
                 return result;
             }
         }
-
-        //[Authorize]
-        //public async Task<(List<UserListDto>, int)> GetAllUsers()
-        //{
-        //    try
-        //    {
-        //        //var userList = new List<UserListDto>();
-        //        var query = _dbContext.Users
-        //            .Where(x => x.RoleId != 4)
-        //            .Join(_dbContext.Roles, x => x.RoleId, y => y.Id, (x, y) => new { x, y })
-        //            .Join(_dbContext.Locations, user => user.x.Club, loc => loc.LocationCode, (user, loc) => new { user, loc })
-        //            .Select(n => new UserListDto 
-        //            {
-        //                Id = n.user.x.Id,
-        //                EmployeeNumber = n.user.x.EmployeeNumber,
-        //                FirstName = n.user.x.FirstName,
-        //                LastName = n.user.x.LastName,
-        //                Username = n.user.x.Username,
-        //                Role = n.user.y.Role,
-        //                Club = n.loc.LocationName,
-        //                IsLogin = n.user.x.IsLogin,
-        //            })
-        //            .AsQueryable();
-        //        return userList;
-
-        //        var query = _dbContext.CustomerCodes
-        //       .Where(customerCode => customerCode.DeleteFlag == false)
-        //       .Select(n => new CustomerCodeDto
-        //       {
-        //           Id = n.Id,
-        //           CustomerNo = n.CustomerNo,
-        //           CustomerCode = n.CustomerCode,
-        //           CustomerName = n.CustomerName,
-        //           DeleteFlag = n.DeleteFlag,
-        //       })
-        //       .AsQueryable();
-
-        //        // Searching
-        //        if (!string.IsNullOrEmpty(pagination.SearchQuery))
-        //        {
-        //            var searchQuery = $"%{pagination.SearchQuery.ToLower()}%";
-
-        //            query = query.Where(c =>
-        //                (EF.Functions.Like(c.CustomerName.ToLower(), searchQuery)) ||
-        //                (EF.Functions.Like(c.CustomerCode.ToLower(), searchQuery))
-        //            //Add the category column here
-        //            );
-        //        }
-
-        //        // Sorting
-        //        if (!string.IsNullOrEmpty(pagination.ColumnToSort))
-        //        {
-        //            var sortOrder = pagination.OrderBy == "desc" ? "desc" : "asc";
-
-        //            switch (pagination.ColumnToSort.ToLower())
-        //            {
-        //                case "customername":
-        //                    query = sortOrder == "asc" ? query.OrderBy(c => c.CustomerName) : query.OrderByDescending(c => c.CustomerName);
-        //                    break;
-        //                case "customercode":
-        //                    query = sortOrder == "asc" ? query.OrderBy(c => c.CustomerCode) : query.OrderByDescending(c => c.CustomerCode);
-        //                    break;
-        //                //Another case here for category
-        //                default:
-        //                    break;
-        //            }
-        //        }
-
-        //        var totalItemCount = await query.CountAsync();
-        //        var totalPages = (int)Math.Ceiling((double)totalItemCount / pagination.PageSize);
-
-        //        var customerCodesList = await query
-        //            .Skip((pagination.PageNumber - 1) * pagination.PageSize)
-        //            .Take(pagination.PageSize)
-        //            .ToListAsync();
-
-        //        return (customerCodesList, totalPages);
-        //    }
-        //    catch (Exception)
-        //    {
-
-        //        throw;
-        //    }
-        //}
     }
 }

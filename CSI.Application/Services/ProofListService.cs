@@ -20,6 +20,7 @@ using Newtonsoft.Json;
 using SQLitePCL;
 using NetTopologySuite.Geometries;
 using System.Globalization;
+using AutoMapper;
 
 namespace CSI.Application.Services
 {
@@ -27,12 +28,14 @@ namespace CSI.Application.Services
     {
         private readonly AppDBContext _dbContext;
         private readonly IAnalyticsService _iAnalyticsService;
+        private readonly IMapper _mapper;
 
-        public ProofListService(AppDBContext dBContext, IAnalyticsService iAnalyticsService)
+        public ProofListService(AppDBContext dBContext, IAnalyticsService iAnalyticsService, IMapper mapper)
         {
             _dbContext = dBContext;
             _dbContext.Database.SetCommandTimeout(999);
             _iAnalyticsService = iAnalyticsService;
+            _mapper = mapper;
         }
 
         public async Task<(List<Prooflist>?, string?)> ReadProofList(List<IFormFile> files, string customerName, string strClub, string selectedDate, string analyticsParamsDto)
@@ -45,7 +48,12 @@ namespace CSI.Application.Services
             var rowsCountOld = 0;
             var rowsCountNew = 0;
             decimal totalAmount = 0;
+            var fileName = "";
 
+            foreach (var file in files)
+            {
+                fileName = file.FileName;
+            }
             if (analyticsParamsDto != null)
             {
                  param = JsonConvert.DeserializeObject<AnalyticsParamsDto>(analyticsParamsDto);
@@ -71,21 +79,18 @@ namespace CSI.Application.Services
                 {
                     var logsDto = new LogsDto
                     {
-                        Username = "treasury"+strClub,
-                        Date = date1,
-                        Action = "Upload Analytics",
-                        Remarks = "Error: No analytics found.",
-                        RowsCountBefore = 0,
-                        RowsCountAfter = 0,
-                        TotalAmount = 0,
-                        Club = Convert.ToInt32(strClub),
-                        Filename = "",
-                        ActionId = 0,
-                        AnalyticsId = 0,
-                        OldValue = "",
-                        NewValue = ""
+                        UserId = param.userId,
+                        Date = DateTime.Now,
+                        Action = "Upload Prooflist",
+                        Remarks = $"Error: No analytics found.",
+                        Club = strClub,
+                        Filename = fileName
                     };
-                    _iAnalyticsService.Logs(logsDto);
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
                     return (proofList, "No analytics found.");
                 }
             }
@@ -110,7 +115,7 @@ namespace CSI.Application.Services
                                     // Check if the filename contains the word "grabfood"
                                     if (customerName == "GrabMart" || customerName == "GrabFood")
                                     {
-                                        var grabProofList = ExtractGrabMartOrFood(worksheet, rowCount, row, customerName, club, selectedDate);
+                                        var grabProofList = ExtractGrabMartOrFood(worksheet, fileName, rowCount, row, customerName, strClub, selectedDate, param.userId);
                                         if (grabProofList.Item1 == null)
                                         {
                                             return (null, grabProofList.Item2);
@@ -129,7 +134,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (customerName == "PickARooFS" || customerName == "PickARooMerch")
                                     {
-                                        var pickARooProofList = ExtractPickARoo(worksheet, rowCount, row, customerName, club, selectedDate);
+                                        var pickARooProofList = ExtractPickARoo(worksheet, fileName, rowCount, row, customerName, strClub, selectedDate, param.userId);
                                         if (pickARooProofList.Item1 == null)
                                         {
                                             return (null, pickARooProofList.Item2);
@@ -148,7 +153,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (customerName == "FoodPanda")
                                     {
-                                        var foodPandaProofList = ExtractFoodPanda(worksheet, rowCount, row, customerName, club, selectedDate);
+                                        var foodPandaProofList = ExtractFoodPanda(worksheet, fileName, rowCount, row, customerName, strClub, selectedDate, param.userId);
                                         if (foodPandaProofList.Item1 == null)
                                         {
                                             return (null, foodPandaProofList.Item2);
@@ -167,7 +172,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (customerName == "MetroMart")
                                     {
-                                        var metroMartProofList = ExtractMetroMart(worksheet, rowCount, row, customerName, club, selectedDate);
+                                        var metroMartProofList = ExtractMetroMart(worksheet, fileName, rowCount, row, customerName, strClub, selectedDate, param.userId);
                                         if (metroMartProofList.Item1 == null)
                                         {
                                             return (null, metroMartProofList.Item2);
@@ -189,21 +194,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + strClub,
-                                        Date = date1,
-                                        Action = "Upload Analytics",
-                                        Remarks = "Error: No worksheets found in the workbook.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = Convert.ToInt32(strClub),
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        UserId = param.userId,
+                                        Date = DateTime.Now,
+                                        Action = "Upload Prooflist",
+                                        Remarks = $"Error: No worksheets found in the workbook.",
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    await _dbContext.SaveChangesAsync();
+
                                     return (null, "No worksheets found in the workbook.");
                                 }
                             }
@@ -219,7 +221,7 @@ namespace CSI.Application.Services
 
                             if (customerName == "GrabMart" || customerName == "GrabFood")
                             {
-                                var grabProofList = ExtractCSVGrabMartOrFood(tempCsvFilePath, customerName, club, selectedDate);
+                                var grabProofList = ExtractCSVGrabMartOrFood(tempCsvFilePath, fileName, customerName, strClub, selectedDate, param.userId);
                                 if (grabProofList.Item1 == null)
                                 {
                                     return (null, grabProofList.Item2);
@@ -238,7 +240,7 @@ namespace CSI.Application.Services
                             }
                             else if (customerName == "PickARooFS" || customerName == "PickARooMerch")
                             {
-                                var pickARooProofList = ExtractCSVPickARoo(tempCsvFilePath, club, selectedDate, customerName);
+                                var pickARooProofList = ExtractCSVPickARoo(tempCsvFilePath, fileName, strClub, selectedDate, customerName, param.userId);
                                 if (pickARooProofList.Item1 == null)
                                 {
                                     return (null, pickARooProofList.Item2);
@@ -257,7 +259,7 @@ namespace CSI.Application.Services
                             }
                             else if (customerName == "FoodPanda")
                             {
-                                var foodPandaProofList = ExtractCSVFoodPanda(tempCsvFilePath, club, selectedDate);
+                                var foodPandaProofList = ExtractCSVFoodPanda(tempCsvFilePath, fileName, strClub, selectedDate, param.userId);
                                 if (foodPandaProofList.Item1 == null)
                                 {
                                     return (null, foodPandaProofList.Item2);
@@ -276,7 +278,7 @@ namespace CSI.Application.Services
                             }
                             else if (customerName == "MetroMart")
                             {
-                                var metroMartProofList = ExtractCSVMetroMart(tempCsvFilePath, club, selectedDate);
+                                var metroMartProofList = ExtractCSVMetroMart(tempCsvFilePath, fileName, strClub, selectedDate, param.userId);
                                 if (metroMartProofList.Item1 == null)
                                 {
                                     return (null, metroMartProofList.Item2);
@@ -298,22 +300,19 @@ namespace CSI.Application.Services
                         {
                             var logsDto = new LogsDto
                             {
-                                Username = "treasury" + strClub,
-                                Date = date1,
-                                Action = "Upload Analytics",
-                                Remarks = "Error: No worksheets.",
-                                RowsCountBefore = 0,
-                                RowsCountAfter = 0,
-                                TotalAmount = 0,
-                                Club = Convert.ToInt32(strClub),
-                                Filename = "",
-                                ActionId = 0,
-                                AnalyticsId = 0,
-                                OldValue = "",
-                                NewValue = ""
+                                UserId = param.userId,
+                                Date = DateTime.Now,
+                                Action = "Upload Prooflist",
+                                Remarks = $"Error: No worksheets found in the workbook.",
+                                Club = strClub,
+                                Filename = fileName
                             };
-                            _iAnalyticsService.Logs(logsDto);
-                            return (null, "No worksheets.");
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            await _dbContext.SaveChangesAsync();
+
+                            return (null, "No worksheets found in the workbook.");
                         }
                     }
                 }
@@ -332,23 +331,23 @@ namespace CSI.Application.Services
                     await _iAnalyticsService.UpdateUploadStatus(param);
                     rowsCountNew = proofList.Count;
                     totalAmount = proofList.Sum(x => x.Amount) ?? 0;
+
                     var logsDto = new LogsDto
                     {
-                        Username = "treasury" + strClub,
-                        Date = date1,
-                        Action = "Upload Analytics",
-                        Remarks = "Success",
+                        UserId = param.userId,
+                        Date = DateTime.Now,
+                        Action = "Upload Prooflist",
+                        Remarks = $"Success",
                         RowsCountBefore = rowsCountOld,
                         RowsCountAfter = rowsCountNew,
                         TotalAmount = totalAmount,
-                        Club = Convert.ToInt32(strClub),
-                        Filename = "",
-                        ActionId = 0,
-                        AnalyticsId = 0,
-                        OldValue = "",
-                        NewValue = ""
+                        Club = strClub,
+                        Filename = fileName
                     };
-                    _iAnalyticsService.Logs(logsDto);
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
 
                     return (proofList, "Success");
                 }
@@ -356,21 +355,18 @@ namespace CSI.Application.Services
                 {
                     var logsDto = new LogsDto
                     {
-                        Username = "treasury" + strClub,
-                        Date = date1,
+                        UserId = param.userId,
+                        Date = DateTime.Now,
                         Action = "Upload Analytics",
                         Remarks = "Error: No list found.",
-                        RowsCountBefore = 0,
-                        RowsCountAfter = 0,
-                        TotalAmount = 0,
-                        Club = Convert.ToInt32(strClub),
-                        Filename = "",
-                        ActionId = 0,
-                        AnalyticsId = 0,
-                        OldValue = "",
-                        NewValue = ""
+                        Club = strClub,
+                        Filename = fileName
                     };
-                    _iAnalyticsService.Logs(logsDto);
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
                     return (proofList, "No list found.");
                 }
             }
@@ -378,21 +374,18 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + strClub,
-                    Date = date1,
+                    UserId = param.userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
                     Remarks = $"Error: Please check error in row {row}: {ex.Message}",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = Convert.ToInt32(strClub),
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (null, $"Please check error in row {row}: {ex.Message}");
                 throw;
             }
@@ -449,7 +442,7 @@ namespace CSI.Application.Services
             }
         }
 
-        private (List<Prooflist>, string?) ExtractGrabMartOrFood(ExcelWorksheet worksheet, int rowCount, int row, string customerName, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractGrabMartOrFood(ExcelWorksheet worksheet, string fileName, int rowCount, int row, string customerName, string strClub, string selectedDate, string userId)
         {
             var getLocation = _dbContext.Locations.ToList();
             var grabFoodProofList = new List<Prooflist>();
@@ -478,21 +471,17 @@ namespace CSI.Application.Services
                     {
                         var logsDto = new LogsDto
                         {
-                            Username = "treasury" + club,
-                            Date = date1,
+                            UserId = userId,
+                            Date = DateTime.Now,
                             Action = "Upload Analytics",
                             Remarks = $"Error: Column not found.",
-                            RowsCountBefore = 0,
-                            RowsCountAfter = 0,
-                            TotalAmount = 0,
-                            Club = club,
-                            Filename = "",
-                            ActionId = 0,
-                            AnalyticsId = 0,
-                            OldValue = "",
-                            NewValue = ""
+                            Club = strClub,
+                            Filename = fileName
                         };
-                        _iAnalyticsService.Logs(logsDto);
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        _dbContext.SaveChangesAsync();
 
                         return (grabFoodProofList, $"Column not found.");
                     }
@@ -504,21 +493,18 @@ namespace CSI.Application.Services
                 {
                     var logsDto = new LogsDto
                     {
-                        Username = "treasury" + club,
-                        Date = date1,
+                        UserId = userId,
+                        Date = DateTime.Now,
                         Action = "Upload Analytics",
                         Remarks = $"Error: Uploaded file merchant do not match.",
-                        RowsCountBefore = 0,
-                        RowsCountAfter = 0,
-                        TotalAmount = 0,
-                        Club = club,
-                        Filename = "",
-                        ActionId = 0,
-                        AnalyticsId = 0,
-                        OldValue = "",
-                        NewValue = ""
-                    };
-                    _iAnalyticsService.Logs(logsDto);
+                        Club = strClub,
+                        Filename = fileName
+                    }; 
+                    
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    _dbContext.SaveChangesAsync();
+
                     return (grabFoodProofList, "Uploaded file merchant do not match.");
                 }
 
@@ -550,7 +536,7 @@ namespace CSI.Application.Services
                                 PurchasedAmount = (decimal?)0.00,
                                 Amount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : null,
                                 StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
-                                StoreId = club,
+                                StoreId = Convert.ToInt32(strClub),
                                 DeleteFlag = false,
                             };
                             grabFoodProofList.Add(prooflist);
@@ -559,21 +545,18 @@ namespace CSI.Application.Services
                         {
                             var logsDto = new LogsDto
                             {
-                                Username = "treasury" + club,
-                                Date = date1,
+                                UserId = userId,
+                                Date = DateTime.Now,
                                 Action = "Upload Analytics",
                                 Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                RowsCountBefore = 0,
-                                RowsCountAfter = 0,
-                                TotalAmount = 0,
-                                Club = club,
-                                Filename = "",
-                                ActionId = 0,
-                                AnalyticsId = 0,
-                                OldValue = "",
-                                NewValue = ""
+                                Club = strClub,
+                                Filename = fileName
                             };
-                            _iAnalyticsService.Logs(logsDto);
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            _dbContext.SaveChangesAsync();
+
                             return (grabFoodProofList, "Uploaded file transaction dates do not match.");
                         }
                     }
@@ -581,33 +564,29 @@ namespace CSI.Application.Services
 
                 return (grabFoodProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Error extracting proof list.",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message}",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
                 return (grabFoodProofList, "Error extracting proof list.");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractPickARoo(ExcelWorksheet worksheet, int rowCount, int row, string customerName, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractPickARoo(ExcelWorksheet worksheet, string fileName, int rowCount, int row, string customerName, string strClub, string selectedDate, string userId)
         {
             var pickARooProofList = new List<Prooflist>();
-
             // Define expected headers
             string[] expectedHeaders = { "order date", "order number", "order status", "amount" };
             DateTime date1 = new DateTime();
@@ -632,21 +611,18 @@ namespace CSI.Application.Services
                     {
                         var logsDto = new LogsDto
                         {
-                            Username = "treasury" + club,
-                            Date = date1,
+                            UserId = userId,
+                            Date = DateTime.Now,
                             Action = "Upload Analytics",
                             Remarks = $"Error: Column not found.",
-                            RowsCountBefore = 0,
-                            RowsCountAfter = 0,
-                            TotalAmount = 0,
-                            Club = club,
-                            Filename = "",
-                            ActionId = 0,
-                            AnalyticsId = 0,
-                            OldValue = "",
-                            NewValue = ""
+                            Club = strClub,
+                            Filename = fileName
                         };
-                        _iAnalyticsService.Logs(logsDto);
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        _dbContext.SaveChangesAsync();
+
                         return (pickARooProofList, $"Column not found.");
                     }
                 }
@@ -683,7 +659,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = worksheet.Cells[row, columnIndexes["amount"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["amount"]].Value?.ToString()) : null,
                                         StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
                                     pickARooProofList.Add(prooflist);
@@ -692,21 +668,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (pickARooProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -716,34 +689,30 @@ namespace CSI.Application.Services
 
                 return (pickARooProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Error extracting proof list.",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
                 return (pickARooProofList, "Error extracting proof list.");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractFoodPanda(ExcelWorksheet worksheet, int rowCount, int row, string customerName, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractFoodPanda(ExcelWorksheet worksheet, string fileName, int rowCount, int row, string customerName, string strClub, string selectedDate, string userId)
         {
             var foodPandaProofList = new List<Prooflist>();
             var transactionDate = new DateTime?();
-
             // Define expected headers
             string[] expectedHeaders = { "order id", "order status", "delivered at", "subtotal", "cancelled at", "is payable" };
             DateTime date1 = new DateTime();
@@ -768,21 +737,18 @@ namespace CSI.Application.Services
                     {
                         var logsDto = new LogsDto
                         {
-                            Username = "treasury" + club,
-                            Date = date1,
+                            UserId = userId,
+                            Date = DateTime.Now,
                             Action = "Upload Analytics",
                             Remarks = $"Error: Column not found.",
-                            RowsCountBefore = 0,
-                            RowsCountAfter = 0,
-                            TotalAmount = 0,
-                            Club = club,
-                            Filename = "",
-                            ActionId = 0,
-                            AnalyticsId = 0,
-                            OldValue = "",
-                            NewValue = ""
+                            Club = strClub,
+                            Filename = fileName
                         };
-                        _iAnalyticsService.Logs(logsDto);
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        _dbContext.SaveChangesAsync();
+
                         return (foodPandaProofList, $"Column not found.");
                     }
                 }
@@ -831,7 +797,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = worksheet.Cells[row, columnIndexes["subtotal"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["subtotal"]].Value?.ToString()) : null,
                                         StatusId = worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["order status"]].Value?.ToString() == "Cancelled" && worksheet.Cells[row, columnIndexes["is payable"]].Value.ToString() == "yes" ? 3 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
                                     foodPandaProofList.Add(prooflist);
@@ -840,21 +806,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (foodPandaProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -864,33 +827,29 @@ namespace CSI.Application.Services
 
                 return (foodPandaProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Error extracting proof list.",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
                 return (foodPandaProofList, "Error extracting proof list.");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractMetroMart(ExcelWorksheet worksheet, int rowCount, int row, string customerName, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractMetroMart(ExcelWorksheet worksheet, string fileName, int rowCount, int row, string customerName, string strClub, string selectedDate, string userId)
         {
             var metroMartProofList = new List<Prooflist>();
-
             // Define expected headers
             string[] expectedHeaders = { "jo #", "jo delivery status", "completed date", "non membership fee", "purchased amount" };
             DateTime date1 = new DateTime();
@@ -915,21 +874,18 @@ namespace CSI.Application.Services
                     {
                         var logsDto = new LogsDto
                         {
-                            Username = "treasury" + club,
-                            Date = date1,
+                            UserId = userId,
+                            Date = DateTime.Now,
                             Action = "Upload Analytics",
                             Remarks = $"Error: Column not found.",
-                            RowsCountBefore = 0,
-                            RowsCountAfter = 0,
-                            TotalAmount = 0,
-                            Club = club,
-                            Filename = "",
-                            ActionId = 0,
-                            AnalyticsId = 0,
-                            OldValue = "",
-                            NewValue = ""
+                            Club = strClub,
+                            Filename = fileName
                         };
-                        _iAnalyticsService.Logs(logsDto);
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        _dbContext.SaveChangesAsync();
+
                         return (metroMartProofList, $"Column not found.");
                     }
                 }
@@ -968,7 +924,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = PurchasedAmount,
                                         Amount = NonMembershipFee + PurchasedAmount,
                                         StatusId = worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["jo delivery status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
                                     metroMartProofList.Add(prooflist);
@@ -977,21 +933,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (metroMartProofList, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -1001,30 +954,27 @@ namespace CSI.Application.Services
 
                 return (metroMartProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Error extracting proof list.",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
                 return (metroMartProofList, "Error extracting proof list.");
             }
         }
         
-        private (List<Prooflist>, string?) ExtractCSVGrabMartOrFood(string filePath, string customerName, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractCSVGrabMartOrFood(string filePath, string fileName, string customerName, string strClub, string selectedDate, string userId)
         {
             int row = 2;
             int rowCount = 0;
@@ -1061,21 +1011,18 @@ namespace CSI.Application.Services
                             {
                                 var logsDto = new LogsDto
                                 {
-                                    Username = "treasury" + club,
-                                    Date = date1,
+                                    UserId = userId,
+                                    Date = DateTime.Now,
                                     Action = "Upload Analytics",
                                     Remarks = $"Error: Column not found.",
-                                    RowsCountBefore = 0,
-                                    RowsCountAfter = 0,
-                                    TotalAmount = 0,
-                                    Club = club,
-                                    Filename = "",
-                                    ActionId = 0,
-                                    AnalyticsId = 0,
-                                    OldValue = "",
-                                    NewValue = ""
+                                    Club = strClub,
+                                    Filename = fileName
                                 };
-                                _iAnalyticsService.Logs(logsDto);
+
+                                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                _dbContext.Logs.Add(logsMap);
+                                _dbContext.SaveChangesAsync();
+
                                 return (grabFoodProofLists, $"Column not found.");
                             }
                         }
@@ -1102,7 +1049,7 @@ namespace CSI.Application.Services
                                 PurchasedAmount = (decimal?)0.00,
                                 Amount = fields[columnIndexes["net sales"]] != "" ? decimal.Parse(fields[columnIndexes["net sales"]]) : (decimal?)0.00,
                                 StatusId = fields[columnIndexes["status"]] == "Completed" || fields[columnIndexes["status"]] == "Delivered" || fields[columnIndexes["status"]] == "Transferred" ? 3 : fields[columnIndexes["status"]] == "Cancelled" ? 4 : 3,
-                                StoreId = club,
+                                StoreId = Convert.ToInt32(strClub),
                                 DeleteFlag = false,
                             };
 
@@ -1113,21 +1060,18 @@ namespace CSI.Application.Services
                         {
                             var logsDto = new LogsDto
                             {
-                                Username = "treasury" + club,
-                                Date = date1,
+                                UserId = userId,
+                                Date = DateTime.Now,
                                 Action = "Upload Analytics",
                                 Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                RowsCountBefore = 0,
-                                RowsCountAfter = 0,
-                                TotalAmount = 0,
-                                Club = club,
-                                Filename = "",
-                                ActionId = 0,
-                                AnalyticsId = 0,
-                                OldValue = "",
-                                NewValue = ""
+                                Club = strClub,
+                                Filename = fileName
                             };
-                            _iAnalyticsService.Logs(logsDto);
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            _dbContext.SaveChangesAsync();
+
                             return (grabFoodProofLists, "Uploaded file transaction dates do not match.");
                         }
                     }
@@ -1139,26 +1083,23 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Please check error in row {rowCount}: {ex.Message}",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
-                return (null, $"Please check error in row {rowCount}: {ex.Message}");
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
+                return (grabFoodProofLists, $"Please check error in row {rowCount}: {ex.Message}");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractCSVMetroMart(string filePath, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractCSVMetroMart(string filePath, string fileName, string strClub, string selectedDate, string userId)
         {
             int row = 2;
             int rowCount = 0;
@@ -1195,21 +1136,18 @@ namespace CSI.Application.Services
                             {
                                 var logsDto = new LogsDto
                                 {
-                                    Username = "treasury" + club,
-                                    Date = date1,
+                                    UserId = userId,
+                                    Date = DateTime.Now,
                                     Action = "Upload Analytics",
                                     Remarks = $"Error: Column not found.",
-                                    RowsCountBefore = 0,
-                                    RowsCountAfter = 0,
-                                    TotalAmount = 0,
-                                    Club = club,
-                                    Filename = "",
-                                    ActionId = 0,
-                                    AnalyticsId = 0,
-                                    OldValue = "",
-                                    NewValue = ""
+                                    Club = strClub,
+                                    Filename = fileName
                                 };
-                                _iAnalyticsService.Logs(logsDto);
+
+                                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                _dbContext.Logs.Add(logsMap);
+                                _dbContext.SaveChangesAsync();
+
                                 return (metroMartProofLists, $"Column not found.");
                             }
                         }
@@ -1245,7 +1183,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = PurchasedAmount,
                                         Amount = amount,
                                         StatusId = fields[columnIndexes["jo delivery status"]] == "Completed" || fields[columnIndexes["jo delivery status"]] == "Delivered" || fields[columnIndexes["jo delivery status"]] == "Transferred" ? 3 : fields[columnIndexes["jo delivery status"]] == "Cancelled" ? 4 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
 
@@ -1256,21 +1194,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (metroMartProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -1284,26 +1219,23 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
-                return (null, $"Please check error in row {row}: {ex.Message}");
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
+                return (metroMartProofLists, $"Please check error in row {row}: {ex.Message}");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractCSVPickARoo(string filePath, int club, string selectedDate, string customerName)
+        private (List<Prooflist>, string?) ExtractCSVPickARoo(string filePath, string fileName, string strClub, string selectedDate, string customerName, string userId)
         {
             int row = 2;
             int rowCount = 0;
@@ -1340,21 +1272,18 @@ namespace CSI.Application.Services
                             {
                                 var logsDto = new LogsDto
                                 {
-                                    Username = "treasury" + club,
-                                    Date = date1,
+                                    UserId = userId,
+                                    Date = DateTime.Now,
                                     Action = "Upload Analytics",
                                     Remarks = $"Error: Column not found.",
-                                    RowsCountBefore = 0,
-                                    RowsCountAfter = 0,
-                                    TotalAmount = 0,
-                                    Club = club,
-                                    Filename = "",
-                                    ActionId = 0,
-                                    AnalyticsId = 0,
-                                    OldValue = "",
-                                    NewValue = ""
+                                    Club = strClub,
+                                    Filename = fileName
                                 };
-                                _iAnalyticsService.Logs(logsDto);
+
+                                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                _dbContext.Logs.Add(logsMap);
+                                _dbContext.SaveChangesAsync();
+
                                 return (pickARooProofLists, $"Column not found.");
                             }
                         }
@@ -1386,7 +1315,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = fields[columnIndexes["amount"]] != "" ? decimal.Parse(fields[columnIndexes["amount"]]) : (decimal?)0.00,
                                         StatusId = fields[columnIndexes["order status"]] == "Completed" || fields[columnIndexes["order status"]] == "Delivered" || fields[columnIndexes["order status"]] == "Transferred" ? 3 : fields[columnIndexes["order status"]] == "Cancelled" ? 4 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
 
@@ -1397,21 +1326,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (pickARooProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -1425,26 +1351,23 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Please check error in row {rowCount}: {ex.Message}",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
-                return (null, $"Please check error in row {rowCount}: {ex.Message}");
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
+                return (pickARooProofLists, $"Please check error in row {rowCount}: {ex.Message}");
             }
         }
 
-        private (List<Prooflist>, string?) ExtractCSVFoodPanda(string filePath, int club, string selectedDate)
+        private (List<Prooflist>, string?) ExtractCSVFoodPanda(string filePath, string fileName, string strClub, string selectedDate, string userId)
         {
             int row = 2;
             int rowCount = 0;
@@ -1481,21 +1404,18 @@ namespace CSI.Application.Services
                             {
                                 var logsDto = new LogsDto
                                 {
-                                    Username = "treasury" + club,
-                                    Date = date1,
+                                    UserId = userId,
+                                    Date = DateTime.Now,
                                     Action = "Upload Analytics",
                                     Remarks = $"Error: Column not found.",
-                                    RowsCountBefore = 0,
-                                    RowsCountAfter = 0,
-                                    TotalAmount = 0,
-                                    Club = club,
-                                    Filename = "",
-                                    ActionId = 0,
-                                    AnalyticsId = 0,
-                                    OldValue = "",
-                                    NewValue = ""
+                                    Club = strClub,
+                                    Filename = fileName
                                 };
-                                _iAnalyticsService.Logs(logsDto);
+
+                                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                _dbContext.Logs.Add(logsMap);
+                                _dbContext.SaveChangesAsync();
+
                                 return (foodPandaProofLists, $"Column not found.");
                             }
                         }
@@ -1545,7 +1465,7 @@ namespace CSI.Application.Services
                                         PurchasedAmount = (decimal?)0.00,
                                         Amount = decimal.Parse(fields[columnIndexes["subtotal"]]),
                                         StatusId = status == "completed" || status == "delivered" ? 3 : status == "cancelled" && isPayable == "yes" ? 3 : 3,
-                                        StoreId = club,
+                                        StoreId = Convert.ToInt32(strClub),
                                         DeleteFlag = false,
                                     };
 
@@ -1556,21 +1476,18 @@ namespace CSI.Application.Services
                                 {
                                     var logsDto = new LogsDto
                                     {
-                                        Username = "treasury" + club,
-                                        Date = date1,
+                                        UserId = userId,
+                                        Date = DateTime.Now,
                                         Action = "Upload Analytics",
                                         Remarks = $"Error: Uploaded file transaction dates do not match.",
-                                        RowsCountBefore = 0,
-                                        RowsCountAfter = 0,
-                                        TotalAmount = 0,
-                                        Club = club,
-                                        Filename = "",
-                                        ActionId = 0,
-                                        AnalyticsId = 0,
-                                        OldValue = "",
-                                        NewValue = ""
+                                        Club = strClub,
+                                        Filename = fileName
                                     };
-                                    _iAnalyticsService.Logs(logsDto);
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    _dbContext.SaveChangesAsync();
+
                                     return (foodPandaProofLists, "Uploaded file transaction dates do not match.");
                                 }
                             }
@@ -1584,22 +1501,19 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    Username = "treasury" + club,
-                    Date = date1,
+                    UserId = userId,
+                    Date = DateTime.Now,
                     Action = "Upload Analytics",
-                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
-                    RowsCountBefore = 0,
-                    RowsCountAfter = 0,
-                    TotalAmount = 0,
-                    Club = club,
-                    Filename = "",
-                    ActionId = 0,
-                    AnalyticsId = 0,
-                    OldValue = "",
-                    NewValue = ""
+                    Remarks = $"Error: {ex.Message} ",
+                    Club = strClub,
+                    Filename = fileName
                 };
-                _iAnalyticsService.Logs(logsDto);
-                return (null, $"Please check error in row {row}: {ex.Message}");
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                _dbContext.SaveChangesAsync();
+
+                return (foodPandaProofLists, $"Please check error in row {row}: {ex.Message}");
             }
         }
 
@@ -1648,11 +1562,20 @@ namespace CSI.Application.Services
             return result;
         }
 
-        public async Task<(List<AccountingProoflist>?, string?)> ReadAccountingProofList(List<IFormFile> files, string customerName)
+        public async Task<(List<AccountingProoflist>?, string?)> ReadAccountingProofList(List<IFormFile> files, string customerName, string userId, string strClub)
         {
             int row = 2;
             int rowCount = 0;
             var proofList = new List<AccountingProoflist>();
+            var rowsCountOld = 0;
+            var rowsCountNew = 0;
+            decimal totalAmount = 0;
+            var fileName = "";
+
+            foreach (var getFile in files)
+            {
+                fileName = getFile.FileName;
+            }
 
             Dictionary<string, string> customers = new Dictionary<string, string>
             {
@@ -1686,7 +1609,7 @@ namespace CSI.Application.Services
                                     // Check if the filename contains the word "grabfood"
                                     if (valueCust == "GrabMart" || valueCust == "GrabFood")
                                     {
-                                        var grabProofList = await ExtractAccountingGrabMartOrFood(worksheet, rowCount, row, file.FileName.ToString(), customerName);
+                                        var grabProofList = await ExtractAccountingGrabMartOrFood(worksheet, rowCount, row, file.FileName.ToString(), customerName, strClub, userId);
                                         if (grabProofList.Item1 == null)
                                         {
                                             return (null, grabProofList.Item2);
@@ -1705,7 +1628,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (valueCust == "PickARooFS" || valueCust == "PickARooMerch")
                                     {
-                                        var pickARooProofList = await ExtractAccountingPickARoo(worksheet, rowCount, row, file.FileName.ToString(), customerName);
+                                        var pickARooProofList = await ExtractAccountingPickARoo(worksheet, rowCount, row, file.FileName.ToString(), customerName, strClub, userId);
                                         if (pickARooProofList.Item1 == null)
                                         {
                                             return (null, pickARooProofList.Item2);
@@ -1724,7 +1647,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (valueCust == "FoodPanda")
                                     {
-                                        var foodPandaProofList = await ExtractAccountingFoodPanda(worksheet, rowCount, row, file.FileName.ToString(), customerName);
+                                        var foodPandaProofList = await ExtractAccountingFoodPanda(worksheet, rowCount, row, file.FileName.ToString(), customerName, strClub, userId);
                                         if (foodPandaProofList.Item1 == null)
                                         {
                                             return (null, foodPandaProofList.Item2);
@@ -1743,7 +1666,7 @@ namespace CSI.Application.Services
                                     }
                                     else if (valueCust == "MetroMart")
                                     {
-                                        var metroMartProofList = await ExtractAccountingMetroMart(worksheet, rowCount, row, file.FileName.ToString(), customerName);
+                                        var metroMartProofList = await ExtractAccountingMetroMart(worksheet, rowCount, row, file.FileName.ToString(), customerName, strClub, userId);
                                         if (metroMartProofList.Item1 == null)
                                         {
                                             return (null, metroMartProofList.Item2);
@@ -1763,12 +1686,42 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
+                                    var logsDto = new LogsDto
+                                    {
+                                        UserId = userId,
+                                        Date = DateTime.Now,
+                                        Action = "Upload Accounting Prooflist",
+                                        Remarks = $"No worksheets found in the workbook.",
+                                        Club = strClub,
+                                        CustomerId = customerName,
+                                        Filename = fileName
+                                    };
+
+                                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                                    _dbContext.Logs.Add(logsMap);
+                                    await _dbContext.SaveChangesAsync();
+
                                     return (null, "No worksheets found in the workbook.");
                                 }
                             }
                         }
                         else
                         {
+                            var logsDto = new LogsDto
+                            {
+                                UserId = userId,
+                                Date = DateTime.Now,
+                                Action = "Upload Accounting Prooflist",
+                                Remarks = $"No worksheets.",
+                                Club = strClub,
+                                CustomerId = customerName,
+                                Filename = fileName
+                            };
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            await _dbContext.SaveChangesAsync();
+
                             return (null, "No worksheets.");
                         }
                     }
@@ -1778,21 +1731,69 @@ namespace CSI.Application.Services
                 {
                     await _dbContext.AccountingProoflists.AddRangeAsync(proofList);
                     await _dbContext.SaveChangesAsync();
+                    rowsCountNew = proofList.Count;
+                    totalAmount = proofList.Sum(x => x.Amount) ?? 0;
+                    var logsDto = new LogsDto
+                    {
+                        UserId = userId,
+                        Date = DateTime.Now,
+                        Action = "Upload Accounting Prooflist",
+                        Remarks = $"Success",
+                        RowsCountAfter = rowsCountNew,
+                        TotalAmount = totalAmount,
+                        Club = strClub,
+                        CustomerId = customerName,
+                        Filename = fileName
+                    };
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
                     return (proofList, "Success");
                 }
                 else
                 {
+                    var logsDto = new LogsDto
+                    {
+                        UserId = userId,
+                        Date = DateTime.Now,
+                        Action = "Upload Accounting Prooflist",
+                        Remarks = $"No list found.",
+                        Club = strClub,
+                        CustomerId = customerName,
+                        Filename = fileName
+                    };
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
                     return (proofList, "No list found.");
                 }
             }
             catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerName,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (null, $"Please check error in row {row}: {ex.Message}");
                 throw;
             }
         }
 
-        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingGrabMartOrFood(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo)
+        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingGrabMartOrFood(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var grabFoodProofList = new List<AccountingProoflist>();
             var fileId = 0;
@@ -1831,6 +1832,21 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            UserId = userId,
+                            Date = DateTime.Now,
+                            Action = "Upload Accounting Analytics",
+                            Remarks = $"Error: Column not found.",
+                            Club = strClub,
+                            CustomerId = customerNo,
+                            Filename = fileName
+                        };
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
                         return (grabFoodProofList, $"Column not found.");
                     }
                 }
@@ -1926,13 +1942,28 @@ namespace CSI.Application.Services
 
                 return (grabFoodProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerNo,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (grabFoodProofList, "Error extracting proof list.");
             }
         }
 
-        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingPickARoo(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo)
+        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingPickARoo(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var pickARooProofList = new List<AccountingProoflist>();
             var fileId = 0;
@@ -1972,6 +2003,21 @@ namespace CSI.Application.Services
                     {
                         if (!columnIndexes.ContainsKey(expectedHeader))
                         {
+                            var logsDto = new LogsDto
+                            {
+                                UserId = userId,
+                                Date = DateTime.Now,
+                                Action = "Upload Accounting Analytics",
+                                Remarks = $"Error: Column not found.",
+                                Club = strClub,
+                                CustomerId = customerNo,
+                                Filename = fileName
+                            };
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            await _dbContext.SaveChangesAsync();
+
                             return (pickARooProofList, $"Column not found.");
                         }
                     }
@@ -2047,6 +2093,21 @@ namespace CSI.Application.Services
                     {
                         if (!columnIndexes.ContainsKey(expectedHeader))
                         {
+                            var logsDto = new LogsDto
+                            {
+                                UserId = userId,
+                                Date = DateTime.Now,
+                                Action = "Upload Accounting Analytics",
+                                Remarks = $"Error: Column not found.",
+                                Club = strClub,
+                                CustomerId = customerNo,
+                                Filename = fileName
+                            };
+
+                            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                            _dbContext.Logs.Add(logsMap);
+                            await _dbContext.SaveChangesAsync();
+
                             return (pickARooProofList, $"Column not found.");
                         }
                     }
@@ -2105,13 +2166,28 @@ namespace CSI.Application.Services
                 }
                 return (pickARooProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerNo,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (pickARooProofList, "Error extracting proof list.");
             }
         }
 
-        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingFoodPanda(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo)
+        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingFoodPanda(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var foodPandaProofList = new List<AccountingProoflist>();
             var fileId = 0;
@@ -2147,6 +2223,21 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            UserId = userId,
+                            Date = DateTime.Now,
+                            Action = "Upload Accounting Analytics",
+                            Remarks = $"Error: Column not found.",
+                            Club = strClub,
+                            CustomerId = customerNo,
+                            Filename = fileName
+                        };
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
                         return (foodPandaProofList, $"Column not found.");
                     }
                 }
@@ -2203,13 +2294,28 @@ namespace CSI.Application.Services
 
                 return (foodPandaProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerNo,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (foodPandaProofList, "Error extracting proof list.");
             }
         }
 
-        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingMetroMart(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo)
+        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingMetroMart(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var metroMartProofList = new List<AccountingProoflist>();
             var fileId = 0;
@@ -2246,6 +2352,21 @@ namespace CSI.Application.Services
                 {
                     if (!columnIndexes.ContainsKey(expectedHeader))
                     {
+                        var logsDto = new LogsDto
+                        {
+                            UserId = userId,
+                            Date = DateTime.Now,
+                            Action = "Upload Accounting Analytics",
+                            Remarks = $"Error: Column not found.",
+                            Club = strClub,
+                            CustomerId = customerNo,
+                            Filename = fileName
+                        };
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
                         return (metroMartProofList, $"Column not found.");
                     }
                 }
@@ -2306,8 +2427,23 @@ namespace CSI.Application.Services
 
                 return (metroMartProofList, rowCount.ToString() + " rows extracted");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerNo,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return (metroMartProofList, "Error extracting proof list.");
             }
         }
@@ -2342,13 +2478,14 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<bool> DeleteAccountingAnalytics(int id)
+        public async Task<bool> DeleteAccountingAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
             var result = false;
+            var customerId = "";
             try
             {
                 var fileDescDelete = await _dbContext.FileDescription
-               .Where(x => x.Id == id)
+               .Where(x => x.Id == updateAnalyticsDto.Id)
                .ToListAsync();
 
                 if (fileDescDelete != null)
@@ -2358,19 +2495,47 @@ namespace CSI.Application.Services
                 }
 
                 var accountingProoflistsDelete = await _dbContext.AccountingProoflists
-                    .Where(x => x.FileDescriptionId == id)
+                    .Where(x => x.FileDescriptionId == updateAnalyticsDto.Id)
                     .ToListAsync();
+
+                customerId = accountingProoflistsDelete.Select(x => x.CustomerId).FirstOrDefault();
 
                 if (accountingProoflistsDelete != null)
                 {
                     _dbContext.AccountingProoflists.RemoveRange(accountingProoflistsDelete);
                     await _dbContext.SaveChangesAsync();
-                }
 
+                    var logsDto = new LogsDto
+                    {
+                        UserId = updateAnalyticsDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Delete Accounting Analytics",
+                        Remarks = $"Successfully Deleted",
+                        Club = updateAnalyticsDto.StoreId,
+                        CustomerId = customerId,
+                    };
+
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                }
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                var logsDto = new LogsDto
+                {
+                    UserId = updateAnalyticsDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Delete Accounting Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = updateAnalyticsDto.StoreId,
+                    CustomerId = customerId,
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
 
                 return false;
             }  

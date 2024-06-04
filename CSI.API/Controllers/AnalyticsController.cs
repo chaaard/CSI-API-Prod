@@ -235,16 +235,16 @@ namespace CSI.API.Controllers
         }
 
         [HttpPut("DeleteAnalytics")]
-        public async Task<IActionResult> DeleteAnalytics(int id)
+        public async Task<IActionResult> DeleteAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = await _analyticsService.DeleteAnalytics(id);
+            var result = await _analyticsService.DeleteAnalytics(updateAnalyticsDto);
             return (Ok(result));
         }
 
         [HttpPut("RevertAnalytics")]
-        public async Task<IActionResult> RevertAnalytics(int id)
+        public async Task<IActionResult> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
-            var result = await _analyticsService.RevertAnalytics(id);
+            var result = await _analyticsService.RevertAnalytics(updateAnalyticsDto);
             return (Ok(result));
         }
 
@@ -411,7 +411,6 @@ namespace CSI.API.Controllers
             }
         }
 
-
         [HttpPost("CreateAnalytics")]
         public async Task<IActionResult> CreateAnalytics(AnalyticsAddDto analyticsAddDto)
         {
@@ -422,8 +421,6 @@ namespace CSI.API.Controllers
 
             return Ok("Successfully Created");
         }
-
-
 
         [HttpPost("ExportExceptions")]
         public async Task<IActionResult> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto)
@@ -436,6 +433,13 @@ namespace CSI.API.Controllers
             }
 
             return Ok(result);
+        }
+
+        [HttpPost("InsertLogs")]
+        public async Task<IActionResult> InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            _analyticsService.InsertLogs(refreshAnalyticsDto);
+            return Ok();
         }
     }
 }

@@ -34,8 +34,8 @@ namespace CSI.Application.Services
             var result = await _dbContext.AdjustmentExceptions
                    .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
                             $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                            $"adj.OldJO, adj.CustomerIdOld, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                            $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, " +
+                            $"adj.OldJO, adj.NewJO, adj.CustomerIdOld, adj.CustomerId AS CustomerIdNew, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                            $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId , re.ReasonDesc, " +
                             $"adj.Descriptions " +
                             $"FROM [dbo].[tbl_analytics_prooflist] ap " +
                             $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
@@ -46,12 +46,13 @@ namespace CSI.Application.Services
                             $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
                             $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
                             $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
+                            $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
                             $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0 " +
                             $"UNION ALL " +
                             $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
                             $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                            $"	adj.OldJO, adj.CustomerIdOld, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                            $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, " +
+                            $"	adj.OldJO, adj.NewJO, adj.CustomerIdOld, adj.CustomerId AS CustomerIdNew, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                            $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId , re.ReasonDesc, " +
                             $"	adj.Descriptions " +
                             $"FROM [dbo].[tbl_analytics_prooflist] ap " +
                             $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
@@ -62,6 +63,7 @@ namespace CSI.Application.Services
                             $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
                             $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
                             $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
+                            $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
                             $"WHERE p.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND p.StoreId = {adjustmentParams.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND so.SourceType = 'Portal'AND p.DeleteFlag = 0 " +
                             $" ORDER BY so.SourceType, a.SubTotal ASC ")
                    .ToListAsync();
@@ -126,38 +128,80 @@ namespace CSI.Application.Services
 
         public async Task<bool> UpdateAnalyticsProofList(AnalyticsProoflistDto adjustmentTypeDto)
         {
-            var result = false;
-            var adjustmentStatus = await _dbContext.AnalyticsProoflist
-                      .Where(x => x.Id == adjustmentTypeDto.Id)
-                      .FirstOrDefaultAsync();
-
-            if (adjustmentStatus != null)
+            string clubLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                adjustmentStatus.StatusId = adjustmentTypeDto.StatusId ?? 0;
-                adjustmentStatus.ActionId = adjustmentTypeDto.ActionId ?? 0;
+                var result = false;
+                var adjustmentStatus = await _dbContext.AnalyticsProoflist
+                          .Where(x => x.Id == adjustmentTypeDto.Id)
+                          .FirstOrDefaultAsync();
+
+                if (adjustmentStatus != null)
+                {
+                    adjustmentStatus.StatusId = adjustmentTypeDto.StatusId ?? 0;
+                    adjustmentStatus.ActionId = adjustmentTypeDto.ActionId ?? 0;
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                var adjustments = await _dbContext.Adjustments
+                          .Where(x => x.Id == adjustmentTypeDto.AdjustmentId)
+                          .FirstOrDefaultAsync();
+
+                if (adjustments != null)
+                {
+                    adjustments.DisputeReferenceNumber = adjustmentTypeDto?.AdjustmentAddDto?.DisputeReferenceNumber;
+                    adjustments.DisputeAmount = adjustmentTypeDto?.AdjustmentAddDto?.DisputeAmount;
+                    adjustments.DateDisputeFiled = adjustmentTypeDto?.AdjustmentAddDto?.DateDisputeFiled;
+                    adjustments.DescriptionOfDispute = adjustmentTypeDto?.AdjustmentAddDto?.DescriptionOfDispute;
+                    adjustments.AccountsPaymentDate = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentDate;
+                    adjustments.AccountsPaymentTransNo = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentTransNo;
+                    adjustments.AccountsPaymentAmount = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentAmount;
+                    adjustments.ReasonId = adjustmentTypeDto?.AdjustmentAddDto?.ReasonId;
+                    adjustments.Descriptions = adjustmentTypeDto?.AdjustmentAddDto?.Descriptions;
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+                }
+
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = result ? $"Successfuly Updated" : $"Failed to Update",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
+
+                return result;
             }
-
-            var adjustments = await _dbContext.Adjustments
-                      .Where(x => x.Id == adjustmentTypeDto.AdjustmentId)
-                      .FirstOrDefaultAsync();
-
-            if (adjustments != null)
+            catch (Exception ex)
             {
-                adjustments.DisputeReferenceNumber = adjustmentTypeDto?.AdjustmentAddDto?.DisputeReferenceNumber;
-                adjustments.DisputeAmount = adjustmentTypeDto?.AdjustmentAddDto?.DisputeAmount;
-                adjustments.DateDisputeFiled = adjustmentTypeDto?.AdjustmentAddDto?.DateDisputeFiled;
-                adjustments.DescriptionOfDispute = adjustmentTypeDto?.AdjustmentAddDto?.DescriptionOfDispute;
-                adjustments.AccountsPaymentDate = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentDate;
-                adjustments.AccountsPaymentTransNo = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentTransNo;
-                adjustments.AccountsPaymentAmount = adjustmentTypeDto?.AdjustmentAddDto?.AccountsPaymentAmount;
-                adjustments.ReasonId = adjustmentTypeDto?.AdjustmentAddDto?.ReasonId;
-                adjustments.Descriptions = adjustmentTypeDto?.AdjustmentAddDto?.Descriptions;
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
-                result = true;
+                throw;
             }
-
-            return result;
         }
 
         public async Task<int> CreateAdjustment(AdjustmentAddDto? adjustmentAddDto)
@@ -186,8 +230,12 @@ namespace CSI.Application.Services
 
         public async Task<bool> UpdateJO(AnalyticsProoflistDto adjustmentTypeDto)
         {
+            string clubLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
             var result = false;
             var oldJO = "";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
             try
             {
                 if (adjustmentTypeDto != null)
@@ -289,10 +337,42 @@ namespace CSI.Application.Services
                         }
                     }
                 }
+
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = result ? $"Successfuly Updated" : $"Failed to Update",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 throw;
             }
         }
@@ -452,6 +532,10 @@ namespace CSI.Application.Services
 
         public async Task<bool> UpdatePartner(AnalyticsProoflistDto adjustmentTypeDto)
         {
+            string clubLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", adjustmentTypeDto.refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
             var result = false;
             var oldCustomerId = "";
             var isUpload = false;
@@ -540,10 +624,42 @@ namespace CSI.Application.Services
                         }
                     }
                 }
+
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = result ? $"Successfuly Updated" : $"Failed to Update",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentTypeDto.refreshAnalyticsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Resolve Exception Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                    ActionId = adjustmentTypeDto.ActionId,
+                    AnalyticsId = adjustmentTypeDto.AnalyticsId,
+                    AdjustmentId = adjustmentTypeDto.AdjustmentId
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 throw;
             }
         }
