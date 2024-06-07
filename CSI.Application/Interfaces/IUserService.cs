@@ -15,5 +15,15 @@ namespace CSI.Application.Interfaces
         Task<UserDto> Logout(string username);
         Task<UserInfoDto> GetUserInfo(string username);
         Task<bool?> IsLogin(string username);
+        
+        Task<UserDto> ChangePassword(string username, string password);
+        Task<UserDto> LoginAttempt(string username);
+
+        Task<(List<UserDto>, int totalPages)> GetUsersListAsync(PaginationDto pagination);
+        Task<User> GetUserByIdAsync(string id);
+        Task<User> UpdateUserByIdAsync(User id);
+        Task<User> InsertUserAsync(User id);
+        Task<List<User>> GetUsersFullListAsync();
+        Task<bool> ResetUserPasswordByIdAsync(string id);
     }
 }
