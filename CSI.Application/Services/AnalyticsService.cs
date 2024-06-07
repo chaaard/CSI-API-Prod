@@ -2021,7 +2021,7 @@ namespace CSI.Application.Services
             try
             {
                 //var result = false;
-                var fileName = "";
+                var fileName = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
                 var formattedList = new List<string>();
                 var invoiceNo = "";
                 var invoiceAnalytics = new List<InvoiceDto>();
@@ -2150,7 +2150,7 @@ namespace CSI.Application.Services
                                 DTL_VAT_CODE = "",
                                 DTL_CURRENCY = "PHP",
                                 INVOICE_APPLIED = "0",
-                                FILENAME = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01"
+                                FILENAME = fileName 
                             };
 
                             invoiceAnalytics.Add(invoice);
@@ -2240,8 +2240,7 @@ namespace CSI.Application.Services
                         };
 
                         invoiceNo = format.HDR_TRX_NUMBER;
-                        fileName = format.FILENAME;
-                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{format.FILENAME}|");
+                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|");
                     }
 
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
