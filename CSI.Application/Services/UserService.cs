@@ -43,6 +43,17 @@ namespace CSI.Application.Services
                     .Where(u => u.Username == username)
                     .FirstOrDefaultAsync();
 
+                if (result.Status == false)
+                {
+                    return new UserDto
+                    {
+                        EmployeeNumber = result.EmployeeNumber,
+                        Username = result.Username,
+                        Attempt = result.Attempt,
+                        Token = "",
+                        Message = "Username is Inactive!"
+                    };
+                }
                 if (result == null)
                 {
                     return new UserDto();
