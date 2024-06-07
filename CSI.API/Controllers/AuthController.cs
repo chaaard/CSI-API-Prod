@@ -1,5 +1,6 @@
 ﻿using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
+using CSI.Application.Services;
 using CSI.Domain.Entities;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -31,9 +32,20 @@ namespace CSI.API.Controllers
 
             if (userDto != null && userDto.Id != Guid.Empty)
             {
+                if (userDto.Message == "Login attempt limit reached!")
+                {
+                    return BadRequest("Login attempt limit reached!");
+                }
                 return Ok(userDto);
             }
-            return NotFound();
+            else
+            {
+                if (userDto.Message == "Login attempt limit reached!")
+                {
+                    return BadRequest("Login attempt limit reached!");
+                }
+                return BadRequest("Login Failed");
+            }
         }
 
         [HttpPost("LoginAD")]
@@ -110,11 +122,23 @@ namespace CSI.API.Controllers
             }
             return NotFound();
         }
-
+        
         [HttpPost("IsLogin")]
         public async Task<IActionResult> IsLogin(LoginDto login)
         {
             var result = await _userService.IsLogin(login.Username);
+
+            if (result != null)
+            {
+                return Ok(result);
+            }
+            return NotFound();
+        }
+
+        [HttpPost("ChangePassword")]
+        public async Task<IActionResult> ChangePassword(LoginDto login)
+        {
+            var result = await _userService.ChangePassword(login.Username, login.Password);
 
             if (result != null)
             {

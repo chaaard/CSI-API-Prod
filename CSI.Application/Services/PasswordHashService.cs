@@ -21,7 +21,7 @@ namespace CSI.Application.Services
 
             return Convert.ToBase64String(saltBytes);
         }
-
+        //pass123, 122322213123EFFDSGD, 10101, 70,
         public string HashPassword(string password, string salt, int nIterations, int nHash)
         {
             var saltBytes = Convert.FromBase64String(salt);
