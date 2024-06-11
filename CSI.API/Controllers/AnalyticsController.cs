@@ -1,9 +1,11 @@
 ﻿using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
 using CSI.Application.Services;
+using CSI.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CSI.API.Controllers
 {
@@ -103,6 +105,8 @@ namespace CSI.API.Controllers
         {
             await _analyticsService.RefreshAnalytics(refreshAnalyticsDto);
         }
+
+
 
         [HttpPost("SubmitAnalytics")]
         public async Task<IActionResult> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
