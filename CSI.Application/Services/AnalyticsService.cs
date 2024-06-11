@@ -3266,23 +3266,41 @@ namespace CSI.Application.Services
             }
         }
 
-        //**Create Manual Add
         public async Task<Analytics> CreateAnalytics(AnalyticsAddDto createAnalyticsDto)
         {
+            string userId = createAnalyticsDto.UserId.ToString();
+            var analytics = new Analytics();
+            DateTime date;
             try
             {
-                var analytics = _mapper.Map<AnalyticsAddDto,Analytics>(createAnalyticsDto);
-                _dbContext.Analytics.Add(analytics);
-                await _dbContext.SaveChangesAsync();
+                if (DateTime.TryParse(createAnalyticsDto.TransactionDate.ToString(), out date))
+                {
+
+                    createAnalyticsDto.UserId = null;
+                    createAnalyticsDto.DeleteFlag = false;
+                    createAnalyticsDto.IsTransfer = true;
+                    createAnalyticsDto.IsGenerate = false;
+                    createAnalyticsDto.TransactionDate = date.Date;
+
+                    var isUpload = await _dbContext.Analytics
+                                  .Where(x => x.IsUpload == true && x.CustomerId == createAnalyticsDto.CustomerId && x.LocationId == createAnalyticsDto.LocationId && x.TransactionDate.Value.Date == date.Date)
+                                  .AnyAsync();
+
+                    createAnalyticsDto.IsUpload = isUpload;
+
+                     analytics = _mapper.Map<AnalyticsAddDto, Analytics>(createAnalyticsDto);
+                    _dbContext.Analytics.Add(analytics);
+                    await _dbContext.SaveChangesAsync();
+                }
 
                 var logsDto = new LogsDto
                 {
-                    UserId = createAnalyticsDto.UserId,
+                    UserId = userId,
                     Date = DateTime.Now,
                     Action = "Manual Add Analytics",
                     Remarks = $"Successfully Added",
-                    Club = createAnalyticsDto.Club.ToString(),
-                    CustomerId = createAnalyticsDto.Merchant,
+                    Club = createAnalyticsDto.LocationId.ToString(),
+                    CustomerId = createAnalyticsDto.CustomerId,
                     AnalyticsId = analytics.Id,
                 };
                 var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -3295,12 +3313,12 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    UserId = createAnalyticsDto.UserId,
+                    UserId = userId,
                     Date = DateTime.Now,
                     Action = "Manual Add Analytics",
                     Remarks = $"Error: {ex.Message}",
-                    Club = createAnalyticsDto.Club.ToString(),
-                    CustomerId = createAnalyticsDto.Merchant
+                    Club = createAnalyticsDto.LocationId.ToString(),
+                    CustomerId = createAnalyticsDto.CustomerId
                 };
                 var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);

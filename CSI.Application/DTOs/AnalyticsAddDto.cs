@@ -8,30 +8,24 @@ namespace CSI.Application.DTOs
 {
     public class AnalyticsAddDto
     {
-        public string? UserId { get; set; } = string.Empty;
-        [Required]
-        public string? Merchant { get; set; } = string.Empty;
-        [Required]
-        public int? Club { get; set; }
-        [Required]
+        public int Id { get; set; }
+        public string? CustomerId { get; set; } = string.Empty;
+        public int? LocationId { get; set; }
         public DateTime? TransactionDate { get; set; }
-        [Required]
         public string? MembershipNo { get; set; } = string.Empty;
-        [Required]
         public string? CashierNo { get; set; } = string.Empty;
-        [Required]
         public string? RegisterNo { get; set; } = string.Empty;
-        [Required]
         public string? TransactionNo { get; set; } = string.Empty;
-        [Required]
         public string? OrderNo { get; set; } = string.Empty;
-        [Required]
         public int? Qty { get; set; }
-        [Required]
         public decimal? Amount { get; set; }
-        [Required]
-        public decimal? SubTotal { get; set; }
-        public bool? IsUpload { get; set; } = true;
-        public bool? DeleteFlag { get; set; } = false;
+        public decimal SubTotal { get; set; }
+        public Guid? UserId { get; set; }
+        public int StatusId { get; set; }
+        public bool? IsUpload { get; set; }
+        public bool? IsGenerate { get; set; }
+        public bool? IsTransfer { get; set; }
+        public bool? DeleteFlag { get; set; }
+        public string? InvoiceNo { get; set; } = string.Empty;
     }
 }
