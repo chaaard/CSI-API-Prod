@@ -43,6 +43,24 @@ namespace CSI.Application.Services
                     .Where(u => u.Username == username)
                     .FirstOrDefaultAsync();
 
+                if (result == null)
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = result.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Login",
+                        Remarks = $"User not found: {username}",
+                        Club = result.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return new UserDto();
+                }
+
                 if (result.Status == false)
                 {
                     logsDto = new LogsDto
@@ -51,7 +69,7 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Login",
                         Remarks = $"Username is Inactive!",
-                        Club = strClub,
+                        Club = result.Club.ToString(),
                     };
 
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -67,10 +85,7 @@ namespace CSI.Application.Services
                         Message = "Username is Inactive!"
                     };
                 }
-                if (result == null)
-                {
-                    return new UserDto();
-                }
+              
                 else
                 {
                     if (!result.IsLogin)
@@ -91,7 +106,7 @@ namespace CSI.Application.Services
                                 Date = DateTime.Now,
                                 Action = "Login",
                                 Remarks = $"Login Successful",
-                                Club = strClub,
+                                Club = result.Club.ToString(),
                             };
 
                             logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -124,7 +139,7 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Login",
                         Remarks = $"User is already logged in.",
-                        Club = strClub,
+                        Club = result.Club.ToString(),
                     };
 
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
