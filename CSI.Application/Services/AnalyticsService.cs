@@ -161,7 +161,8 @@ namespace CSI.Application.Services
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0) " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
                           $" ) a " +
                           $" GROUP BY  " +
                           $"     a.OrderNo,    " +
@@ -171,11 +172,11 @@ namespace CSI.Application.Services
                           $"     COUNT(a.OrderNo) = 1 "
                           )
                  .ToListAsync();
-
                 analytics = result.Select(n => new AnalyticsDto
                 {
                     Id = n.Id,
                     CustomerId = n.CustomerId,
+                    CustomerName = n.CustomerName,
                     LocationName = n.LocationName,
                     TransactionDate = n.TransactionDate,
                     MembershipNo = n.MembershipNo,
@@ -3297,7 +3298,7 @@ namespace CSI.Application.Services
                 {
                     UserId = userId,
                     Date = DateTime.Now,
-                    Action = "Manual Add Analytics",
+                    Action = createAnalyticsDto.AnalyticsParamsDto.action,
                     Remarks = $"Successfully Added",
                     Club = createAnalyticsDto.LocationId.ToString(),
                     CustomerId = createAnalyticsDto.CustomerId,
@@ -3315,7 +3316,7 @@ namespace CSI.Application.Services
                 {
                     UserId = userId,
                     Date = DateTime.Now,
-                    Action = "Manual Add Analytics",
+                    Action = createAnalyticsDto.AnalyticsParamsDto.action,
                     Remarks = $"Error: {ex.Message}",
                     Club = createAnalyticsDto.LocationId.ToString(),
                     CustomerId = createAnalyticsDto.CustomerId
@@ -3369,5 +3370,9 @@ namespace CSI.Application.Services
                 throw;
             }
         }
+
+
+
+
     }
 }
