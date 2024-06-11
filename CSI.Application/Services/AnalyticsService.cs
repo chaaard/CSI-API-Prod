@@ -1147,7 +1147,7 @@ namespace CSI.Application.Services
 
                 foreach (var tableName in tableNames)
                 {
-                    await _dbContext.Database.ExecuteSqlRawAsync($"IF OBJECT_ID('{tableName}', 'U') IS NOT NULL DROP TABLE {tableName}");
+                    await _dbContext.Database.ExecuteSqlRawAsync($"IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].{tableName}') AND type in (N'U')) DROP TABLE [dbo].{tableName}");
                 }
 
                 await _dbContext.Database.GetDbConnection().CloseAsync();
