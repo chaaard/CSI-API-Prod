@@ -26,14 +26,15 @@ namespace CSI.Application.Services
         private readonly AppDBContext _dbContext;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly IDbContextFactory<AppDBContext> _contextFactory;
 
-        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper)
+        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory)
         {
             _configuration = configuration;
             _dbContext = dBContext;
             _mapper = mapper;
             _dbContext.Database.SetCommandTimeout(999);
-
+            _contextFactory = contextFactory;
         }
 
         public async Task<string> GetDepartments()
@@ -754,18 +755,22 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Error: {ex.Message}",
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -783,18 +788,22 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Error: {ex.Message}",
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -813,18 +822,22 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Error: {ex.Message}",
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -839,18 +852,22 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Error: {ex.Message}",
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -977,36 +994,43 @@ namespace CSI.Application.Services
                 var analyticsNewRows = analytics.Count();
                 var totalAmount = analytics.Sum(x => x.SubTotal);
 
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Success",
-                    RowsCountBefore = analyticsCount,
-                    RowsCountAfter = analyticsNewRows,
-                    TotalAmount = totalAmount,
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Success",
+                        RowsCountBefore = analyticsCount,
+                        RowsCountAfter = analyticsNewRows,
+                        TotalAmount = totalAmount,
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
             }
             catch (Exception ex)
             {
-                var logsDto = new LogsDto
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    UserId = analyticsParam.userId,
-                    Date = DateTime.Now,
-                    Action = "Refresh Analytics",
-                    Remarks = $"Error: {ex.Message}",
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                    var logsDto = new LogsDto
+                    {
+                        UserId = analyticsParam.userId,
+                        Date = DateTime.Now,
+                        Action = "Refresh Analytics",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+               
                 await DropTables(strStamp);
                 throw;
             }
@@ -1217,26 +1241,30 @@ namespace CSI.Application.Services
         {
             try
             {
-                if (_dbContext.Database.GetDbConnection().State == ConnectionState.Closed)
+
+                using (var newContext = _contextFactory.CreateDbContext())
                 {
-                    await _dbContext.Database.GetDbConnection().OpenAsync();
+                    if (newContext.Database.GetDbConnection().State == ConnectionState.Closed)
+                    {
+                        await newContext.Database.GetDbConnection().OpenAsync();
+                    }
+
+                    var tableNames = new[]
+                    {
+                        $"ANALYTICS_CSHTND{strStamp}",
+                        $"ANALYTICS_CSHHDR{strStamp}",
+                        $"ANALYTICS_CONDTX{strStamp}",
+                        $"ANALYTICS_INVMST{strStamp}",
+                        $"ANALYTICS_TBLSTR{strStamp}"
+                    };
+
+                    foreach (var tableName in tableNames)
+                    {
+                        await newContext.Database.ExecuteSqlRawAsync($"IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].{tableName}') AND type in (N'U')) DROP TABLE [dbo].{tableName}");
+                    }
+
+                    await newContext.Database.GetDbConnection().CloseAsync();
                 }
-
-                var tableNames = new[]
-                {
-                    $"ANALYTICS_CSHTND{strStamp}",
-                    $"ANALYTICS_CSHHDR{strStamp}",
-                    $"ANALYTICS_CONDTX{strStamp}",
-                    $"ANALYTICS_INVMST{strStamp}",
-                    $"ANALYTICS_TBLSTR{strStamp}"
-                };
-
-                foreach (var tableName in tableNames)
-                {
-                    await _dbContext.Database.ExecuteSqlRawAsync($"IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].{tableName}') AND type in (N'U')) DROP TABLE [dbo].{tableName}");
-                }
-
-                await _dbContext.Database.GetDbConnection().CloseAsync();
             }
             catch (Exception ex)
             {
@@ -3310,7 +3338,7 @@ namespace CSI.Application.Services
                 var query = new List<ExceptionReportDto>();
                 if (DateTime.TryParse(refreshAnalyticsDto.dates[0].ToString(), out dateFrom) && DateTime.TryParse(refreshAnalyticsDto.dates[1].ToString(), out dateTo))
                 {
-                    if (refreshAnalyticsDto.memCode[0] != string.Empty)
+                    if (refreshAnalyticsDto.memCode.Count >= 1 )
                     {
                         string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
                             $"(CAST(a.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
@@ -3515,9 +3543,5 @@ namespace CSI.Application.Services
                 throw;
             }
         }
-
-
-
-
     }
 }

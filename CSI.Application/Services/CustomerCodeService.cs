@@ -124,7 +124,8 @@ namespace CSI.Application.Services
                         UserId = customerCode.UserId,
                         Date = DateTime.Now,
                         Action = "Update Merchant",
-                        Remarks = $"Id: {customerCode.Id} : " +
+                        Remarks = $"Updated Successfully" +
+                                  $"Id: {customerCode.Id} : " +
                                   $"CustomerName: {oldCustomerName} -> {customerCode.CustomerName}, " +
                                   $"CustomerCode: {oldCustomerCode} -> {customerCode.CustomerCode}, " +
                                   $"CustomerNo: {oldCustomerNo} -> {customerCode.CustomerNo}, " +

@@ -5,6 +5,7 @@ using CSI.Domain.Entities;
 using CSI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using NetTopologySuite.Geometries;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -27,9 +28,9 @@ namespace CSI.Application.Services
             _mapper = mapper;
         }
 
-        public async Task<List<Location>> GetLocation()
+        public async Task<List<Domain.Entities.Location>> GetLocation()
         {
-            var getLocations = new List<Location>();
+            var getLocations = new List<Domain.Entities.Location>();
             getLocations = await _dbContext.Locations.ToListAsync();
             return getLocations;
         }
@@ -98,7 +99,7 @@ namespace CSI.Application.Services
             return (locationList, totalPages);
         }
 
-        public async Task<List<Location>> GetLocationDdCodesAsync()
+        public async Task<List<Domain.Entities.Location>> GetLocationDdCodesAsync()
         {
             var query = await _dbContext.Locations
                 .ToListAsync();
@@ -106,14 +107,14 @@ namespace CSI.Application.Services
             return query;
         }
 
-        public async Task<Location> GetLocationByIdAsync(int Id)
+        public async Task<Domain.Entities.Location> GetLocationByIdAsync(int Id)
         {
-            var getLocations = new Location();
+            var getLocations = new Domain.Entities.Location();
             getLocations = await _dbContext.Locations.Where(x => x.Id == Id).FirstAsync();
             return getLocations;
         }
 
-        public async Task<Location> UpdateLocationByIdAsync(LocationDto location)
+        public async Task<Domain.Entities.Location> UpdateLocationByIdAsync(LocationDto location)
         {
             var logsDto = new LogsDto();
             var logsMap = new Logs();
@@ -137,7 +138,8 @@ namespace CSI.Application.Services
                     {
                         Date = DateTime.Now,
                         Action = "Update Club",
-                        Remarks = $"Id: {location.Id} : " +
+                        Remarks = $"Updated Successfully" +
+                                  $"Id: {location.Id} : " +
                                   $"LocationCode: {oldLocationCode} -> {location.LocationCode}, " +
                                   $"LocationName: {oldLocationName} -> {location.LocationName}, " +
                                   $"ShortName: {oldShortName} -> {location.ShortName}, " +
@@ -151,13 +153,14 @@ namespace CSI.Application.Services
                 }
                 else
                 {
-                    return new Location();
+                    return new Domain.Entities.Location();
                 }
             }
             catch (Exception ex)
             {
                 logsDto = new LogsDto
                 {
+                    UserId = location.UserId,
                     Date = DateTime.Now,
                     Action = "Update Club",
                     Remarks = $"Error: {ex.Message}",
@@ -169,44 +172,45 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<Location> InsertLocationAsync(Location location)
+        public async Task<Domain.Entities.Location> InsertLocationAsync(LocationDto location)
         {
             var logsDto = new LogsDto();
             var logsMap = new Logs();
             try
             {
-                var getLocation = await _dbContext.Locations
-                    .SingleOrDefaultAsync(x => x.LocationName == location.LocationName
-                                            || x.LocationCode == location.LocationCode
-                                            || x.ShortName == location.ShortName);
-
-                if (getLocation == null)
+                Func<LocationDto, Task<Domain.Entities.Location>> insertLocationLambda = async newLocation =>
                 {
-                    // Define a lambda expression for inserting the user
-                    Func<Location, Task<Location>> insertLocationLambda = async newLocation =>
+                    var getLocation = new Domain.Entities.Location
                     {
-                        var getLocation = new Location
-                        {
-                            LocationCode = newLocation.LocationCode,
-                            LocationName = newLocation.LocationName,
-                            ShortName = newLocation.ShortName,
-                            DeleteFlag = newLocation.DeleteFlag,
-                        };
-
-                        await _dbContext.Locations.AddAsync(getLocation);
-                        await _dbContext.SaveChangesAsync(); // Ensure changes are saved to the database
-                        return getLocation;
+                        LocationCode = newLocation.LocationCode,
+                        LocationName = newLocation.LocationName,
+                        ShortName = newLocation.ShortName,
+                        DeleteFlag = newLocation.DeleteFlag,
                     };
 
-                    // Invoke the lambda to insert the location
-                    return await insertLocationLambda(location);
-                }
-                return null;
+                    await _dbContext.Locations.AddAsync(getLocation);
+                    await _dbContext.SaveChangesAsync();
+                    return getLocation;
+                };
+
+                logsDto = new LogsDto
+                {
+                    UserId = location.UserId,
+                    Date = DateTime.Now,
+                    Action = "Insert Club",
+                    Remarks = $"Successfully Added",
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
+                return await insertLocationLambda(location);
             }
             catch (Exception ex)
             {
                 logsDto = new LogsDto
                 {
+                    UserId = location.UserId,
                     Date = DateTime.Now,
                     Action = "Insert Club",
                     Remarks = $"Error: {ex.Message}",
@@ -218,21 +222,62 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<bool> DeleteLocationByIdAsync(int Id)
+        public async Task<bool> DeleteLocationByIdAsync(LocationDto location)
         {
-            var getLocation = await _dbContext.Locations.SingleOrDefaultAsync(x => x.Id == Id);
-
-            if (getLocation != null)
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                getLocation.DeleteFlag = true;
+                var getLocation = await _dbContext.Locations.SingleOrDefaultAsync(x => x.Id == location.Id);
+
+                if (getLocation != null)
+                {
+                    getLocation.DeleteFlag = true;
+                    await _dbContext.SaveChangesAsync();
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = location.UserId,
+                        Date = DateTime.Now,
+                        Action = "Delete Club",
+                        Remarks = $"Successfully Deleted",
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return true;
+                }
+                else
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = location.UserId,
+                        Date = DateTime.Now,
+                        Action = "Delete Club",
+                        Remarks = $"Club Not Found",
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = location.UserId,
+                    Date = DateTime.Now,
+                    Action = "Delete Club",
+                    Remarks = $"Error: {ex.Message}",
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
+                throw;
+            }
 
-                return true;
-            }
-            else
-            {
-                return false;
-            }
         }
     }
 }

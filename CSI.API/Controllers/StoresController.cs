@@ -61,7 +61,7 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("InsertLocationAsync")]
-        public async Task<IActionResult> InsertLocationAsync(Location location)
+        public async Task<IActionResult> InsertLocationAsync(LocationDto location)
         {
             var result = await _LocationService.InsertLocationAsync(location);
 
@@ -85,9 +85,9 @@ namespace CSI.API.Controllers
         }
 
         [HttpPut("DeleteLocationByIdAsync")]
-        public async Task<IActionResult> DeleteLocationByIdAsync(int Id)
+        public async Task<IActionResult> DeleteLocationByIdAsync(LocationDto location)
         {
-            var result = await _LocationService.DeleteLocationByIdAsync(Id);
+            var result = await _LocationService.DeleteLocationByIdAsync(location);
 
             return (Ok(result));
         }
