@@ -12,6 +12,7 @@ namespace CSI.Application.Interfaces
     {
         Task<(List<CustomerCodeDto>, int totalPages)> GetCustomerCodesAsync(PaginationDto pagination);
         Task<CustomerCodes> GetCustomerCodeByIdAsync(int Id);
+        Task<CustomerCodes> InsertCustomerCodeAsync(CustomerCodes customerCode);
         Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodeDto customerCode);
         Task<bool> DeleteCustomerCodeByIdAsync(int Id);
         Task<List<CustomerCodes>> GetCustomerDdCodesAsync();

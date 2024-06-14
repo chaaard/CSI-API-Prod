@@ -557,11 +557,23 @@ namespace CSI.Application.Services
 
                 switch (pagination.ColumnToSort.ToLower())
                 {
-                    case "username":
+                    case "firstname":
                         query = sortOrder == "asc" ? query.OrderBy(c => c.FirstName) : query.OrderByDescending(c => c.FirstName);
                         break;
-                    case "usercode":
+                    case "lastname":
                         query = sortOrder == "asc" ? query.OrderBy(c => c.LastName) : query.OrderByDescending(c => c.LastName);
+                        break;
+                    case "username":
+                        query = sortOrder == "asc" ? query.OrderBy(c => c.Username) : query.OrderByDescending(c => c.Username);
+                        break;
+                    case "location":
+                        query = sortOrder == "asc" ? query.OrderBy(c => c.Location) : query.OrderByDescending(c => c.Location);
+                        break;
+                    case "rolename":
+                        query = sortOrder == "asc" ? query.OrderBy(c => c.RoleName) : query.OrderByDescending(c => c.RoleName);
+                        break;
+                    case "status":
+                        query = sortOrder == "asc" ? query.OrderBy(c => c.Status) : query.OrderByDescending(c => c.Status);
                         break;
                     //Another case here for category
                     default:
