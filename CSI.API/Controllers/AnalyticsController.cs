@@ -120,6 +120,18 @@ namespace CSI.API.Controllers
             return (NotFound());
         }
 
+        [HttpPost("SubmitAnalyticsWOProoflist")]
+        public async Task<IActionResult> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.SubmitAnalyticsWOProoflist(analyticsParamsDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
         [HttpPost("GenerateInvoiceAnalytics")]
         public async Task<IActionResult> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {

@@ -114,6 +114,62 @@ namespace CSI.Application.Services
             var analytics = new List<AnalyticsDto>();
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
+
+                string test = $" SELECT  " +
+                          $"     MAX(a.Id) AS Id, " +
+                          $"     MAX(a.CustomerId) AS CustomerId, " +
+                          $"     MAX(a.CustomerName) AS CustomerName, " +
+                          $"     MAX(a.LocationId) AS LocationId, " +
+                          $"     MAX(a.LocationName) AS LocationName, " +
+                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                          $"     MAX(a.CashierNo) AS CashierNo, " +
+                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                          $"     a.OrderNo, " +
+                          $"     MAX(a.Qty) AS Qty, " +
+                          $"     MAX(a.Amount) AS Amount, " +
+                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                          $"     MAX(a.SubTotal) AS SubTotal  " +
+                          $" FROM ( " +
+                          $"     SELECT   " +
+                          $"         n.Id, " +
+                          $"         n.CustomerId,  " +
+                          $"         c.CustomerName,  " +
+                          $"         n.LocationId,  " +
+                          $"         l.LocationName,  " +
+                          $"         n.TransactionDate,   " +
+                          $"         n.MembershipNo,   " +
+                          $"         n.CashierNo,  " +
+                          $"         n.RegisterNo,  " +
+                          $"         n.TransactionNo,  " +
+                          $"         n.OrderNo,  " +
+                          $"         n.Qty,  " +
+                          $"         n.Amount,  " +
+                          $"         n.SubTotal, " +
+                          $"         n.StatusId, " +
+                          $"         n.DeleteFlag,   " +
+                          $"         n.IsUpload,   " +
+                          $"         n.IsGenerate,   " +
+                          $"         n.IsTransfer,   " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                          $"     FROM tbl_analytics n " +
+                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"     WHERE  " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
+                          $" ) a " +
+                          $" GROUP BY  " +
+                          $"     a.OrderNo,    " +
+                          $"     ABS(a.SubTotal),  " +
+                          $"     a.row_num " +
+                          $" HAVING " +
+                          $"     COUNT(a.OrderNo) = 1 ";
                 var result = await _dbContext.AnalyticsView
               .FromSqlRaw($" SELECT  " +
                           $"     MAX(a.Id) AS Id, " +
@@ -596,67 +652,96 @@ namespace CSI.Application.Services
             DateTime date;
             if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
             {
-                var analyticsToDelete = _dbContext.Analytics
-                   .Where(a => a.TransactionDate == date &&
-                               a.CustomerId.Contains(memCodeLast6Digits[0]) &&
-                               a.LocationId == analyticsParam.storeId[0]);
+                for (int i = 0; i < analyticsParam.storeId.Count(); i++)
+                {
+                    for (int j = 0; j < memCodeLast6Digits.Count(); j++)
+                    {
+                        var analyticsToDelete = _dbContext.Analytics
+                        .Where(a => a.TransactionDate == date.Date &&
+                             a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                             a.LocationId == analyticsParam.storeId[i]);
 
-                analyticsCount = analyticsToDelete.Count();
+                        analyticsCount += analyticsToDelete.Count();
 
-                var portalToDelete = _dbContext.Prooflist
-                 .Where(a => a.TransactionDate == date &&
-                             a.CustomerId.Contains(memCodeLast6Digits[0]) &&
-                             a.StoreId == analyticsParam.storeId[0]);
+                        var portalToDelete = _dbContext.Prooflist
+                         .Where(a => a.TransactionDate == date.Date &&
+                                     a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                                     a.StoreId == analyticsParam.storeId[i]);
 
-                var analyticsIdList = await analyticsToDelete.Select(n => n.Id).ToListAsync();
+                        var analyticsIdList = await analyticsToDelete.Select(n => n.Id).ToListAsync();
 
-                var portalIdList = await portalToDelete.Select(n => n.Id).ToListAsync();
+                        var portalIdList = await portalToDelete.Select(n => n.Id).ToListAsync();
 
-                _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
-                _dbContext.SaveChanges();
+                        _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
+                        _dbContext.SaveChanges();
 
-                var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist
-                    .Where(x => analyticsIdList.Contains(x.AnalyticsId))
-                    .ToList();
+                        var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist
+                            .Where(x => analyticsIdList.Contains(x.AnalyticsId))
+                            .ToList();
 
-                var adjustmentIdList = adjustmentAnalyticsToDelete.Select(n => n.AdjustmentId).ToList();
+                        var adjustmentIdList = adjustmentAnalyticsToDelete.Select(n => n.AdjustmentId).ToList();
 
-                _dbContext.AnalyticsProoflist.RemoveRange(adjustmentAnalyticsToDelete);
-                _dbContext.SaveChanges();
+                        _dbContext.AnalyticsProoflist.RemoveRange(adjustmentAnalyticsToDelete);
+                        _dbContext.SaveChanges();
 
-                var adjustmentToDelete = _dbContext.Adjustments
-                   .Where(x => adjustmentIdList.Contains(x.Id))
-                   .ToList();
+                        var adjustmentToDelete = _dbContext.Adjustments
+                           .Where(x => adjustmentIdList.Contains(x.Id))
+                           .ToList();
 
-                _dbContext.Adjustments.RemoveRange(adjustmentToDelete);
-                _dbContext.SaveChanges();
+                        _dbContext.Adjustments.RemoveRange(adjustmentToDelete);
+                        _dbContext.SaveChanges();
 
-                var adjustmentProoflistToDelete = _dbContext.AnalyticsProoflist
-                .Where(x => portalIdList.Contains(x.ProoflistId))
-                .ToList();
+                        var adjustmentProoflistToDelete = _dbContext.AnalyticsProoflist
+                        .Where(x => portalIdList.Contains(x.ProoflistId))
+                        .ToList();
 
-                var adjustmentPortalIdList = adjustmentProoflistToDelete.Select(n => n.AdjustmentId).ToList();
+                        var adjustmentPortalIdList = adjustmentProoflistToDelete.Select(n => n.AdjustmentId).ToList();
 
-                _dbContext.AnalyticsProoflist.RemoveRange(adjustmentProoflistToDelete);
-                _dbContext.SaveChanges();
+                        _dbContext.AnalyticsProoflist.RemoveRange(adjustmentProoflistToDelete);
+                        _dbContext.SaveChanges();
 
 
-                var adjustmentPortalToDelete = _dbContext.Adjustments
-                    .Where(x => adjustmentPortalIdList.Contains(x.Id))
-                    .ToList();
+                        var adjustmentPortalToDelete = _dbContext.Adjustments
+                            .Where(x => adjustmentPortalIdList.Contains(x.Id))
+                            .ToList();
 
-                _dbContext.Adjustments.RemoveRange(adjustmentPortalToDelete);
-                _dbContext.SaveChanges();
+                        _dbContext.Adjustments.RemoveRange(adjustmentPortalToDelete);
+                        _dbContext.SaveChanges();
+                    }
+                }
             }
 
             try
             {
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT)");
                 // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
-                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
-                                  $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                  $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCondition} AND CSDTYP IN (''AR'') AND {storeList}  " +
-                                  $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                int memCnt = 90;
+                var rem = memCodeLast6Digits.Count() % memCnt;
+                var cnt = memCodeLast6Digits.Count() / memCnt;
+                int itemCnt = cnt + (rem > 0 ? 1 : 0);
+                for (int x = 0; x < itemCnt; x++) {
+                    string cstDocCond = "";
+                    if (x == 0)
+                    {
+                        List<string> firstItems = memCodeLast6Digits.Take(memCnt).ToList();
+                        cstDocCond = string.Join(" OR ", firstItems.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%'' AND {storeList}"));
+                    }
+                    else
+                    {
+                        List<string> nextItems = memCodeLast6Digits.Skip(memCnt).Take(90).ToList();
+                        cstDocCond = string.Join(" OR ", nextItems.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%'' AND {storeList}"));
+
+                        memCnt += memCnt;
+                    }
+
+                    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                      $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                      $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                      $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                }
+
 
                 // Create the table ANALYTICS_CSHHDR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHHDR{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSCUST VARCHAR(255), CSTAMT DECIMAL(18,3))");
@@ -1159,7 +1244,67 @@ namespace CSI.Application.Services
                 throw;
             }
         }
+        public async Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto) 
+        {
+            string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
+            {
+                var isPending = true;
+                var result = await ReturnAnalytics(analyticsParamsDto);
 
+
+                foreach (var analytics in result)
+                {
+                    analytics.StatusId = 3;
+                }
+
+                var analyticsEntityList = result.Select(analyticsDto =>
+                {
+                    var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                    analyticsEntity.StatusId = 3;
+                    analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                    return analyticsEntity;
+                }).ToList();
+
+                _dbContext.BulkUpdate(analyticsEntityList);
+                await _dbContext.SaveChangesAsync();
+
+                logsDto = new LogsDto
+                {
+                    UserId = analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Submit Analytics",
+                    Remarks = $"Success",
+                    RowsCountAfter = analyticsEntityList.Count(),
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
+                return isPending;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = analyticsParamsDto.userId,
+                    Date = DateTime.Now,
+                    Action = "Submit Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
+        }
         public async Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
             string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";

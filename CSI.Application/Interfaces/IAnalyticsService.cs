@@ -15,6 +15,7 @@ namespace CSI.Application.Interfaces
         Task<Dictionary<string, decimal?>> GetTotalAmountPerMerchant(AnalyticsParamsDto analyticsParamsDto);
         Task RefreshAnalytics(RefreshAnalyticsDto analyticsParam);
         Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
+        Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<InvoiceDto>, bool)> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<(bool, bool)> IsSubmittedGenerated(AnalyticsParamsDto analyticsParamsDto);
         Task UpdateUploadStatus(AnalyticsParamsDto analyticsParamsDto);
