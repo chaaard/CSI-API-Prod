@@ -13,5 +13,6 @@ namespace CSI.Application.DTOs
         public string LocationName { get; set; } = string.Empty;
         public string ShortName { get; set; } = string.Empty;
         public bool DeleteFlag { get; set; }
+        public string? UserId { get; set; } = string.Empty;
     }
 }
