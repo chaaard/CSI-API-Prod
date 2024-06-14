@@ -56,8 +56,47 @@ namespace CSI.Application.Services
                 }
                 if (result == null)
                 {
+                    logsDto = new LogsDto
+                    {
+                        UserId = result.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Login",
+                        Remarks = $"User not found: {username}",
+                        Club = result.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
                     return new UserDto();
                 }
+
+                if (result.Status == false)
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = result.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Login",
+                        Remarks = $"Username is Inactive!",
+                        Club = result.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return new UserDto
+                    {
+                        EmployeeNumber = result.EmployeeNumber,
+                        Username = result.Username,
+                        Attempt = result.Attempt,
+                        Token = "",
+                        Message = "Username is Inactive!"
+                    };
+                }
+              
                 else
                 {
                     if (!result.IsLogin)
@@ -78,7 +117,7 @@ namespace CSI.Application.Services
                                 Date = DateTime.Now,
                                 Action = "Login",
                                 Remarks = $"Login Successful",
-                                Club = strClub,
+                                Club = result.Club.ToString(),
                             };
 
                             logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -111,7 +150,7 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Login",
                         Remarks = $"User is already logged in.",
-                        Club = strClub,
+                        Club = result.Club.ToString(),
                     };
 
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -294,37 +333,95 @@ namespace CSI.Application.Services
         public async Task<UserDto> LoginAttempt(string username)
         {
             var getUser = await _dbContext.Users.SingleOrDefaultAsync(x => x.Username == username);
-
-            if (getUser != null)
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+            try
             {
-                if (getUser.Attempt >= 5)
+                if (getUser != null)
                 {
-                    return new UserDto
+                    if (getUser.Attempt >= 5)
                     {
-                        EmployeeNumber = getUser.EmployeeNumber,
-                        Username = getUser.Username,
-                        Attempt = getUser.Attempt,
-                        Token = "",
-                        Message = "Login attempt limit reached!"
-                    };
+                        logsDto = new LogsDto
+                        {
+                            UserId = getUser.Id.ToString(),
+                            Date = DateTime.Now,
+                            Action = "Login Attempt",
+                            Remarks = $"Login attempt limit reached!",
+                            Club = getUser.Club.ToString(),
+                        };
+
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
+                        return new UserDto
+                        {
+                            EmployeeNumber = getUser.EmployeeNumber,
+                            Username = getUser.Username,
+                            Attempt = getUser.Attempt,
+                            Token = "",
+                            Message = "Login attempt limit reached!"
+                        };
+                    }
+                    else
+                    {
+                        logsDto = new LogsDto
+                        {
+                            UserId = getUser.Id.ToString(),
+                            Date = DateTime.Now,
+                            Action = "Login Attempt",
+                            Remarks = $"Successful",
+                            Club = getUser.Club.ToString(),
+                        };
+
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
+                        getUser.Attempt = getUser.Attempt + 1;
+                        await _dbContext.SaveChangesAsync();
+                        return new UserDto
+                        {
+                            EmployeeNumber = getUser.EmployeeNumber,
+                            Username = getUser.Username,
+                            Attempt = getUser.Attempt,
+                            Token = "",
+                            Message = "Successful"
+                        };
+                    }
                 }
                 else
                 {
-                    getUser.Attempt = getUser.Attempt + 1;
-                    await _dbContext.SaveChangesAsync();
-                    return new UserDto
+                    logsDto = new LogsDto
                     {
-                        EmployeeNumber = getUser.EmployeeNumber,
-                        Username = getUser.Username,
-                        Attempt = getUser.Attempt,
-                        Token = "",
-                        Message = "Successful"
+                        UserId = getUser.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Login Attempt",
+                        Remarks = $"User not found: {username}",
+                        Club = getUser.Club.ToString(),
                     };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                    return new UserDto();
                 }
             }
-            else
+            catch (Exception ex)
             {
-                return new UserDto();
+                logsDto = new LogsDto
+                {
+                    UserId = getUser.Id.ToString(),
+                    Date = DateTime.Now,
+                    Action = "Login Attempt",
+                    Remarks = $"Error: {ex.Message} - {username}",
+                    Club = getUser.Club.ToString(),
+                };
+
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
         }
 
@@ -332,36 +429,85 @@ namespace CSI.Application.Services
         {
             int salt = Convert.ToInt32(saltiness);
             int iterations = Convert.ToInt32(nIterations);
-            if (username != null && password != null)
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+            try
             {
-                var result = await _dbContext.Users
-                     .Where(u => u.Username == username)
-                     .FirstOrDefaultAsync();
-                if (result != null)
+                if (username != null && password != null)
                 {
-                    var HashedPassword = _passwordHashService.HashPassword(password, result.Salt, iterations, salt);
-                    result.Hash = HashedPassword;                    
-                    result.IsFirstLogin = false;
-                    await _dbContext.SaveChangesAsync();
+                    var result = await _dbContext.Users
+                         .Where(u => u.Username == username)
+                         .FirstOrDefaultAsync();
+                    if (result != null)
+                    {
+
+                        logsDto = new LogsDto
+                        {
+                            UserId = result.Id.ToString(),
+                            Date = DateTime.Now,
+                            Action = "Login: Change Password",
+                            Remarks = $"Password Changed Successfull",
+                            Club = result.Club.ToString(),
+                        };
+
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
+                        var HashedPassword = _passwordHashService.HashPassword(password, result.Salt, iterations, salt);
+                        result.Hash = HashedPassword;
+                        result.IsFirstLogin = false;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    return new UserDto
+                    {
+                        Id = result.Id,
+                        EmployeeNumber = result.EmployeeNumber,
+                        FirstName = result.FirstName,
+                        LastName = result.LastName,
+                        Username = result.Username,
+                        IsLogin = result.IsLogin,
+                        IsFirstLogin = result.IsFirstLogin,
+                        RoleId = result.RoleId,
+                        Club = result.Club,
+                        Token = "",
+                        Message = "Successful"
+                    };
                 }
-                return new UserDto
+                else
                 {
-                    Id = result.Id,
-                    EmployeeNumber = result.EmployeeNumber,
-                    FirstName = result.FirstName,
-                    LastName = result.LastName,
-                    Username = result.Username,
-                    IsLogin = result.IsLogin,
-                    IsFirstLogin = result.IsFirstLogin,
-                    RoleId = result.RoleId,
-                    Club = result.Club,
-                    Token = "",
-                    Message = "Successful"
-                };
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = "",
+                        Date = DateTime.Now,
+                        Action = "Login: Change Password",
+                        Remarks = $"Password Change Failed: {username}",
+                        Club = "",
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return new UserDto();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return new UserDto();
+                logsDto = new LogsDto
+                {
+                    UserId = "",
+                    Date = DateTime.Now,
+                    Action = "Login Attempt",
+                    Remarks = $"Error: {ex.Message} - {username}",
+                    Club = "",
+                };
+
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
         }
         
@@ -491,100 +637,226 @@ namespace CSI.Application.Services
 
         public async Task<User> InsertUserAsync(User user)
         {
-            var MaxNumber = await _dbContext.Users
-                .OrderByDescending(n => n.EmployeeNumber)
-                .Select(n => new User 
-                {
-                    EmployeeNumber = n.EmployeeNumber
-                }).FirstOrDefaultAsync();
-            int NewEmployeeNumber = Convert.ToInt32(MaxNumber.EmployeeNumber) + 1;
-            int salt = Convert.ToInt32(saltiness);
-            int iterations = Convert.ToInt32(nIterations);
-
-            var checkUser = new User();
-            checkUser = await _dbContext.Users.Where(x => x.Username == user.Username).FirstOrDefaultAsync();
-            if (checkUser == null)
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+            try
             {
-                // Define a lambda expression for inserting the user
-                Func<User, Task<User>> insertUserLambda = async newUser =>
+                var MaxNumber = await _dbContext.Users
+               .OrderByDescending(n => n.EmployeeNumber)
+               .Select(n => new User
+               {
+                   EmployeeNumber = n.EmployeeNumber
+               }).FirstOrDefaultAsync();
+                int NewEmployeeNumber = Convert.ToInt32(MaxNumber.EmployeeNumber) + 1;
+                int salt = Convert.ToInt32(saltiness);
+                int iterations = Convert.ToInt32(nIterations);
+
+                var checkUser = new User();
+                checkUser = await _dbContext.Users.Where(x => x.Username == user.Username).FirstOrDefaultAsync();
+                if (checkUser == null)
                 {
-                    var SaltPassword = _passwordHashService.GenerateSalt(70);
-                    var HashedPassword = _passwordHashService.HashPassword("snr@dev", SaltPassword, iterations, salt);
-                    var getUser = new User
+                    // Define a lambda expression for inserting the user
+                    Func<User, Task<User>> insertUserLambda = async newUser =>
                     {
-                        EmployeeNumber = NewEmployeeNumber.ToString(),
-                        FirstName = newUser.FirstName,
-                        LastName = newUser.LastName,
-                        MiddleName = newUser.MiddleName,
-                        Username = newUser.Username,
-                        Club = newUser.Club,
-                        RoleId = newUser.RoleId,
-                        Status = newUser.Status,
-                        Salt = SaltPassword,
-                        Hash = HashedPassword,
-                        IsLogin = false,
-                        IsFirstLogin = true,
-                        Attempt = 0
+                        var SaltPassword = _passwordHashService.GenerateSalt(70);
+                        var HashedPassword = _passwordHashService.HashPassword("snr@dev", SaltPassword, iterations, salt);
+                        var getUser = new User
+                        {
+                            EmployeeNumber = NewEmployeeNumber.ToString(),
+                            FirstName = newUser.FirstName,
+                            LastName = newUser.LastName,
+                            MiddleName = newUser.MiddleName,
+                            Username = newUser.Username,
+                            Club = newUser.Club,
+                            RoleId = newUser.RoleId,
+                            Status = newUser.Status,
+                            Salt = SaltPassword,
+                            Hash = HashedPassword,
+                            IsLogin = false,
+                            IsFirstLogin = true,
+                            Attempt = 0
+                        };
+
+                        await _dbContext.Users.AddAsync(getUser);
+                        await _dbContext.SaveChangesAsync();
+
+                        logsDto = new LogsDto
+                        {
+                            UserId = getUser.Id.ToString(),
+                            Date = DateTime.Now,
+                            Action = "Insert User",
+                            Remarks = $"Saved Successfully",
+                            Club = getUser.Club.ToString(),
+                        };
+
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
+                        return getUser;
                     };
 
-                    await _dbContext.Users.AddAsync(getUser);
-                    await _dbContext.SaveChangesAsync(); // Ensure changes are saved to the database
-                    return getUser;
+                    // Invoke the lambda to insert the user
+                    return await insertUserLambda(user);
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = user.Id.ToString(),
+                    Date = DateTime.Now,
+                    Action = "Insert User",
+                    Remarks = $"Error: {ex.Message} - {user.Username}",
+                    Club = user.Club.ToString(),
                 };
 
-                // Invoke the lambda to insert the user
-                return await insertUserLambda(user);
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
-
-            return null;
         }
 
 
         public async Task<User> UpdateUserByIdAsync(User user)
         {
-            var getUser = await _dbContext.Users.SingleOrDefaultAsync(x => x.EmployeeNumber == user.EmployeeNumber);
-            
-            if (getUser != null)
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+            try
             {
-                getUser.FirstName = user.FirstName;
-                getUser.MiddleName = user.MiddleName;
-                getUser.LastName = user.LastName;
-                getUser.Username = user.Username;
-                getUser.Club = user.Club;
-                getUser.RoleId = user.RoleId;
-                getUser.Status = user.Status;
-                await _dbContext.SaveChangesAsync();
+                var getUser = await _dbContext.Users.SingleOrDefaultAsync(x => x.EmployeeNumber == user.EmployeeNumber);
 
-                return getUser;
+                if (getUser != null)
+                {
+                    getUser.FirstName = user.FirstName;
+                    getUser.MiddleName = user.MiddleName;
+                    getUser.LastName = user.LastName;
+                    getUser.Username = user.Username;
+                    getUser.Club = user.Club;
+                    getUser.RoleId = user.RoleId;
+                    getUser.Status = user.Status;
+                    await _dbContext.SaveChangesAsync();
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = getUser.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Update User",
+                        Remarks = $"Updated Successfully",
+                        Club = getUser.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return getUser;
+                }
+                else
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = getUser.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Update User",
+                        Remarks = $"User not found: {user.Username}",
+                        Club = getUser.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                    return new User();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return new User();
+                logsDto = new LogsDto
+                {
+                    UserId = user.Id.ToString(),
+                    Date = DateTime.Now,
+                    Action = "Insert User",
+                    Remarks = $"Error: {ex.Message} - {user.Username}",
+                    Club = user.Club.ToString(),
+                };
+
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
         }
 
         public async Task<bool> ResetUserPasswordByIdAsync(string id)
         {
-            int salt = Convert.ToInt32(saltiness);
-            int iterations = Convert.ToInt32(nIterations);
-            var SaltPassword = _passwordHashService.GenerateSalt(70);
-            var HashedPassword = _passwordHashService.HashPassword("snr@dev", SaltPassword, iterations, salt);
+            var logsDto = new LogsDto();
+            var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
             var getUser = await _dbContext.Users.SingleOrDefaultAsync(x => x.EmployeeNumber == id);
-
-            if (getUser != null)
+            try
             {
-                getUser.Salt = SaltPassword;
-                getUser.Hash = HashedPassword;
-                getUser.Status = true;
-                getUser.IsFirstLogin = true;
-                getUser.Attempt = 0;
-                await _dbContext.SaveChangesAsync();
+                int salt = Convert.ToInt32(saltiness);
+                int iterations = Convert.ToInt32(nIterations);
+                var SaltPassword = _passwordHashService.GenerateSalt(70);
+                var HashedPassword = _passwordHashService.HashPassword("snr@dev", SaltPassword, iterations, salt);
+                if (getUser != null)
+                {
+                    getUser.Salt = SaltPassword;
+                    getUser.Hash = HashedPassword;
+                    getUser.Status = true;
+                    getUser.IsFirstLogin = true;
+                    getUser.Attempt = 0;
+                    await _dbContext.SaveChangesAsync();
 
-                return false;
+                    logsDto = new LogsDto
+                    {
+                        UserId = getUser.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Reset User Password",
+                        Remarks = $"Reset Successfully",
+                        Club = getUser.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return false;
+                }
+                else
+                {
+                    logsDto = new LogsDto
+                    {
+                        UserId = getUser.Id.ToString(),
+                        Date = DateTime.Now,
+                        Action = "Update User",
+                        Remarks = $"User not found: {getUser.Username}",
+                        Club = getUser.Club.ToString(),
+                    };
+
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                    return true;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return true;
+                logsDto = new LogsDto
+                {
+                    UserId = getUser.Id.ToString(),
+                    Date = DateTime.Now,
+                    Action = "Insert User",
+                    Remarks = $"Error: {ex.Message} - {getUser.Username}",
+                    Club = getUser.Club.ToString(),
+                };
+
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
             }
         }
 

@@ -161,7 +161,8 @@ namespace CSI.Application.Services
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0) " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
                           $" ) a " +
                           $" GROUP BY  " +
                           $"     a.OrderNo,    " +
@@ -171,11 +172,11 @@ namespace CSI.Application.Services
                           $"     COUNT(a.OrderNo) = 1 "
                           )
                  .ToListAsync();
-
                 analytics = result.Select(n => new AnalyticsDto
                 {
                     Id = n.Id,
                     CustomerId = n.CustomerId,
+                    CustomerName = n.CustomerName,
                     LocationName = n.LocationName,
                     TransactionDate = n.TransactionDate,
                     MembershipNo = n.MembershipNo,
@@ -1147,7 +1148,7 @@ namespace CSI.Application.Services
 
                 foreach (var tableName in tableNames)
                 {
-                    await _dbContext.Database.ExecuteSqlRawAsync($"IF OBJECT_ID('{tableName}', 'U') IS NOT NULL DROP TABLE {tableName}");
+                    await _dbContext.Database.ExecuteSqlRawAsync($"IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].{tableName}') AND type in (N'U')) DROP TABLE [dbo].{tableName}");
                 }
 
                 await _dbContext.Database.GetDbConnection().CloseAsync();
@@ -2021,7 +2022,7 @@ namespace CSI.Application.Services
             try
             {
                 //var result = false;
-                var fileName = "";
+                var fileName = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
                 var formattedList = new List<string>();
                 var invoiceNo = "";
                 var invoiceAnalytics = new List<InvoiceDto>();
@@ -2150,7 +2151,7 @@ namespace CSI.Application.Services
                                 DTL_VAT_CODE = "",
                                 DTL_CURRENCY = "PHP",
                                 INVOICE_APPLIED = "0",
-                                FILENAME = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01"
+                                FILENAME = fileName 
                             };
 
                             invoiceAnalytics.Add(invoice);
@@ -2240,8 +2241,7 @@ namespace CSI.Application.Services
                         };
 
                         invoiceNo = format.HDR_TRX_NUMBER;
-                        fileName = format.FILENAME;
-                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{format.FILENAME}|");
+                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|");
                     }
 
                     string filePath = Path.Combine(generateA0FileDto.Path, fileName);
@@ -3267,23 +3267,41 @@ namespace CSI.Application.Services
             }
         }
 
-        //**Create Manual Add
         public async Task<Analytics> CreateAnalytics(AnalyticsAddDto createAnalyticsDto)
         {
+            string userId = createAnalyticsDto.UserId.ToString();
+            var analytics = new Analytics();
+            DateTime date;
             try
             {
-                var analytics = _mapper.Map<AnalyticsAddDto,Analytics>(createAnalyticsDto);
-                _dbContext.Analytics.Add(analytics);
-                await _dbContext.SaveChangesAsync();
+                if (DateTime.TryParse(createAnalyticsDto.TransactionDate.ToString(), out date))
+                {
+
+                    createAnalyticsDto.UserId = null;
+                    createAnalyticsDto.DeleteFlag = false;
+                    createAnalyticsDto.IsTransfer = true;
+                    createAnalyticsDto.IsGenerate = false;
+                    createAnalyticsDto.TransactionDate = date.Date;
+
+                    var isUpload = await _dbContext.Analytics
+                                  .Where(x => x.IsUpload == true && x.CustomerId == createAnalyticsDto.CustomerId && x.LocationId == createAnalyticsDto.LocationId && x.TransactionDate.Value.Date == date.Date)
+                                  .AnyAsync();
+
+                    createAnalyticsDto.IsUpload = isUpload;
+
+                     analytics = _mapper.Map<AnalyticsAddDto, Analytics>(createAnalyticsDto);
+                    _dbContext.Analytics.Add(analytics);
+                    await _dbContext.SaveChangesAsync();
+                }
 
                 var logsDto = new LogsDto
                 {
-                    UserId = createAnalyticsDto.UserId,
+                    UserId = userId,
                     Date = DateTime.Now,
-                    Action = "Manual Add Analytics",
+                    Action = createAnalyticsDto.AnalyticsParamsDto.action,
                     Remarks = $"Successfully Added",
-                    Club = createAnalyticsDto.Club.ToString(),
-                    CustomerId = createAnalyticsDto.Merchant,
+                    Club = createAnalyticsDto.LocationId.ToString(),
+                    CustomerId = createAnalyticsDto.CustomerId,
                     AnalyticsId = analytics.Id,
                 };
                 var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -3296,12 +3314,12 @@ namespace CSI.Application.Services
             {
                 var logsDto = new LogsDto
                 {
-                    UserId = createAnalyticsDto.UserId,
+                    UserId = userId,
                     Date = DateTime.Now,
-                    Action = "Manual Add Analytics",
+                    Action = createAnalyticsDto.AnalyticsParamsDto.action,
                     Remarks = $"Error: {ex.Message}",
-                    Club = createAnalyticsDto.Club.ToString(),
-                    CustomerId = createAnalyticsDto.Merchant
+                    Club = createAnalyticsDto.LocationId.ToString(),
+                    CustomerId = createAnalyticsDto.CustomerId
                 };
                 var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
@@ -3352,5 +3370,9 @@ namespace CSI.Application.Services
                 throw;
             }
         }
+
+
+
+
     }
 }
