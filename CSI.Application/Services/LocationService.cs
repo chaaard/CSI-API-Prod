@@ -178,33 +178,41 @@ namespace CSI.Application.Services
             var logsMap = new Logs();
             try
             {
-                Func<LocationDto, Task<Domain.Entities.Location>> insertLocationLambda = async newLocation =>
+                var getLocation = await _dbContext.Locations.SingleOrDefaultAsync(
+                    x => x.LocationCode == location.LocationCode
+                      || x.LocationName == location.LocationName
+                      || x.ShortName == location.ShortName);
+
+                if (getLocation == null)
                 {
-                    var getLocation = new Domain.Entities.Location
+                    Func<LocationDto, Task<Domain.Entities.Location>> insertLocationLambda = async newLocation =>
                     {
-                        LocationCode = newLocation.LocationCode,
-                        LocationName = newLocation.LocationName,
-                        ShortName = newLocation.ShortName,
-                        DeleteFlag = newLocation.DeleteFlag,
+                        var getLocation = new Domain.Entities.Location
+                        {
+                            LocationCode = newLocation.LocationCode,
+                            LocationName = newLocation.LocationName,
+                            ShortName = newLocation.ShortName,
+                            DeleteFlag = newLocation.DeleteFlag,
+                        };
+
+                        await _dbContext.Locations.AddAsync(getLocation);
+                        await _dbContext.SaveChangesAsync();
+                        return getLocation;
                     };
 
-                    await _dbContext.Locations.AddAsync(getLocation);
+                    logsDto = new LogsDto
+                    {
+                        UserId = location.UserId,
+                        Date = DateTime.Now,
+                        Action = "Insert Club",
+                        Remarks = $"Successfully Added",
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
                     await _dbContext.SaveChangesAsync();
-                    return getLocation;
-                };
-
-                logsDto = new LogsDto
-                {
-                    UserId = location.UserId,
-                    Date = DateTime.Now,
-                    Action = "Insert Club",
-                    Remarks = $"Successfully Added",
-                };
-                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
-
-                return await insertLocationLambda(location);
+                    return await insertLocationLambda(location);
+                }
+                return null;
             }
             catch (Exception ex)
             {
