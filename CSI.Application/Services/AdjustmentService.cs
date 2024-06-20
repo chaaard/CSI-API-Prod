@@ -724,46 +724,69 @@ namespace CSI.Application.Services
 
         public async Task<List<ExceptionDto>> ExportExceptions(AdjustmentParams adjustmentParams)
         {
-            var result = new List<ExceptionDto>();
-            DateTime date;
-            IQueryable<ExceptionDto> query = Enumerable.Empty<ExceptionDto>().AsQueryable();
-            if (DateTime.TryParse(adjustmentParams.dates[0], out date))
+            string clubLogs = $"{string.Join(", ", adjustmentParams.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", adjustmentParams.memCode.Select(code => $"{code}"))}";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
             {
-                query = _dbContext.AnalyticsProoflist
-                    .GroupJoin(_dbContext.Analytics, ap => ap.AnalyticsId, a => a.Id, (ap, a) => new { ap, a })
-                    .SelectMany(x => x.a.DefaultIfEmpty(), (x, a) => new { x.ap, a })
-                    .GroupJoin(_dbContext.Prooflist, x => x.ap.ProoflistId, p => p.Id, (x, p) => new { x.ap, x.a, Prooflist = p })
-                    .SelectMany(x => x.Prooflist.DefaultIfEmpty(), (x, p) => new { x.ap, x.a, Prooflist = p })
-                    .GroupJoin(_dbContext.CustomerCodes, x => x.a.CustomerId, c => c.CustomerCode, (x, c) => new { x.ap, x.a, x.Prooflist, Customer = c })
-                    .SelectMany(x => x.Customer.DefaultIfEmpty(), (x, c) => new { x.ap, x.a, x.Prooflist, Customer = c })
-                    .GroupJoin(_dbContext.Adjustments, x => x.ap.AdjustmentId, ad => ad.Id, (x, ad) => new { x.ap, x.a, x.Prooflist, x.Customer, Adjustment = ad })
-                    .SelectMany(x => x.Adjustment.DefaultIfEmpty(), (x, ad) => new { x.ap, x.a, x.Prooflist, x.Customer, Adjustment = ad })
-                    .GroupJoin(_dbContext.Actions, x => x.ap.ActionId, ac => ac.Id, (x, ac) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, Action = ac })
-                    .SelectMany(x => x.Action.DefaultIfEmpty(), (x, ac) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, Action = ac })
-                    .GroupJoin(_dbContext.Status, x => x.ap.StatusId, s => s.Id, (x, s) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, Status = s })
-                    .SelectMany(x => x.Status.DefaultIfEmpty(), (x, s) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, Status = s })
-                    .GroupJoin(_dbContext.Source, x => x.ap.StatusId, so => so.Id, (x, so) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
-                    .SelectMany(x => x.Source.DefaultIfEmpty(), (x, so) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
-                    .Join(_dbContext.Locations, x => x.a.LocationId, l => l.LocationCode, (x, l) => new { x, l })
-                    .Where(x => x.x.a.TransactionDate == date && x.x.a.LocationId == adjustmentParams.storeId[0] && x.x.a.CustomerId == adjustmentParams.memCode[0] && x.x.a.DeleteFlag == false)
-                    .Select(x => new ExceptionDto
-                    {
-                        Id = x.x.ap.Id,
-                        CustomerId = x.x.Customer.CustomerName,
-                        JoNumber = x.x.a.OrderNo,
-                        TransactionDate = x.x.a.TransactionDate,
-                        Amount = x.x.a.SubTotal,
-                        AdjustmentType = x.x.Action.Action,
-                        Source = x.x.Source.SourceType,
-                        Status = x.x.Status.StatusName,
-                        AdjustmentId = x.x.ap.AdjustmentId,
-                        LocationName = x.l.LocationName,
-                    })
-                    .OrderBy(x => x.Id);
+                var result = new List<ExceptionDto>();
+                DateTime date;
+                IQueryable<ExceptionDto> query = Enumerable.Empty<ExceptionDto>().AsQueryable();
+                if (DateTime.TryParse(adjustmentParams.dates[0], out date))
+                {
+                    query = _dbContext.AnalyticsProoflist
+                        .GroupJoin(_dbContext.Analytics, ap => ap.AnalyticsId, a => a.Id, (ap, a) => new { ap, a })
+                        .SelectMany(x => x.a.DefaultIfEmpty(), (x, a) => new { x.ap, a })
+                        .GroupJoin(_dbContext.Prooflist, x => x.ap.ProoflistId, p => p.Id, (x, p) => new { x.ap, x.a, Prooflist = p })
+                        .SelectMany(x => x.Prooflist.DefaultIfEmpty(), (x, p) => new { x.ap, x.a, Prooflist = p })
+                        .GroupJoin(_dbContext.CustomerCodes, x => x.a.CustomerId, c => c.CustomerCode, (x, c) => new { x.ap, x.a, x.Prooflist, Customer = c })
+                        .SelectMany(x => x.Customer.DefaultIfEmpty(), (x, c) => new { x.ap, x.a, x.Prooflist, Customer = c })
+                        .GroupJoin(_dbContext.Adjustments, x => x.ap.AdjustmentId, ad => ad.Id, (x, ad) => new { x.ap, x.a, x.Prooflist, x.Customer, Adjustment = ad })
+                        .SelectMany(x => x.Adjustment.DefaultIfEmpty(), (x, ad) => new { x.ap, x.a, x.Prooflist, x.Customer, Adjustment = ad })
+                        .GroupJoin(_dbContext.Actions, x => x.ap.ActionId, ac => ac.Id, (x, ac) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, Action = ac })
+                        .SelectMany(x => x.Action.DefaultIfEmpty(), (x, ac) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, Action = ac })
+                        .GroupJoin(_dbContext.Status, x => x.ap.StatusId, s => s.Id, (x, s) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, Status = s })
+                        .SelectMany(x => x.Status.DefaultIfEmpty(), (x, s) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, Status = s })
+                        .GroupJoin(_dbContext.Source, x => x.ap.StatusId, so => so.Id, (x, so) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
+                        .SelectMany(x => x.Source.DefaultIfEmpty(), (x, so) => new { x.ap, x.a, x.Prooflist, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
+                        .Join(_dbContext.Locations, x => x.a.LocationId, l => l.LocationCode, (x, l) => new { x, l })
+                        .Where(x => x.x.a.TransactionDate == date && x.x.a.LocationId == adjustmentParams.storeId[0] && x.x.a.CustomerId == adjustmentParams.memCode[0] && x.x.a.DeleteFlag == false)
+                        .Select(x => new ExceptionDto
+                        {
+                            Id = x.x.ap.Id,
+                            CustomerId = x.x.Customer.CustomerName,
+                            JoNumber = x.x.a.OrderNo,
+                            TransactionDate = x.x.a.TransactionDate,
+                            Amount = x.x.a.SubTotal,
+                            AdjustmentType = x.x.Action.Action,
+                            Source = x.x.Source.SourceType,
+                            Status = x.x.Status.StatusName,
+                            AdjustmentId = x.x.ap.AdjustmentId,
+                            LocationName = x.l.LocationName,
+                        })
+                        .OrderBy(x => x.Id);
 
-                result = await query.ToListAsync();
+                    result = await query.ToListAsync();
+                }
+                return result;
             }
-            return result;
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = adjustmentParams.userId,
+                    Date = DateTime.Now,
+                    Action = "Exceptions",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
         }
     }
 }
