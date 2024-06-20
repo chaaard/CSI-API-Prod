@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Serialization;
+using System.Configuration;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -15,6 +16,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordHashService, PasswordHashService>();
 builder.Services.AddScoped<ICustomerCodeService, CustomerCodeService>();
+builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IProofListService, ProofListService>();
 builder.Services.AddScoped<IAdjustmentService, AdjustmentService>();
@@ -24,6 +26,9 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddDbContext<AppDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")
     ));
+
+builder.Services.AddDbContextFactory<AppDBContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")), ServiceLifetime.Scoped);
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore)
@@ -38,13 +43,11 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Web Api",
         Version = "v1",
     });
-
-    // Add this line to modify the controller names in Swagger
     options.CustomSchemaIds(type => type.FullName);
 });
 
 
-builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly); // AddAutoMapper should work now
+builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

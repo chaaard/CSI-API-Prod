@@ -44,7 +44,6 @@ namespace CSI.API.Controllers
                 {
                     return BadRequest("Username is Inactive!");
                 }
-
                 if (userDto.Message == "Login attempt limit reached!")
                 {
                     return BadRequest("Login attempt limit reached!");

@@ -1,5 +1,6 @@
 ﻿using CSI.Application.DTOs;
 using CSI.Application.Interfaces;
+using CSI.Application.Services;
 using CSI.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -60,6 +61,18 @@ namespace CSI.API.Controllers
                 return (Ok(data));
             }
             return (NotFound());
+        }
+
+        [HttpPost("InsertCustomerCodeAsync")]
+        public async Task<IActionResult> InsertCustomerCodeAsync(CustomerCodes user)
+        {
+            var result = await _customerCodeService.InsertCustomerCodeAsync(user);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return NotFound();
         }
 
         [HttpPut("UpdateCustomerCodeByIdAsync")]
