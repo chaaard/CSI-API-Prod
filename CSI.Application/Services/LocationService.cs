@@ -43,7 +43,6 @@ namespace CSI.Application.Services
                     Id = n.Id,
                     LocationCode = n.LocationCode,
                     LocationName = n.LocationName,
-                    //LocationName = n.LocationName.Replace("KAREILA", n.LocationCode.ToString()).Trim(),
                     ShortName = n.ShortName,
                     DeleteFlag = n.DeleteFlag,
                 })

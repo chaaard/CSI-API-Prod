@@ -2547,12 +2547,25 @@ namespace CSI.Application.Services
             {
                 var date1 = GetDateTime(portalParamsDto.dates[0].Date);
                 var date2 = GetDateTime(portalParamsDto.dates[1].Date);
+
                 var result = await _dbContext.AccountingProoflists
-                    .Join(_dbContext.Locations, a => a.StoreId, b => b.LocationCode, (a, b) => new { a, b })
-                    .Join(_dbContext.Status, c => c.a.StatusId, d => d.Id, (c, d) => new { c, d })
-                    .Where(x => x.c.a.TransactionDate.Value.Date >= date1.Value.Date && x.c.a.TransactionDate.Value.Date <= date2.Value.Date
-                        && x.c.a.CustomerId == portalParamsDto.memCode[0]
-                        && x.c.a.StatusId != 4)
+                    .GroupJoin(
+                        _dbContext.Locations,
+                        a => a.StoreId,
+                        b => b.LocationCode,
+                        (a, locationGroup) => new { a, locationGroup })
+                    .SelectMany(
+                        x => x.locationGroup.DefaultIfEmpty(),
+                        (x, b) => new { x.a, b })
+                    .Join(
+                        _dbContext.Status,
+                        c => c.a.StatusId,
+                        d => d.Id,
+                        (c, d) => new { c, d })
+                    .Where(x => x.c.a.TransactionDate.Value.Date >= date1.Value.Date
+                                && x.c.a.TransactionDate.Value.Date <= date2.Value.Date
+                                && x.c.a.CustomerId == portalParamsDto.memCode[0]
+                                && x.c.a.StatusId != 4)
                     .Select(n => new PortalDto
                     {
                         Id = n.c.a.Id,
@@ -2563,10 +2576,11 @@ namespace CSI.Application.Services
                         PurchasedAmount = n.c.a.PurchasedAmount,
                         Amount = n.c.a.Amount,
                         Status = n.d.StatusName,
-                        StoreName = n.c.b.LocationName,
+                        StoreName = n.c.b != null ? n.c.b.LocationName : null,
                         DeleteFlag = n.c.a.DeleteFlag
                     })
                     .ToListAsync();
+
 
                 return result;
             }
