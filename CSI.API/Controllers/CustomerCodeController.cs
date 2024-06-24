@@ -64,9 +64,9 @@ namespace CSI.API.Controllers
         }
 
         [HttpPost("InsertCustomerCodeAsync")]
-        public async Task<IActionResult> InsertCustomerCodeAsync(CustomerCodes user)
+        public async Task<IActionResult> InsertCustomerCodeAsync(CustomerCodeParamsDto customerCode)
         {
-            var result = await _customerCodeService.InsertCustomerCodeAsync(user);
+            var result = await _customerCodeService.InsertCustomerCodeAsync(customerCode);
 
             if (result != null)
             {
@@ -76,7 +76,7 @@ namespace CSI.API.Controllers
         }
 
         [HttpPut("UpdateCustomerCodeByIdAsync")]
-        public async Task<IActionResult> UpdateCustomerCodeByIdAsync(CustomerCodeDto customerCode)
+        public async Task<IActionResult> UpdateCustomerCodeByIdAsync(CustomerCodeParamsDto customerCode)
         {
             var result = await _customerCodeService.UpdateCustomerCodeByIdAsync(customerCode);
 

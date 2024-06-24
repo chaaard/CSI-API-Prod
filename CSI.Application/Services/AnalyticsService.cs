@@ -763,6 +763,8 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Refresh Analytics",
                         Remarks = $"Error: {ex.Message}",
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -796,6 +798,8 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Refresh Analytics",
                         Remarks = $"Error: {ex.Message}",
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -830,6 +834,8 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Refresh Analytics",
                         Remarks = $"Error: {ex.Message}",
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -860,6 +866,8 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Refresh Analytics",
                         Remarks = $"Error: {ex.Message}",
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -1005,6 +1013,8 @@ namespace CSI.Application.Services
                         RowsCountBefore = analyticsCount,
                         RowsCountAfter = analyticsNewRows,
                         TotalAmount = totalAmount,
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -1023,6 +1033,8 @@ namespace CSI.Application.Services
                         Date = DateTime.Now,
                         Action = "Refresh Analytics",
                         Remarks = $"Error: {ex.Message}",
+                        TransactionDateFrom = analyticsParam.dates[0],
+                        TransactionDateTo = analyticsParam.dates[1],
                         Club = clubLogs,
                         CustomerId = merchantLogs
                     };
@@ -1776,6 +1788,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = analyticsParamsDto.action,
                     Remarks = $"Error: {ex.Message}",
+                    TransactionDateFrom = Convert.ToDateTime(analyticsParamsDto.dates[0]),
+                    TransactionDateTo = Convert.ToDateTime(analyticsParamsDto.dates[1]),
                     Club = clubLogs,
                     CustomerId = merchantLogs,
                     Filename = analyticsParamsDto.fileName,
@@ -2596,6 +2610,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = "Manual Refresh Analytics",
                     Remarks = $"Error: {ex.Message}",
+                    TransactionDateFrom = analyticsParam.dates[0],
+                    TransactionDateTo = analyticsParam.dates[1],
                     Club = clubLogs,
                     CustomerId = merchantLogs
                 };
@@ -2625,6 +2641,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = "Manual Refresh Analytics",
                     Remarks = $"Error: {ex.Message}",
+                    TransactionDateFrom = analyticsParam.dates[0],
+                    TransactionDateTo = analyticsParam.dates[1],
                     Club = clubLogs,
                     CustomerId = merchantLogs
                 };
@@ -2654,6 +2672,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = "Manual Refresh Analytics",
                     Remarks = $"Error: {ex.Message}",
+                    TransactionDateFrom = analyticsParam.dates[0],
+                    TransactionDateTo = analyticsParam.dates[1],
                     Club = clubLogs,
                     CustomerId = merchantLogs
                 };
@@ -2680,6 +2700,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = "Manual Refresh Analytics",
                     Remarks = $"Error: {ex.Message}",
+                    TransactionDateFrom = analyticsParam.dates[0],
+                    TransactionDateTo = analyticsParam.dates[1],
                     Club = clubLogs,
                     CustomerId = merchantLogs
                 };
@@ -3176,7 +3198,7 @@ namespace CSI.Application.Services
                                        $"p.[DeleteFlag]  " +
                                   $" FROM " +
                                   $"     [dbo].[tbl_accounting_prooflist] p  " +
-                                  $"     INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
+                                  $"     LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId " +
                                   $"     INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId  " +
                                   $" WHERE " +
                                   $"   {cstDocCondition1} " +
@@ -3346,12 +3368,6 @@ namespace CSI.Application.Services
                             $"a.CustomerId LIKE '%{last6Digits}%' AND " +
                             $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
                             $"a.DeleteFlag = 0 )"));
-                        string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
-                            $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
-                            $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
-                            $"p.CustomerId LIKE '%{last6Digits}%' AND " +
-                            $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
-                            $"p.DeleteFlag = 0 )"));
                         var result = await _dbContext.AdjustmentExceptions
                            .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
                                     $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
@@ -3369,23 +3385,6 @@ namespace CSI.Application.Services
                                     $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
                                     $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
                                     $"WHERE {cstDocCondition} " +
-                                    $"UNION ALL " +
-                                    $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
-                                    $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                    $"	adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                    $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                    $"	adj.Descriptions " +
-                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId " +
-                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
-                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                    $"WHERE {cstDocCondition1} " +
                                     $" ORDER BY so.SourceType, a.SubTotal ASC ")
                            .ToListAsync();
 
@@ -3449,7 +3448,6 @@ namespace CSI.Application.Services
             {
                 if (DateTime.TryParse(createAnalyticsDto.TransactionDate.ToString(), out date))
                 {
-
                     createAnalyticsDto.UserId = null;
                     createAnalyticsDto.DeleteFlag = false;
                     createAnalyticsDto.IsTransfer = true;
@@ -3529,6 +3527,8 @@ namespace CSI.Application.Services
                     Date = DateTime.Now,
                     Action = refreshAnalyticsDto.action,
                     Remarks = refreshAnalyticsDto.remarks != string.Empty || refreshAnalyticsDto.remarks != null ? refreshAnalyticsDto.remarks : $"Successfully Generated",
+                    TransactionDateFrom = refreshAnalyticsDto.dates != null && refreshAnalyticsDto.dates.Count >= 1 ? refreshAnalyticsDto.dates[0] : DateTime.Now,
+                    TransactionDateTo = refreshAnalyticsDto.dates != null && refreshAnalyticsDto.dates.Count >= 2 ? refreshAnalyticsDto.dates[1] : refreshAnalyticsDto.dates != null && refreshAnalyticsDto.dates.Count > 1 ? refreshAnalyticsDto.dates[0] : DateTime.Now,
                     Club = clubLogs,
                     CustomerId = merchantLogs,
                     Filename = refreshAnalyticsDto.fileName,

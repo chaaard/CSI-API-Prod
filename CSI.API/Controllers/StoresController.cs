@@ -10,7 +10,7 @@ namespace CSI.API.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [EnableCors("AllowOrigin")]
-    public class StoresController : Controller
+    public class StoresController : ControllerBase
     {
         public readonly ILocationService _LocationService;
         public StoresController(ILocationService locationService)

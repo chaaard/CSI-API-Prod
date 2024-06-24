@@ -26,13 +26,23 @@ namespace CSI.Application.Services
         public async Task<(List<CustomerCodeDto>, int totalPages)> GetCustomerCodesAsync(PaginationDto pagination)
         {
             var query = _dbContext.CustomerCodes
-                .Select(n => new CustomerCodeDto { 
-                    Id = n.Id,
-                    CustomerNo = n.CustomerNo,
-                    CustomerCode = n.CustomerCode,
-                    CustomerName = n.CustomerName,
-                    DeleteFlag = n.DeleteFlag,
-                })
+                .GroupJoin(
+                    _dbContext.Category,
+                    customerCode => customerCode.CategoryId,
+                    category => category.Id,
+                    (customerCode, categories) => new { CustomerCode = customerCode, Categories = categories })
+                .SelectMany(
+                    x => x.Categories.DefaultIfEmpty(), // this ensures a left join
+                    (x, category) => new CustomerCodeDto
+                    {
+                        Id = x.CustomerCode.Id,
+                        CustomerNo = x.CustomerCode.CustomerNo,
+                        CustomerCode = x.CustomerCode.CustomerCode,
+                        CustomerName = x.CustomerCode.CustomerName,
+                        CategoryName = category != null ? category.CategoryName : null,
+                        CategoryId = category.Id != null ? category.Id : 0,
+                        DeleteFlag = x.CustomerCode.DeleteFlag,
+                    })
                 .AsQueryable();
 
             // Searching
@@ -99,7 +109,7 @@ namespace CSI.Application.Services
             return getCustomerCodes;
         }
 
-        public async Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodeDto customerCode)
+        public async Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodeParamsDto customerCode)
         {
             var logsDto = new LogsDto();
             var logsMap = new Logs();
@@ -113,10 +123,12 @@ namespace CSI.Application.Services
                     var oldCustomerCode = getCustomerCode.CustomerCode;
                     var oldCustomerNo = getCustomerCode.CustomerNo;
                     var oldDeleteFlag = getCustomerCode.DeleteFlag;
+                    var oldCategoryId = getCustomerCode.CategoryId;
                     getCustomerCode.CustomerName = customerCode.CustomerName;
                     getCustomerCode.CustomerCode = customerCode.CustomerCode;
                     getCustomerCode.CustomerNo = customerCode.CustomerNo;
                     getCustomerCode.DeleteFlag = customerCode.DeleteFlag;
+                    getCustomerCode.CategoryId = customerCode.CategoryId;
                     await _dbContext.SaveChangesAsync();
 
                     logsDto = new LogsDto
@@ -129,6 +141,7 @@ namespace CSI.Application.Services
                                   $"CustomerName: {oldCustomerName} -> {customerCode.CustomerName}, " +
                                   $"CustomerCode: {oldCustomerCode} -> {customerCode.CustomerCode}, " +
                                   $"CustomerNo: {oldCustomerNo} -> {customerCode.CustomerNo}, " +
+                                  $"CategoryId: {oldCategoryId} -> {customerCode.CategoryId}, " +
                                   $"DeleteFlag: {oldDeleteFlag} -> {customerCode.DeleteFlag}"
                     };
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
@@ -158,37 +171,53 @@ namespace CSI.Application.Services
             }
         }
 
-        public async Task<CustomerCodes> InsertCustomerCodeAsync(CustomerCodes customerCode)
+        public async Task<CustomerCodes> InsertCustomerCodeAsync(CustomerCodeParamsDto customerCodeParams)
         {
             var logsDto = new LogsDto();
             var logsMap = new Logs();
             try
             {
                 var getCustomerCode = await _dbContext.CustomerCodes
-                    .SingleOrDefaultAsync(x => x.CustomerCode == customerCode.CustomerCode 
-                                            || x.CustomerNo == customerCode.CustomerNo
-                                            || x.CustomerName == customerCode.CustomerName);
+                    .SingleOrDefaultAsync(x => x.CustomerCode == customerCodeParams.CustomerCode 
+                                            || x.CustomerNo == customerCodeParams.CustomerNo
+                                            || x.CustomerName == customerCodeParams.CustomerName);
 
                 if (getCustomerCode == null)
                 {
                     // Define a lambda expression for inserting the user
-                    Func<CustomerCodes, Task<CustomerCodes>> insertCustomerLambda = async newUser =>
+                    Func<CustomerCodeParamsDto, Task<CustomerCodes>> insertCustomerLambda = async newMerchant =>
                     {
                         var getCustomer = new CustomerCodes
                         {
-                            CustomerNo = newUser.CustomerNo,
-                            CustomerName = newUser.CustomerName,
-                            CustomerCode = newUser.CustomerCode,
-                            DeleteFlag = newUser.DeleteFlag,
+                            CustomerNo = newMerchant.CustomerNo,
+                            CustomerName = newMerchant.CustomerName,
+                            CustomerCode = newMerchant.CustomerCode,
+                            CategoryId = newMerchant.CategoryId,
+                            DeleteFlag = newMerchant.DeleteFlag,
                         };
 
                         await _dbContext.CustomerCodes.AddAsync(getCustomer);
                         await _dbContext.SaveChangesAsync(); // Ensure changes are saved to the database
+
+                        var newCustomerId = getCustomer.Id;
+
+                        logsDto = new LogsDto
+                        {
+                            UserId = customerCodeParams.UserId,
+                            Date = DateTime.Now,
+                            Action = "Update Merchant",
+                            Remarks = $"Saved Successfully" +
+                                $"Id: {newCustomerId} : "
+                        };
+                        logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
                         return getCustomer;
                     };
 
                     // Invoke the lambda to insert the customer
-                    return await insertCustomerLambda(customerCode);
+                    return await insertCustomerLambda(customerCodeParams);
                 }
                 return null;
             }
