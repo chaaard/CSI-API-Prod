@@ -42,5 +42,6 @@ namespace CSI.Application.Interfaces
         Task<Analytics> CreateAnalytics(AnalyticsAddDto analyticsAddDto);
         Task<List<Logs>> GetLogs();
         void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto);
+        Task<List<VarianceMMS>> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto);
     }
 }
