@@ -100,6 +100,18 @@ namespace CSI.API.Controllers
             }
         }
 
+        [HttpPost("SaveException")]
+        public async Task<IActionResult> SaveException(AnalyticsProoflistDto refreshAnalyticsDto)
+        {
+            int result = await _analyticsService.SaveException(refreshAnalyticsDto);
+            if (result != 0)
+            {
+                return Ok(result);
+            }
+
+            return NotFound();
+        }
+
         [HttpPost("RefreshAnalytics")]
         public async Task RefreshAnalytics(RefreshAnalyticsDto refreshAnalyticsDto)
         {
@@ -300,7 +312,7 @@ namespace CSI.API.Controllers
         [HttpPost("ManualReload")]
         public async Task ManualReload(RefreshAnalyticsDto refreshAnalyticsDto)
         {
-            await _analyticsService.ManualReload(refreshAnalyticsDto);
+            //await _analyticsService.ManualReload(refreshAnalyticsDto);
         }
 
         [HttpPost("GetAnalyticsToUndoSubmit")]

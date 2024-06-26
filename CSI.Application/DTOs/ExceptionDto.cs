@@ -18,5 +18,7 @@ namespace CSI.Application.DTOs
         public string? Status { get; set; } = string.Empty;
         public int AdjustmentId { get; set; }
         public string? LocationName { get; set; } = string.Empty;
+        public string? LocationId { get; set; } = string.Empty;
+        public string? UserId { get; set; } = string.Empty;
     }
 }

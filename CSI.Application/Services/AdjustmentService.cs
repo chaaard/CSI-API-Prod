@@ -31,6 +31,8 @@ namespace CSI.Application.Services
             DateTime date;
             List<string> memCodeLast6Digits = adjustmentParams.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
             IQueryable<AdjustmentDto> query = Enumerable.Empty<AdjustmentDto>().AsQueryable();
+
+            
             var result = await _dbContext.AdjustmentExceptions
                    .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
                             $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
@@ -47,7 +49,7 @@ namespace CSI.Application.Services
                             $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
                             $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
                             $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                            $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND a.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND a.DeleteFlag = 0 " +
+                            $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND ({string.Join(" OR ", adjustmentParams.memCode.Select(code => $"a.CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})  AND a.DeleteFlag = 0 " +
                             $"UNION ALL " +
                             $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
                             $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +

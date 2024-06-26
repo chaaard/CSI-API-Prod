@@ -5,8 +5,12 @@ using CSI.Application.Interfaces;
 using CSI.Domain.Entities;
 using CSI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System;
+using System.Text.RegularExpressions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.Application.Services
 {
@@ -93,6 +97,11 @@ namespace CSI.Application.Services
 
             return (customerCodesList, totalPages);
         }
+
+
+
+
+
 
         public async Task<List<CustomerCodes>> GetCustomerDdCodesAsync()
         {
@@ -251,6 +260,214 @@ namespace CSI.Application.Services
             {
                 return false;
             }
+        }
+        public async Task<List<CustomerCodeDto>> GetCustomerCodesByCategory(PaginationDto pagination)
+        {
+             if (pagination.ByMerchant)
+            {
+                var result = new List<CustomerCodeDto>();
+
+                if (pagination.CategoryId == null || pagination.CategoryId == 0)
+                {
+                    var query = _dbContext.CustomerCodes
+                        .Where(customerCode => customerCode.DeleteFlag == false)
+                        //.GroupJoin(_dbContext.Category, x => x.CategoryId, y => y.Id, (x, y) => new { x, y })
+                        //.SelectMany(
+                        //    xy => xy.y.DefaultIfEmpty(),
+                        //    (xy, y) => new { xy.x, y }
+                        //)
+                        .Select(n => new CustomerCodeDto
+                        {
+                            Id = n.Id,
+                            CustomerNo = n.CustomerNo,
+                            CustomerCode = n.CustomerCode,
+                            CustomerName = n.CustomerName,
+                            DeleteFlag = n.DeleteFlag,
+                            CategoryId = n.CategoryId,
+                        })
+                        //.Where(c => c.CategoryId == pagination.CategoryId)
+                        .OrderBy(n => n.CustomerName)
+                        .AsQueryable();
+
+                        result = query.ToList();
+
+                        return (result);
+                }
+                else {
+                    var query = _dbContext.CustomerCodes
+                        .Where(customerCode => customerCode.DeleteFlag == false)
+                        //.GroupJoin(_dbContext.Category, x => x.CategoryId, y => y.Id, (x, y) => new { x, y })
+                        //.SelectMany(
+                        //    xy => xy.y.DefaultIfEmpty(),
+                        //    (xy, y) => new { xy.x, y }
+                        //)
+                        .Select(n => new CustomerCodeDto
+                        {
+                        Id = n.Id,
+                        CustomerNo = n.CustomerNo,
+                        CustomerCode = n.CustomerCode,
+                        CustomerName = n.CustomerName,
+                        DeleteFlag = n.DeleteFlag,
+                        CategoryId = n.CategoryId,
+                        })
+                        .Where(c => c.CategoryId == pagination.CategoryId)
+                        .OrderBy(n => n.CustomerName)
+                        .AsQueryable();
+
+                        result = query.ToList();
+
+                        return (result);
+                }
+
+                
+            }
+            else
+            {
+                var result = new List<CustomerCodeDto>();
+                int isVisible = 1;
+                if (pagination.IsVisible != null) {
+                    if (pagination.IsVisible == false)
+                    {
+                        isVisible = 0;
+                    }
+                }
+
+                try {
+                    if (pagination.IsAllVisible != null)
+                    {
+                        if (pagination.IsAllVisible == false)
+                        {
+                            var query = await _dbContext.CategoryCode
+                           .FromSqlRaw($@"SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible]" +
+                               "FROM ( " +
+                                   "SELECT " +
+                                       "   [CategoryId], " +
+                                       "   CASE " +
+                                       "       WHEN COUNT([CustomerCode]) > 1 THEN " +
+                                       "           STUFF((" +
+                                       "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
+                                       "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                       "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
+                                       "                FOR XML PATH(''), TYPE " +
+                                       "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
+                                       "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
+                                       "   END AS [CustomerCodes] " +
+                                   "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                   "WHERE temp1.[DeleteFlag] = 0 " +
+                                   "GROUP BY[CategoryId] " +
+                               ") AS temp3 " +
+                               "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
+
+                            result = query.Select(n => new CustomerCodeDto
+                            {
+                                CategoryId = n.CategoryId,
+                                CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                                CategoryName = n.CategoryName,
+                                IsVisible = Convert.ToBoolean(n.IsVisible)
+                            }).ToList();
+                            return (result);
+                        }
+                        else
+                        {
+                            var query = await _dbContext.CategoryCode
+                                .FromSqlRaw($@"(Select 0 as [CategoryId], (SELECT STUFF((SELECT ', ' + CustomerCode " +
+                                             "FROM [CSI.Development].[dbo].[tbl_customer] WHERE DeleteFlag = 0" +
+                                             "FOR XML PATH(''), TYPE " +
+                                                ").value('.', 'NVARCHAR(MAX)'), 1, 2, ''))  AS [CustomerCodes], 'ALL' as [CategoryName], 1 as [IsVisible]) " +
+                                                "UNION " +
+                                                "SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], temp4.[IsVisible] " +
+                                                "FROM ( " +
+                                                    "SELECT " +
+                                                        "   [CategoryId], " +
+                                                        "   CASE " +
+                                                        "       WHEN COUNT([CustomerCode]) > 1 THEN " +
+                                                        "           STUFF((" +
+                                                        "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
+                                                        "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                                        "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
+                                                        "                FOR XML PATH(''), TYPE " +
+                                                        "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
+                                                        "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
+                                                        "   END AS [CustomerCodes] " +
+                                                    "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                                    "WHERE temp1.[DeleteFlag] = 0 " +
+                                                    "GROUP BY[CategoryId] " +
+                                                ") AS temp3 " +
+                                                "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString())
+                                            .ToListAsync();
+
+                            result = query.Select(n => new CustomerCodeDto
+                            {
+                                CategoryId = n.CategoryId,
+                                CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                                CategoryName = n.CategoryName,
+                                IsVisible = Convert.ToBoolean(n.IsVisible)
+                            }).ToList();
+                            return (result);
+                        }
+                    }
+                    else
+                    {
+
+                        var query = await _dbContext.CategoryCode
+                            .FromSqlRaw($@"SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible] " +
+                                "FROM ( " +
+                                    "SELECT " +
+                                        "   [CategoryId], " +
+                                        "   CASE " +
+                                        "       WHEN COUNT([CustomerCode]) > 1 THEN " +
+                                        "           STUFF((" +
+                                        "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
+                                        "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                        "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
+                                        "                FOR XML PATH(''), TYPE " +
+                                        "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
+                                        "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
+                                        "   END AS [CustomerCodes] " +
+                                    "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                    "WHERE temp1.[DeleteFlag] = 0 " +
+                                    "GROUP BY[CategoryId] " +
+                                ") AS temp3 " +
+                                "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
+
+                        result = query.Select(n => new CustomerCodeDto
+                        {
+                            CategoryId = n.CategoryId,
+                            CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                            CategoryName = n.CategoryName,
+                            IsVisible = Convert.ToBoolean(n.IsVisible)
+                        }).ToList();
+                        return (result);
+
+                    }
+
+                }
+
+                catch (Exception ex) {
+                    string test = ex.Message;
+                    return (null);
+                }
+                
+
+            }
+        }
+
+        public static List<string> ConvertCommaSeparatedStringToList(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+            {
+                return new List<string>();
+            }
+
+            string[] splitStrings = input.Split(new[] { "," }, StringSplitOptions.None);
+
+            if (splitStrings.Length > 0)
+            {
+                splitStrings[0] = splitStrings[0].TrimStart(',');
+                splitStrings[splitStrings.Length - 1] = splitStrings[splitStrings.Length - 1].TrimEnd(',');
+            }
+
+            return splitStrings.ToList();
         }
     }
 }
