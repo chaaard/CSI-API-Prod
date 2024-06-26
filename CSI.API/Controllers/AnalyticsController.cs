@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.API.Controllers
 {
@@ -468,6 +469,31 @@ namespace CSI.API.Controllers
         {
             _analyticsService.InsertLogs(refreshAnalyticsDto);
             return Ok();
+        }
+
+        [HttpPost("GetVarianceMMS")]
+        public async Task<IActionResult> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            var data = await _analyticsService.GetVarianceMMS(refreshAnalyticsDto);
+            // Check if result is empty
+            if (data.Count == 0)
+            {
+                // If no records are returned, create a new list with default values
+                data = new List<VarianceMMS>
+                {
+                    new VarianceMMS { MMS = 0, CSI = 0, Variance = 0 }
+                };
+            }
+            else
+            {
+                data = data.Select(m => new VarianceMMS
+                {
+                    MMS = m.MMS,
+                    CSI = m.CSI,
+                    Variance = m.Variance
+                }).ToList();
+            }
+            return Ok(data);
         }
     }
 }

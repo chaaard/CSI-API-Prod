@@ -42,6 +42,7 @@ namespace CSI.Infrastructure.Data
             Category = Set<Category>();
             CategoryCode = Set<CategoryCode>();
 
+            VarianceMMS = Set<VarianceMMS>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -49,6 +50,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<CustomerCodes> CustomerCodes { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<Analytics> Analytics { get; set; }
+        //public DbSet<SumMMS> SumMMS { get; set; }
         public DbSet<Prooflist> Prooflist { get; set; }
         public DbSet<Location> Locations { get; set; }
         public DbSet<Status> Status { get; set; }
@@ -69,6 +71,8 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
         public DbSet<Logs> Logs { get; set; }
         public DbSet<CategoryCode> CategoryCode { get; set; }
+        public DbSet<Category> Category { get; set; }
+        public DbSet<VarianceMMS> VarianceMMS { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -148,7 +152,9 @@ namespace CSI.Infrastructure.Data
             .ToTable("tbl_category");
 
             modelBuilder.Entity<CategoryCode>()
-           .    HasNoKey();
+           .HasNoKey();
+            modelBuilder.Entity<VarianceMMS>()
+            .HasNoKey();
         }
     }
 }
