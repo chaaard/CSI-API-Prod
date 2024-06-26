@@ -33,10 +33,23 @@ namespace CSI.API.Controllers
             return (NotFound());
         }
 
+
         [HttpGet("GetCustomerDdCodesAsync")]
         public async Task<IActionResult> GetCustomerDdCodesAsync()
         {
             var result = await _customerCodeService.GetCustomerDdCodesAsync();
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("GetCustomerCodesByCategory")]
+        public async Task<IActionResult> GetCustomerCodesByCategory(PaginationDto pagination)
+        {
+            var result = await _customerCodeService.GetCustomerCodesByCategory(pagination);
 
             if (result != null)
             {

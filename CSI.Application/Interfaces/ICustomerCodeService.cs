@@ -11,6 +11,7 @@ namespace CSI.Application.Interfaces
     public interface ICustomerCodeService
     {
         Task<(List<CustomerCodeDto>, int totalPages)> GetCustomerCodesAsync(PaginationDto pagination);
+        Task<List<CustomerCodeDto>> GetCustomerCodesByCategory(PaginationDto pagination);
         Task<CustomerCodes> GetCustomerCodeByIdAsync(int Id);
         Task<CustomerCodes> InsertCustomerCodeAsync(CustomerCodeParamsDto customerCode);
         Task<CustomerCodes> UpdateCustomerCodeByIdAsync(CustomerCodeParamsDto customerCode);

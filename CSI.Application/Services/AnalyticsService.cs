@@ -27,14 +27,17 @@ namespace CSI.Application.Services
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly IDbContextFactory<AppDBContext> _contextFactory;
+        private readonly IAdjustmentService _adjustmentService;
 
-        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory)
+        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory, IAdjustmentService adjustmentService)
         {
             _configuration = configuration;
             _dbContext = dBContext;
             _mapper = mapper;
             _dbContext.Database.SetCommandTimeout(999);
             _contextFactory = contextFactory;
+            _adjustmentService = 
+            _adjustmentService = adjustmentService;
         }
 
         public async Task<string> GetDepartments()
@@ -115,62 +118,7 @@ namespace CSI.Application.Services
             var analytics = new List<AnalyticsDto>();
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
-
-                string test = $" SELECT  " +
-                          $"     MAX(a.Id) AS Id, " +
-                          $"     MAX(a.CustomerId) AS CustomerId, " +
-                          $"     MAX(a.CustomerName) AS CustomerName, " +
-                          $"     MAX(a.LocationId) AS LocationId, " +
-                          $"     MAX(a.LocationName) AS LocationName, " +
-                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                          $"     MAX(a.CashierNo) AS CashierNo, " +
-                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                          $"     a.OrderNo, " +
-                          $"     MAX(a.Qty) AS Qty, " +
-                          $"     MAX(a.Amount) AS Amount, " +
-                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal  " +
-                          $" FROM ( " +
-                          $"     SELECT   " +
-                          $"         n.Id, " +
-                          $"         n.CustomerId,  " +
-                          $"         c.CustomerName,  " +
-                          $"         n.LocationId,  " +
-                          $"         l.LocationName,  " +
-                          $"         n.TransactionDate,   " +
-                          $"         n.MembershipNo,   " +
-                          $"         n.CashierNo,  " +
-                          $"         n.RegisterNo,  " +
-                          $"         n.TransactionNo,  " +
-                          $"         n.OrderNo,  " +
-                          $"         n.Qty,  " +
-                          $"         n.Amount,  " +
-                          $"         n.SubTotal, " +
-                          $"         n.StatusId, " +
-                          $"         n.DeleteFlag,   " +
-                          $"         n.IsUpload,   " +
-                          $"         n.IsGenerate,   " +
-                          $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
-                          $"     FROM tbl_analytics n " +
-                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                          $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
-                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
-                          $" ) a " +
-                          $" GROUP BY  " +
-                          $"     a.OrderNo,    " +
-                          $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num " +
-                          $" HAVING " +
-                          $"     COUNT(a.OrderNo) = 1 ";
+               
                 var result = await _dbContext.AnalyticsView
               .FromSqlRaw($" SELECT  " +
                           $"     MAX(a.Id) AS Id, " +
@@ -440,20 +388,27 @@ namespace CSI.Application.Services
         {
             Dictionary<string, decimal?> totalAmounts = new Dictionary<string, decimal?>();
             DateTime date;
-
-            if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
-            {
-                foreach (var memCode in analyticsParamsDto.memCode)
+            try { 
+                if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
                 {
-                    decimal? result = await _dbContext.Analytics
-                        .Where(x => x.TransactionDate == date && x.LocationId == analyticsParamsDto.storeId[0] && x.CustomerId.Contains(memCode) && x.DeleteFlag == false)
-                        .SumAsync(e => e.SubTotal);
+                    foreach (var memCode in analyticsParamsDto.memCode)
+                    {
+                        decimal? result = await _dbContext.Analytics
+                            .Where(x => x.TransactionDate == date && x.LocationId == analyticsParamsDto.storeId[0] && x.CustomerId.Contains(memCode) && x.DeleteFlag == false)
+                            .SumAsync(e => e.SubTotal);
 
-                    totalAmounts.Add(memCode, result);
+                        totalAmounts.Add(memCode, result);
+                    }
                 }
+
+                return totalAmounts;
+            }
+            catch (Exception ex)
+            {
+                var exs = ex.Message;
+                throw;
             }
 
-            return totalAmounts;
         }
 
         public async Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto)
@@ -633,7 +588,90 @@ namespace CSI.Application.Services
                 await _dbContext.SaveChangesAsync();
             }
         }
+        public async Task<int> SaveException(AnalyticsProoflistDto exceptionParam)
+        {
+            string clubLogs = $"{string.Join(", ", exceptionParam.refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", exceptionParam.refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            try
+            {
+                var param = new AnalyticsProoflistDto
+                {
 
+                    Id = 0,
+                    AnalyticsId = exceptionParam.AnalyticsId,
+                    ProoflistId = 0,
+                    ActionId = exceptionParam.ActionId,
+                    StatusId = exceptionParam.StatusId,
+                    AdjustmentId = 0,
+                    SourceId = 0,
+                    DeleteFlag = false,
+                    AdjustmentAddDto = new AdjustmentAddDto
+                    {
+                        Id = 0,
+                        DisputeReferenceNumber = null,
+                        DisputeAmount = null,
+                        DateDisputeFiled = null,
+                        DescriptionOfDispute = null,
+                        NewJO = null,
+                        CustomerId = null,
+                        AccountsPaymentDate = null,
+                        AccountsPaymentTransNo = null,
+                        AccountsPaymentAmount = null,
+                        ReasonId = null,
+                        Descriptions = null,
+                        DeleteFlag = null,
+                    }
+                };
+
+                var result = await CreateAnalyticsProofList(param);
+
+                 exceptionParam.AdjustmentId = result.AdjustmentId;
+                await _adjustmentService.UpdateAnalyticsProofList(exceptionParam);
+
+
+                using (var newContext = _contextFactory.CreateDbContext())
+                {
+                    var logsDto = new LogsDto
+                    {
+                        UserId = exceptionParam.refreshAnalyticsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Save Exception",
+                        Remarks = $"Success",
+                        RowsCountBefore = 1,
+                        RowsCountAfter = 1,
+                        TotalAmount = 0,
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+
+                return result.AdjustmentId;
+
+            }
+            catch (Exception ex)
+            {
+                using (var newContext = _contextFactory.CreateDbContext())
+                {
+                    var logsDto = new LogsDto
+                    {
+                        UserId = exceptionParam.refreshAnalyticsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Save Exception",
+                        Remarks = $"Error: {ex.Message}",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    newContext.Logs.Add(logsMap);
+                    newContext.SaveChanges();
+                }
+                return 0;
+
+            }
+        }
         public async Task RefreshAnalytics(RefreshAnalyticsDto analyticsParam)
         {
             var listResultOne = new List<Analytics>();
@@ -1647,6 +1685,7 @@ namespace CSI.Application.Services
                 if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out dateFrom) &&
                      DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out dateTo))
                 {
+
                     var result = await _dbContext.AnalyticsView
                            .FromSqlRaw($" SELECT  " +
                             $"     MAX(a.Id) AS Id, " +
@@ -1694,7 +1733,9 @@ namespace CSI.Application.Services
                             $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                             $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                             $"     WHERE  " +
-                            $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.StatusId = 3) " +
+                            $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND " +
+                            $" ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
+                            $" AND n.DeleteFlag = 0 AND n.StatusId = 3) " +
                             $" ) a " +
                             $" GROUP BY  " +
                             $"     a.OrderNo,    " +
@@ -2874,7 +2915,7 @@ namespace CSI.Application.Services
                                 .Where(analytics =>
                                     analytics.TransactionDate.Value == date.Date &&
                                     analytics.DeleteFlag == false &&
-                                    analytics.CustomerId.Contains(generateA0FileDto.analyticsParamsDto.memCode[0])),
+                                    generateA0FileDto.analyticsParamsDto.memCode.Contains(analytics.CustomerId)),
                             location => location.LocationCode,
                             analytics => analytics.LocationId,
                             (location, analyticsGroup) => new { location, analyticsGroup }
