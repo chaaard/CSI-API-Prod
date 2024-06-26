@@ -16,6 +16,8 @@ namespace CSI.Domain.Entities
         public int? RowsCountBefore { get; set; }
         public int? RowsCountAfter { get; set; }
         public decimal? TotalAmount { get; set; }
+        public DateTime? TransactionDateFrom { get; set; }
+        public DateTime? TransactionDateTo { get; set; }
         public string Club { get; set; } = string.Empty;
         public string CustomerId { get; set; } = string.Empty;
         public string Filename { get; set; } = string.Empty;

@@ -13,6 +13,7 @@ namespace CSI.Domain.Entities
         public string CustomerNo { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerCode { get; set; } = string.Empty;
+        public int? CategoryId { get; set; }
         public bool DeleteFlag { get; set; }
     }
 }
