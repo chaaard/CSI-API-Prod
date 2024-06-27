@@ -12,9 +12,11 @@ namespace CSI.Application.DTOs
         public string CustomerNo { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerCode { get; set; } = string.Empty;
-        public string CategoryName { get; set; } = string.Empty;
-        public int CategoryId { get; set; }
         public bool DeleteFlag { get; set; }
         public string? UserId { get; set; } = string.Empty;
+        public int? CategoryId { get; set; }
+        public string? CategoryName { get; set; } = string.Empty;
+        public List<string> CustomerCodes { get; set; } = new List<string>();
+        public bool? IsVisible { get; set; }
     }
 }

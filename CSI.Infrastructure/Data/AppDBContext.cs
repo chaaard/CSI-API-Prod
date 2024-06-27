@@ -39,6 +39,7 @@ namespace CSI.Infrastructure.Data
             AccountingProoflists = Set<AccountingProoflist>();
             Logs = Set<Logs>();
             Category = Set<Category>();
+            CategoryCode = Set<CategoryCode>();
             VarianceMMS = Set<VarianceMMS>();
         }
 
@@ -66,6 +67,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<FileDescriptions> FileDescription { get; set; }
         public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
         public DbSet<Logs> Logs { get; set; }
+        public DbSet<CategoryCode> CategoryCode { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<VarianceMMS> VarianceMMS { get; set; }
 
@@ -79,6 +81,9 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<CustomerCodes>()
             .ToTable("tbl_customer");
+
+            modelBuilder.Entity<Category>()
+            .ToTable("tbl_category");
 
             modelBuilder.Entity<Analytics>()
             .ToTable("tbl_analytics");
@@ -143,6 +148,8 @@ namespace CSI.Infrastructure.Data
             modelBuilder.Entity<Category>()
             .ToTable("tbl_category");
 
+            modelBuilder.Entity<CategoryCode>()
+           .HasNoKey();
             modelBuilder.Entity<VarianceMMS>()
             .HasNoKey();
         }
