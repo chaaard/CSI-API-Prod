@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CSI.API.Controllers
 {
@@ -98,6 +99,18 @@ namespace CSI.API.Controllers
                 // Handle other exceptions
                 return StatusCode(500, $"Internal Server Error: {ex.Message}");
             }
+        }
+
+        [HttpPost("SaveException")]
+        public async Task<IActionResult> SaveException(AnalyticsProoflistDto refreshAnalyticsDto)
+        {
+            int result = await _analyticsService.SaveException(refreshAnalyticsDto);
+            if (result != 0)
+            {
+                return Ok(result);
+            }
+
+            return NotFound();
         }
 
         [HttpPost("RefreshAnalytics")]
@@ -300,7 +313,7 @@ namespace CSI.API.Controllers
         [HttpPost("ManualReload")]
         public async Task ManualReload(RefreshAnalyticsDto refreshAnalyticsDto)
         {
-            await _analyticsService.ManualReload(refreshAnalyticsDto);
+            //await _analyticsService.ManualReload(refreshAnalyticsDto);
         }
 
         [HttpPost("GetAnalyticsToUndoSubmit")]
@@ -456,6 +469,31 @@ namespace CSI.API.Controllers
         {
             _analyticsService.InsertLogs(refreshAnalyticsDto);
             return Ok();
+        }
+
+        [HttpPost("GetVarianceMMS")]
+        public async Task<IActionResult> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            var data = await _analyticsService.GetVarianceMMS(refreshAnalyticsDto);
+            // Check if result is empty
+            if (data.Count == 0)
+            {
+                // If no records are returned, create a new list with default values
+                data = new List<VarianceMMS>
+                {
+                    new VarianceMMS { MMS = 0, CSI = 0, Variance = 0 }
+                };
+            }
+            else
+            {
+                data = data.Select(m => new VarianceMMS
+                {
+                    MMS = m.MMS,
+                    CSI = m.CSI,
+                    Variance = m.Variance
+                }).ToList();
+            }
+            return Ok(data);
         }
     }
 }

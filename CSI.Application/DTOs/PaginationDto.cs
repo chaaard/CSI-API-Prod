@@ -14,5 +14,9 @@ namespace CSI.Application.DTOs
         public string? SearchQuery { get; set; }
         public string? ColumnToSort { get; set; }
         public string? OrderBy { get; set; }
+        public int? CategoryId { get; set; }
+        public bool? IsVisible { get; set; }
+        public bool ByMerchant { get; set; }
+        public bool? IsAllVisible { get; set; }
     }
 }

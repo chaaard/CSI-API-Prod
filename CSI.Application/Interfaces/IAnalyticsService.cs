@@ -14,6 +14,7 @@ namespace CSI.Application.Interfaces
         Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<Dictionary<string, decimal?>> GetTotalAmountPerMerchant(AnalyticsParamsDto analyticsParamsDto);
         Task RefreshAnalytics(RefreshAnalyticsDto analyticsParam);
+        Task<int> SaveException(AnalyticsProoflistDto analyticsParam);
         Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<InvoiceDto>, bool)> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto);
@@ -42,5 +43,6 @@ namespace CSI.Application.Interfaces
         Task<Analytics> CreateAnalytics(AnalyticsAddDto analyticsAddDto);
         Task<List<Logs>> GetLogs();
         void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto);
+        Task<List<VarianceMMS>> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto);
     }
 }
