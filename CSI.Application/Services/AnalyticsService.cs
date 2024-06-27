@@ -1321,6 +1321,10 @@ namespace CSI.Application.Services
                 var isPending = true;
                 var result = await ReturnAnalytics(analyticsParamsDto);
 
+                if (result == null || result.Count() == 0)
+                {
+                    return false;
+                }
 
                 foreach (var analytics in result)
                 {
