@@ -3592,7 +3592,7 @@ namespace CSI.Application.Services
         public async Task<List<VarianceMMS>> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto)
         {
             string clubLogs = $"{string.Join(", ", refreshAnalyticsDto.storeId.Select(code => $"{code}"))}";
-            string merchantLogs = $"{string.Join(", ", refreshAnalyticsDto.memCode.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", refreshAnalyticsDto.memCode.Select(code => $"'{code}'"))}";
             var logsDto = new LogsDto();
             var logsMap = new Logs();
             try
@@ -3603,13 +3603,13 @@ namespace CSI.Application.Services
                 {
                     var formattedDate = dateFrom.ToString("yyMMdd");
                     var result = await _dbContext.VarianceMMS.
-                        FromSqlRaw($"SELECT SUM(A.CSTRAM)[MMS], SUM(ABS(A.CSTRAM - B.SubTotal))[Variance], SUM(B.SubTotal)[CSI] " +
-                            $"FROM OPENQUERY([SNR], 'SELECT * FROM MMJDALIB.CSHREP WHERE CSDATE = {formattedDate} AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTLIN = 720 AND CSREG = 0 AND CSTIL = 0')[A] " +
-                            $"INNER JOIN (SELECT FORMAT(CAST(TransactionDate AS DATE),'yyMMdd')[TransactionDate], LocationId, SUM(SubTotal)[SubTotal] FROM tbl_analytics GROUP BY TransactionDate, LocationId) [B] " +
-                            $"ON A.CSSTOR = B.LocationId " +
-                            $"WHERE B.TransactionDate = {formattedDate} " +
-                            $"AND B.LocationId = {refreshAnalyticsDto.storeId[0]} " +
-                            $"GROUP BY A.CSDATE, A.CSSTOR, B.TransactionDate, B.LocationId")
+                        FromSqlRaw($"SELECT A.MMS, SUM(ABS(A.MMS - B.CSI))[Variance], B.CSI " +
+                            $"FROM (SELECT CSRPAM[MMS] FROM OPENQUERY([SNR],'SELECT * FROM MMJDALIB.CSHREP WHERE CSDATE = {formattedDate} " +
+                            $"AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTLIN = 720 AND CSREG = 0 AND CSTIL = 0')) AS [A] " +
+                            $"CROSS JOIN (SELECT SUM(SubTotal)[CSI] " +
+                            $"FROM (SELECT LocationId, FORMAT(CAST(TransactionDate AS DATE),'yyMMdd')[TransactionDate], SUM(SubTotal)[SubTotal] " +
+                            $"FROM tbl_analytics WHERE DeleteFlag = 0 AND CustomerId IN ({merchantLogs}) GROUP BY LocationId, TransactionDate, SubTotal)[Z] " +
+                            $"WHERE LocationId = {refreshAnalyticsDto.storeId[0]} AND TransactionDate = {formattedDate}) AS [B] GROUP BY A.MMS, B.CSI")
                         .ToListAsync();
 
                     query = result.Select(m => new VarianceMMS
