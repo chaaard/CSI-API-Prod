@@ -41,7 +41,6 @@ namespace CSI.Infrastructure.Data
             Logs = Set<Logs>();
             Category = Set<Category>();
             CategoryCode = Set<CategoryCode>();
-
             VarianceMMS = Set<VarianceMMS>();
         }
 
@@ -50,7 +49,6 @@ namespace CSI.Infrastructure.Data
         public DbSet<CustomerCodes> CustomerCodes { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<Analytics> Analytics { get; set; }
-        //public DbSet<SumMMS> SumMMS { get; set; }
         public DbSet<Prooflist> Prooflist { get; set; }
         public DbSet<Location> Locations { get; set; }
         public DbSet<Status> Status { get; set; }
