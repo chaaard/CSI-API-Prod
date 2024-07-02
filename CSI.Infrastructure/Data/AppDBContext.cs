@@ -47,6 +47,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<Department> Departments { get; set; }
         public DbSet<CustomerCodes> CustomerCodes { get; set; }
         public DbSet<Analytics> Analytics { get; set; }
+        //public DbSet<SumMMS> SumMMS { get; set; }
         public DbSet<Prooflist> Prooflist { get; set; }
         public DbSet<Location> Locations { get; set; }
         public DbSet<Status> Status { get; set; }
