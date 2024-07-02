@@ -15,6 +15,7 @@ namespace CSI.API.Mapping
             CreateMap<AnalyticsAddDto, Analytics>();
             CreateMap<GenerateInvoiceDto, GenerateInvoice>();
             CreateMap<LogsDto, Logs>();
+            CreateMap<AccountingAdjustmentDto, AccountingAdjustments>();
         }
     }
 }

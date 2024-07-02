@@ -495,5 +495,49 @@ namespace CSI.API.Controllers
             }
             return Ok(data);
         }
+
+        [HttpPost("UpdateAccountingAdjustments")]
+        public async Task<IActionResult> UpdateAccountingAdjustments(AccountingAdjustmentDto accountingAdjustmentDto)
+        {
+            var result = await _analyticsService.UpdateAccountingAdjustments(accountingAdjustmentDto);
+            return (Ok(result));
+        }
+
+        [HttpPost("GetAccountingPaymentProofList")]
+        public async Task<IActionResult> GetAccountingPaymentProofList(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.GetAccountingPaymentProofList(analyticsParamsDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+
+            return Ok(result);
+        }
+
+        [HttpGet("GetAccountingAdjustments")]
+        public async Task<IActionResult> GetAccountingAdjustments(int Id)
+        {
+            var result = await _analyticsService.GetAdjustments(Id);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("GetAccountingProoflistAdjustments")]
+        public async Task<IActionResult> GetAccountingProoflistAdjustments(PaginationDto paginationDto)
+        {
+            var result = await _analyticsService.GetAccountingProoflistAdjustments(paginationDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }
