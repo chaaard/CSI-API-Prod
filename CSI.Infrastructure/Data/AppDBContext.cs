@@ -39,16 +39,23 @@ namespace CSI.Infrastructure.Data
             FileDescription = Set<FileDescriptions>();
             AccountingProoflists = Set<AccountingProoflist>();
             Logs = Set<Logs>();
-            Category = Set<Category>();
-            CategoryCode = Set<CategoryCode>();
+            AccountingMatchPayment = Set<AccountingMatchPayment>();
+            AccountingStatus = Set<AccountingStatus>();
+            AccountingAnalytics = Set<AccountingAnalytics>();
             VarianceMMS = Set<VarianceMMS>();
-        }
+            CategoryCode = Set<CategoryCode>();
+            Category = Set<Category>();
+            AccountingAdjustments = Set<AccountingAdjustments>();
+            AccountingProofListPayment = Set<AccountingProofListPayment>();
+            AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
+    }
 
         public DbSet<User> Users { get; set; }
         public DbSet<Department> Departments { get; set; }
         public DbSet<CustomerCodes> CustomerCodes { get; set; }
         public DbSet<Category> Category { get; set; }
         public DbSet<Analytics> Analytics { get; set; }
+        //public DbSet<SumMMS> SumMMS { get; set; }
         public DbSet<Prooflist> Prooflist { get; set; }
         public DbSet<Location> Locations { get; set; }
         public DbSet<Status> Status { get; set; }
@@ -69,8 +76,14 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
         public DbSet<Logs> Logs { get; set; }
         public DbSet<CategoryCode> CategoryCode { get; set; }
-        public DbSet<Category> Category { get; set; }
+        public DbSet<AccountingMatchPayment> AccountingMatchPayment { get; set; }
+        public DbSet<AccountingStatus> AccountingStatus { get; set; }
+        public DbSet<AccountingAnalytics> AccountingAnalytics { get; set; }
         public DbSet<VarianceMMS> VarianceMMS { get; set; }
+        public DbSet<Category> Category { get; set; }
+        public DbSet<AccountingAdjustments> AccountingAdjustments { get; set; }
+        public DbSet<AccountingProofListPayment> AccountingProofListPayment { get; set; }
+        public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -141,18 +154,34 @@ namespace CSI.Infrastructure.Data
             .ToTable("tbl_file_descriptions");
 
             modelBuilder.Entity<AccountingProoflist>()
-           .ToTable("tbl_accounting_prooflist");
+            .ToTable("tbl_accounting_prooflist");
 
             modelBuilder.Entity<Logs>()
             .ToTable("tbl_logs");
 
-            modelBuilder.Entity<Category>()
-            .ToTable("tbl_category");
+            modelBuilder.Entity<AccountingMatchPayment>()
+            .ToTable("tbl_accounting_match");
+
+            modelBuilder.Entity<AccountingAnalytics>()
+            .ToTable("tbl_accounting_analytics");
+
+            modelBuilder.Entity<AccountingStatus>()
+            .ToTable("tbl_accounting_status");
+
+            modelBuilder.Entity<VarianceMMS>()
+           .HasNoKey();
 
             modelBuilder.Entity<CategoryCode>()
-           .HasNoKey();
-            modelBuilder.Entity<VarianceMMS>()
             .HasNoKey();
+
+            modelBuilder.Entity<AccountingAdjustments>()
+            .ToTable("tbl_accounting_adjustments");
+
+            modelBuilder.Entity<AccountingProofListPayment>()
+           .HasNoKey();
+
+            modelBuilder.Entity<AccountingProoflistAdjustments>()
+           .ToTable("tbl_accounting_prooflist_adjustments");
         }
     }
 }

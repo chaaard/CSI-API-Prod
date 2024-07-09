@@ -38,11 +38,15 @@ namespace CSI.Application.Interfaces
         Task<List<FileDescriptions>> FileDescriptions();
         Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto);
         Task<List<AnalyticsDto>> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto);
-        Task<(List<AccountingMatchDto>, List<AccountingStatusDto>)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
+        Task<(List<AccountingMatchDto>, int totalPages)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<List<ExceptionReportDto>> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto);
         Task<Analytics> CreateAnalytics(AnalyticsAddDto analyticsAddDto);
         Task<List<Logs>> GetLogs();
         void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto);
         Task<List<VarianceMMS>> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto);
+        Task<bool> UpdateAccountingAdjustments(AccountingAdjustmentDto accountingAdjustmentDto);
+        Task<List<AccountingMatchPaymentDto>> GetAccountingPaymentProofList(AnalyticsParamsDto analyticsParamsDto);
+        Task<AccountingAdjustments> GetAdjustments(int Id);
+        Task<List<AccountingProoflistAdjustmentsDto>> GetAccountingProoflistAdjustments(PaginationDto paginationDto);
     }
 }
