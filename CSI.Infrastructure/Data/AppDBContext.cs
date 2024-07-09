@@ -44,7 +44,6 @@ namespace CSI.Infrastructure.Data
             AccountingAnalytics = Set<AccountingAnalytics>();
             VarianceMMS = Set<VarianceMMS>();
             CategoryCode = Set<CategoryCode>();
-            Category = Set<Category>();
             AccountingAdjustments = Set<AccountingAdjustments>();
             AccountingProofListPayment = Set<AccountingProofListPayment>();
             AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
@@ -80,7 +79,6 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingStatus> AccountingStatus { get; set; }
         public DbSet<AccountingAnalytics> AccountingAnalytics { get; set; }
         public DbSet<VarianceMMS> VarianceMMS { get; set; }
-        public DbSet<Category> Category { get; set; }
         public DbSet<AccountingAdjustments> AccountingAdjustments { get; set; }
         public DbSet<AccountingProofListPayment> AccountingProofListPayment { get; set; }
         public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
@@ -183,7 +181,6 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<AccountingProoflistAdjustments>()
            .ToTable("tbl_accounting_prooflist_adjustments");
-            .HasNoKey();
 
             modelBuilder.Entity<VarianceMMS>()
             .HasNoKey();
