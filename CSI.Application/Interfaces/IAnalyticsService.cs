@@ -12,6 +12,7 @@ namespace CSI.Application.Interfaces
     {
         Task<List<AnalyticsDto>> GetAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto);
+        Task<List<AnalyticsSearchDto>> GetAnalyticsByItem(RefreshAnalyticsDto analyticsParam);
         Task<Dictionary<string, decimal?>> GetTotalAmountPerMerchant(AnalyticsParamsDto analyticsParamsDto);
         Task RefreshAnalytics(RefreshAnalyticsDto analyticsParam);
         Task<int> SaveException(AnalyticsProoflistDto analyticsParam);

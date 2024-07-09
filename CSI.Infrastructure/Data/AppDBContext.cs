@@ -48,7 +48,7 @@ namespace CSI.Infrastructure.Data
             AccountingAdjustments = Set<AccountingAdjustments>();
             AccountingProofListPayment = Set<AccountingProofListPayment>();
             AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
-    }
+        }
 
         public DbSet<User> Users { get; set; }
         public DbSet<Department> Departments { get; set; }
@@ -84,6 +84,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingAdjustments> AccountingAdjustments { get; set; }
         public DbSet<AccountingProofListPayment> AccountingProofListPayment { get; set; }
         public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
+        public DbSet<AnalyticsSearch> AnalyticsSearch { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -182,6 +183,13 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<AccountingProoflistAdjustments>()
            .ToTable("tbl_accounting_prooflist_adjustments");
+            .HasNoKey();
+
+            modelBuilder.Entity<VarianceMMS>()
+            .HasNoKey();
+
+            modelBuilder.Entity<AnalyticsSearch>()
+            .HasNoKey();
         }
     }
 }
