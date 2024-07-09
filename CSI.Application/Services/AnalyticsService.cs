@@ -424,61 +424,6 @@ namespace CSI.Application.Services
                 DateTime date;
                 if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
                 {
-
-                    string test = $@"
-                                        SELECT 
-                                            CAST(B.Id AS int) AS Id,
-                                            CAST(C.CSSTOR AS varchar(10)) AS LocationId,  
-                                            CONVERT(datetime, 
-                                            CONCAT(
-                                                '20', 
-                                                SUBSTRING(CAST(C.CSDATE AS varchar(6)), 1, 2), 
-                                                '-', 
-                                                SUBSTRING(CAST(C.CSDATE AS varchar(6)), 3, 2), 
-                                                '-', 
-                                                SUBSTRING(CAST(C.CSDATE AS varchar(6)), 5, 2),
-                                                ' 00:00:00.000'
-                                            ), 
-                                            120) as TransactionDate,
-                                            CAST(B.CSTDOC AS varchar(20)) as CustomerId, 
-				                                        D.CustomerName as CustomerName,
-                                            CAST(A.CSCUST AS varchar(20)) as MembershipNo,
-                                            CAST(B.CSTIL AS varchar(20)) as CashierNo, 
-                                            CAST(C.CSREG AS varchar(20)) as RegisterNo, 
-                                            CAST(C.CSTRAN AS varchar(20)) as TransactionNo, 
-                                            CAST(B.CSCARD AS varchar(20)) as OrderNo, 
-                                            CAST(SUM(C.CSQTY) AS int) AS Qty,  
-                                            SUM(C.CSEXPR) AS Amount, 
-                                            B.CSDAMT as SubTotal 
-                                        FROM 
-											(SELECT ROW_NUMBER() OVER (ORDER BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC) AS Id, CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSDAMT, CSTIL 
-											FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSDAMT, CSTIL
-											FROM MMJDALIB.CSHTND 
-											WHERE (CSDATE = {strDate}) AND CSDTYP IN (''AR'') AND {storeList} AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}
-											GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT')) B  
-                                        INNER JOIN 
-                                            (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT 
-                                             FROM OPENQUERY(SNR, 
-                                             'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT 
-                                              FROM MMJDALIB.CSHHDR 
-                                              WHERE CSDATE = {strDate} AND {storeList} AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}')) A
-                                        ON A.CSSTOR = B.CSSTOR AND A.CSDATE = B.CSDATE AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN 
-                                        INNER JOIN 
-                                            (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS 
-                                             FROM OPENQUERY(SNR, 
-                                             'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS 
-                                              FROM MMJDALIB.CONDTX 
-                                              WHERE CSDATE = {strDate} AND {storeList} AND CSSKU <> 0 AND CSDSTS = 0 AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}')) C 
-                                        ON A.CSSTOR = C.CSSTOR AND A.CSDATE = C.CSDATE AND A.CSREG = C.CSREG AND A.CSTRAN = C.CSTRAN
-                                        INNER JOIN 
-											(SELECT CustomerCode,CustomerName FROM [CSI.Development].[dbo].[tbl_customer] WHERE DeleteFlag = 0) D
-										ON B.CSTDOC = D.CustomerCode 
-                                        WHERE ({string.Join(" OR ", analyticsParam.memCode.Select(code => $"B.CSTDOC LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})
-                                        GROUP BY 
-                                            C.CSSTOR, C.CSDATE, B.CSTDOC, A.CSCUST, C.CSREG, C.CSTRAN, B.CSCARD, B.CSTIL, B.CSDAMT, D.CustomerName, B.Id
-                                        ORDER BY 
-                                            C.CSSTOR, C.CSDATE, C.CSREG
-                                    ";
                     var result = await _dbContext.AnalyticsSearch
                                     .FromSqlRaw($@"
                                         SELECT 
