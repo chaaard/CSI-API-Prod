@@ -49,6 +49,32 @@ namespace CSI.API.Controllers
             }
         }
 
+        [HttpPost("GetAnalyticsByItem")]
+        public async Task<IActionResult> GetAnalyticsByItem(RefreshAnalyticsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetAnalyticsByItem(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
         [HttpPost("GetAnalyticsProofListVariance")]
         public async Task<IActionResult> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto)
         {
