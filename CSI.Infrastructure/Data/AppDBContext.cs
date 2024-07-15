@@ -44,10 +44,11 @@ namespace CSI.Infrastructure.Data
             VarianceMMS = Set<VarianceMMS>();
             CategoryCode = Set<CategoryCode>();
             Category = Set<Category>();
+            Merchant = Set<Merchant>();
             AccountingAdjustments = Set<AccountingAdjustments>();
             AccountingProofListPayment = Set<AccountingProofListPayment>();
             AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
-    }
+        }
 
         public DbSet<User> Users { get; set; }
         public DbSet<Department> Departments { get; set; }
@@ -79,6 +80,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingAnalytics> AccountingAnalytics { get; set; }
         public DbSet<VarianceMMS> VarianceMMS { get; set; }
         public DbSet<Category> Category { get; set; }
+        public DbSet<Merchant> Merchant { get; set; }
         public DbSet<AccountingAdjustments> AccountingAdjustments { get; set; }
         public DbSet<AccountingProofListPayment> AccountingProofListPayment { get; set; }
         public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
@@ -96,6 +98,9 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<Category>()
             .ToTable("tbl_category");
+
+            modelBuilder.Entity<Merchant>()
+            .HasNoKey();
 
             modelBuilder.Entity<Analytics>()
             .ToTable("tbl_analytics");
