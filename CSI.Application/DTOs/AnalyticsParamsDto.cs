@@ -25,5 +25,6 @@ namespace CSI.Application.DTOs
         public string? action { get; set; } = string.Empty;
         public string fileName { get; set; } = string.Empty;
         public string? remarks { get; set; } = string.Empty;
+        public string? selectedItem { get; set; } = string.Empty;
     }
 }
