@@ -2591,9 +2591,22 @@ namespace CSI.Application.Services
                         {
                             if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "OTHERS" || generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "WALK-IN" || generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "EMPLOYEE")
                             {
-                                foreach (var resultItem in result)
+                                var filteredResultWithUB = result.Where(r => r.CustomerId == "9999011984").ToList();
+
+                                var filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.Contains("CSI")).ToList();
+                                if (filteredResultUB.Count > 0)
                                 {
+                                    var total = filteredResultUB.Sum(x => x.SubTotal);
                                     var locationList = await GetLocations();
+
+                                    var club = param.storeId[0];
+                                    var trxCount = filteredResultUB.Count();
+                                    var dateFormat = filteredResultUB.FirstOrDefault().TransactionDate?.ToString("MMddyy");
+
+                                    isPending = filteredResultUB
+                                        .Where(x => x.StatusId == 5)
+                                        .Any();
+
                                     var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
                                     long startingInvoiceNumber = 000000000001;
 
@@ -2612,33 +2625,40 @@ namespace CSI.Application.Services
                                     var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
 
                                     var getShortName = locationList
-                                        .Where(x => x.LocationName.Contains(resultItem.LocationName))
+                                        .Where(x => x.LocationName.Contains(filteredResultUB.FirstOrDefault().LocationName))
                                         .Select(n => new
                                         {
                                             n.ShortName,
                                         })
                                         .FirstOrDefault();
+                                        
+                                    var GetCustomerNo = filteredResultUB
+                                            .GroupJoin(
+                                                _dbContext.CustomerCodes,
+                                                x => x.CustomerId,
+                                                y => y.CustomerCode,
+                                                (x, y) => new { x, y }
+                                            )
+                                            .SelectMany(
+                                                group => group.y,
+                                                (group, y) => y.CustomerNo
+                                            )
+                                            .FirstOrDefault();
 
+                                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
 
-                                    var GetCustomerNo = result
-                                        .GroupJoin(
-                                            _dbContext.CustomerCodes,
-                                            x => x.CustomerId,
-                                            y => y.CustomerCode, // Assuming CustomerId is the correct field to join on in CustomerCodes
-                                            (x, y) => new { x, y }
-                                        )
-                                        .SelectMany(
-                                            group => group.y,
-                                            (group, y) => new { group.x.CustomerId, y.CustomerNo }
-                                        )
-                                        .Where(cc => cc.CustomerId == resultItem.CustomerId)
-                                        .Select(cc => cc.CustomerNo)
-                                        .FirstOrDefault();
+                                    var getReference = await _dbContext.Reference
+                                        .Where(x => x.CustomerNo == formatCustomerNo)
+                                        .Select(n => new
+                                        {
+                                            n.MerchReference,
+                                        })
+                                        .FirstOrDefaultAsync();
 
                                     var invoice = new InvoiceDto
                                     {
                                         HDR_TRX_NUMBER = formattedInvoiceNumber,
-                                        HDR_TRX_DATE = resultItem.TransactionDate,
+                                        HDR_TRX_DATE = filteredResultUB.FirstOrDefault().TransactionDate,
                                         HDR_PAYMENT_TYPE = "HS",
                                         HDR_BRANCH_CODE = getShortName.ShortName ?? "",
                                         HDR_CUSTOMER_NUMBER = GetCustomerNo,
@@ -2646,11 +2666,11 @@ namespace CSI.Application.Services
                                         HDR_PAYMENT_TERM = "0",
                                         HDR_BUSINESS_LINE = "1",
                                         HDR_BATCH_SOURCE_NAME = "POS",
-                                        HDR_GL_DATE = resultItem.TransactionDate,
+                                        HDR_GL_DATE = filteredResultUB.FirstOrDefault().TransactionDate,
                                         HDR_SOURCE_REFERENCE = "HS",
-                                        DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                        DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
                                         DTL_QUANTITY = 1,
-                                        DTL_AMOUNT = resultItem.SubTotal,
+                                        DTL_AMOUNT = total,
                                         DTL_VAT_CODE = "",
                                         DTL_CURRENCY = "PHP",
                                         INVOICE_APPLIED = "0",
@@ -2659,29 +2679,29 @@ namespace CSI.Application.Services
 
                                     invoiceAnalytics.Add(invoice);
 
-                                    var formattedResult = resultItem.CustomerId;
+                                    var formattedResult = filteredResultUB.FirstOrDefault();
 
                                     var customerName = string.Empty;
                                     if (formattedResult != null)
                                     {
                                         customerName = _dbContext.CustomerCodes
-                                            .Where(cc => cc.CustomerCode == resultItem.CustomerId)
+                                            .Where(cc => cc.CustomerCode == formattedResult.CustomerId)
                                             .Select(cc => cc.CustomerName)
                                             .FirstOrDefault();
                                     }
 
                                     var generateInvoice = new GenerateInvoiceDto
                                     {
-                                        Club = param.storeId[0],
-                                        CustomerCode = resultItem.CustomerId,
+                                        Club = club,
+                                        CustomerCode = formattedResult.CustomerId,
                                         CustomerNo = GetCustomerNo,
                                         CustomerName = customerName,
                                         InvoiceNo = formattedInvoiceNumber,
-                                        InvoiceDate = resultItem.TransactionDate,
-                                        TransactionDate = resultItem.TransactionDate,
+                                        InvoiceDate = formattedResult.TransactionDate,
+                                        TransactionDate = formattedResult.TransactionDate,
                                         Location = getShortName.ShortName,
-                                        ReferenceNo = resultItem.OrderNo.Replace("-", ""),
-                                        InvoiceAmount = resultItem.SubTotal,
+                                        ReferenceNo = getReference.MerchReference + club + dateFormat,
+                                        InvoiceAmount = total,
                                         FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
                                     };
 
@@ -2695,13 +2715,12 @@ namespace CSI.Application.Services
                                         analyticsParamsDto = new AnalyticsParamsDto
                                         {
                                             dates = new List<string> { item.Date.ToString() },
-                                            memCode = new List<string> { resultItem.CustomerId.ToString() },
+                                            memCode = generateA0FileDto.analyticsParamsDto.memCode,
                                             storeId = new List<int> { item.LocationId ?? 0 },
-                                            orderNo = resultItem.OrderNo.ToString(),
                                         }
                                     };
 
-                                    var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                    var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
                                     if (getAnalytics.Any())
                                     {
                                         getAnalytics.ForEach(analyticsDto =>
@@ -2712,7 +2731,401 @@ namespace CSI.Application.Services
 
                                         await _dbContext.BulkUpdateAsync(getAnalytics);
                                         await _dbContext.SaveChangesAsync();
+                                    }
+                                }
 
+                                var filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && (r.OrderNo.Contains("CSI") || r.CustomerId.Contains("PV"))).ToList();
+                                if (filteredResultCSI.Count > 0) 
+                                {
+                                    foreach (var resultItem in filteredResultCSI)
+                                    {
+                                        var locationList = await GetLocations();
+                                        var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
+                                        long startingInvoiceNumber = 000000000001;
+
+                                        if (lastInvoice != null)
+                                        {
+                                            startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
+                                        }
+
+                                        long newInvoiceNumber = startingInvoiceNumber;
+
+                                        while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
+                                        {
+                                            newInvoiceNumber++;
+                                        }
+
+                                        var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
+
+                                        var getShortName = locationList
+                                            .Where(x => x.LocationName.Contains(resultItem.LocationName))
+                                            .Select(n => new
+                                            {
+                                                n.ShortName,
+                                            })
+                                            .FirstOrDefault();
+
+
+                                        var GetCustomerNo = result
+                                            .GroupJoin(
+                                                _dbContext.CustomerCodes,
+                                                x => x.CustomerId,
+                                                y => y.CustomerCode, // Assuming CustomerId is the correct field to join on in CustomerCodes
+                                                (x, y) => new { x, y }
+                                            )
+                                            .SelectMany(
+                                                group => group.y,
+                                                (group, y) => new { group.x.CustomerId, y.CustomerNo }
+                                            )
+                                            .Where(cc => cc.CustomerId == resultItem.CustomerId)
+                                            .Select(cc => cc.CustomerNo)
+                                            .FirstOrDefault();
+
+                                        var invoice = new InvoiceDto
+                                        {
+                                            HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                            HDR_TRX_DATE = resultItem.TransactionDate,
+                                            HDR_PAYMENT_TYPE = "HS",
+                                            HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                            HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                            HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                            HDR_PAYMENT_TERM = "0",
+                                            HDR_BUSINESS_LINE = "1",
+                                            HDR_BATCH_SOURCE_NAME = "POS",
+                                            HDR_GL_DATE = resultItem.TransactionDate,
+                                            HDR_SOURCE_REFERENCE = "HS",
+                                            DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                            DTL_QUANTITY = 1,
+                                            DTL_AMOUNT = resultItem.SubTotal,
+                                            DTL_VAT_CODE = "",
+                                            DTL_CURRENCY = "PHP",
+                                            INVOICE_APPLIED = "0",
+                                            FILENAME = fileName
+                                        };
+
+                                        invoiceAnalytics.Add(invoice);
+
+                                        var formattedResult = resultItem.CustomerId;
+
+                                        var customerName = string.Empty;
+                                        if (formattedResult != null)
+                                        {
+                                            customerName = _dbContext.CustomerCodes
+                                                .Where(cc => cc.CustomerCode == resultItem.CustomerId)
+                                                .Select(cc => cc.CustomerName)
+                                                .FirstOrDefault();
+                                        }
+
+                                        var generateInvoice = new GenerateInvoiceDto
+                                        {
+                                            Club = param.storeId[0],
+                                            CustomerCode = resultItem.CustomerId,
+                                            CustomerNo = GetCustomerNo,
+                                            CustomerName = customerName,
+                                            InvoiceNo = formattedInvoiceNumber,
+                                            InvoiceDate = resultItem.TransactionDate,
+                                            TransactionDate = resultItem.TransactionDate,
+                                            Location = getShortName.ShortName,
+                                            ReferenceNo = resultItem.OrderNo.Replace("-", ""),
+                                            InvoiceAmount = resultItem.SubTotal,
+                                            FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                        };
+
+                                        var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                                        _dbContext.GenerateInvoice.Add(genInvoice);
+                                        await _dbContext.SaveChangesAsync();
+
+                                        var param1 = new GenerateA0FileDto
+                                        {
+                                            Path = "",
+                                            analyticsParamsDto = new AnalyticsParamsDto
+                                            {
+                                                dates = new List<string> { item.Date.ToString() },
+                                                memCode = new List<string> { resultItem.CustomerId.ToString() },
+                                                storeId = new List<int> { item.LocationId ?? 0 },
+                                                orderNo = resultItem.OrderNo.ToString(),
+                                            }
+                                        };
+
+                                        var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                        if (getAnalytics.Any())
+                                        {
+                                            getAnalytics.ForEach(analyticsDto =>
+                                            {
+                                                analyticsDto.IsGenerate = true;
+                                                analyticsDto.InvoiceNo = formattedInvoiceNumber;
+                                            });
+
+                                            await _dbContext.BulkUpdateAsync(getAnalytics);
+                                            await _dbContext.SaveChangesAsync();
+
+                                        }
+                                    }
+                                }
+
+                                var filteredResultUBAR = filteredResultWithUB
+                                    .Where(r => r.OrderNo.Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900))
+                                    .ToList();
+                                if (filteredResultUBAR.Count > 0) 
+                                {
+                                    var total = filteredResultUBAR.Sum(x => x.SubTotal);
+                                    var locationList = await GetLocations();
+
+                                    var club = param.storeId[0];
+                                    var trxCount = filteredResultUBAR.Count();
+                                    var dateFormat = filteredResultUBAR.FirstOrDefault().TransactionDate?.ToString("MMddyy");
+
+                                    isPending = filteredResultUBAR
+                                        .Where(x => x.StatusId == 5)
+                                        .Any();
+
+                                    var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
+                                    long startingInvoiceNumber = 000000000001;
+
+                                    if (lastInvoice != null)
+                                    {
+                                        startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
+                                    }
+
+                                    long newInvoiceNumber = startingInvoiceNumber;
+
+                                    while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
+                                    {
+                                        newInvoiceNumber++;
+                                    }
+
+                                    var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
+
+                                    var getShortName = locationList
+                                        .Where(x => x.LocationName.Contains(filteredResultUBAR.FirstOrDefault().LocationName))
+                                        .Select(n => new
+                                        {
+                                            n.ShortName,
+                                        })
+                                        .FirstOrDefault();
+
+                                    var GetCustomerNo = filteredResultUBAR
+                                            .GroupJoin(
+                                                _dbContext.CustomerCodes,
+                                                x => x.CustomerId,
+                                                y => y.CustomerCode,
+                                                (x, y) => new { x, y }
+                                            )
+                                            .SelectMany(
+                                                group => group.y,
+                                                (group, y) => y.CustomerNo
+                                            )
+                                            .FirstOrDefault();
+
+                                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
+
+                                  
+
+                                    var invoice = new InvoiceDto
+                                    {
+                                        HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                        HDR_TRX_DATE = filteredResultUBAR.FirstOrDefault().TransactionDate,
+                                        HDR_PAYMENT_TYPE = "HS",
+                                        HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                        HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                        HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                        HDR_PAYMENT_TERM = "0",
+                                        HDR_BUSINESS_LINE = "1",
+                                        HDR_BATCH_SOURCE_NAME = "POS",
+                                        HDR_GL_DATE = filteredResultUBAR.FirstOrDefault().TransactionDate,
+                                        HDR_SOURCE_REFERENCE = "HS",
+                                        DTL_LINE_DESC = "UBAR" + club + dateFormat + "-" + trxCount,
+                                        DTL_QUANTITY = 1,
+                                        DTL_AMOUNT = total,
+                                        DTL_VAT_CODE = "",
+                                        DTL_CURRENCY = "PHP",
+                                        INVOICE_APPLIED = "0",
+                                        FILENAME = fileName
+                                    };
+
+                                    invoiceAnalytics.Add(invoice);
+
+                                    var formattedResult = filteredResultUBAR.FirstOrDefault();
+
+                                    var customerName = string.Empty;
+                                    if (formattedResult != null)
+                                    {
+                                        customerName = _dbContext.CustomerCodes
+                                            .Where(cc => cc.CustomerCode == formattedResult.CustomerId)
+                                            .Select(cc => cc.CustomerName)
+                                            .FirstOrDefault();
+                                    }
+
+                                    var generateInvoice = new GenerateInvoiceDto
+                                    {
+                                        Club = club,
+                                        CustomerCode = formattedResult.CustomerId,
+                                        CustomerNo = GetCustomerNo,
+                                        CustomerName = customerName,
+                                        InvoiceNo = formattedInvoiceNumber,
+                                        InvoiceDate = formattedResult.TransactionDate,
+                                        TransactionDate = formattedResult.TransactionDate,
+                                        Location = getShortName.ShortName,
+                                        ReferenceNo = "UBAR" + club + dateFormat,
+                                        InvoiceAmount = total,
+                                        FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                    };
+
+                                    var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                                    _dbContext.GenerateInvoice.Add(genInvoice);
+                                    await _dbContext.SaveChangesAsync();
+
+                                    var param1 = new GenerateA0FileDto
+                                    {
+                                        Path = "",
+                                        analyticsParamsDto = new AnalyticsParamsDto
+                                        {
+                                            dates = new List<string> { item.Date.ToString() },
+                                            memCode = generateA0FileDto.analyticsParamsDto.memCode,
+                                            storeId = new List<int> { item.LocationId ?? 0 },
+                                        }
+                                    };
+
+                                    var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                    if (getAnalytics.Any())
+                                    {
+                                        getAnalytics.ForEach(analyticsDto =>
+                                        {
+                                            analyticsDto.IsGenerate = true;
+                                            analyticsDto.InvoiceNo = formattedInvoiceNumber;
+                                        });
+
+                                        await _dbContext.BulkUpdateAsync(getAnalytics);
+                                        await _dbContext.SaveChangesAsync();
+                                    }
+                                }
+
+                                var filteredResultWithoutUB = result.Where(r => r.CustomerId != "9999011984").ToList();
+                                if (filteredResultWithoutUB.Count > 0)
+                                {
+                                    foreach (var resultItem in filteredResultWithoutUB)
+                                    {
+                                        var locationList = await GetLocations();
+                                        var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
+                                        long startingInvoiceNumber = 000000000001;
+
+                                        if (lastInvoice != null)
+                                        {
+                                            startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
+                                        }
+
+                                        long newInvoiceNumber = startingInvoiceNumber;
+
+                                        while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
+                                        {
+                                            newInvoiceNumber++;
+                                        }
+
+                                        var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
+
+                                        var getShortName = locationList
+                                            .Where(x => x.LocationName.Contains(resultItem.LocationName))
+                                            .Select(n => new
+                                            {
+                                                n.ShortName,
+                                            })
+                                            .FirstOrDefault();
+
+
+                                        var GetCustomerNo = result
+                                            .GroupJoin(
+                                                _dbContext.CustomerCodes,
+                                                x => x.CustomerId,
+                                                y => y.CustomerCode, // Assuming CustomerId is the correct field to join on in CustomerCodes
+                                                (x, y) => new { x, y }
+                                            )
+                                            .SelectMany(
+                                                group => group.y,
+                                                (group, y) => new { group.x.CustomerId, y.CustomerNo }
+                                            )
+                                            .Where(cc => cc.CustomerId == resultItem.CustomerId)
+                                            .Select(cc => cc.CustomerNo)
+                                            .FirstOrDefault();
+
+                                        var invoice = new InvoiceDto
+                                        {
+                                            HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                            HDR_TRX_DATE = resultItem.TransactionDate,
+                                            HDR_PAYMENT_TYPE = "HS",
+                                            HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                            HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                            HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                            HDR_PAYMENT_TERM = "0",
+                                            HDR_BUSINESS_LINE = "1",
+                                            HDR_BATCH_SOURCE_NAME = "POS",
+                                            HDR_GL_DATE = resultItem.TransactionDate,
+                                            HDR_SOURCE_REFERENCE = "HS",
+                                            DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                            DTL_QUANTITY = 1,
+                                            DTL_AMOUNT = resultItem.SubTotal,
+                                            DTL_VAT_CODE = "",
+                                            DTL_CURRENCY = "PHP",
+                                            INVOICE_APPLIED = "0",
+                                            FILENAME = fileName
+                                        };
+
+                                        invoiceAnalytics.Add(invoice);
+
+                                        var formattedResult = resultItem.CustomerId;
+
+                                        var customerName = string.Empty;
+                                        if (formattedResult != null)
+                                        {
+                                            customerName = _dbContext.CustomerCodes
+                                                .Where(cc => cc.CustomerCode == resultItem.CustomerId)
+                                                .Select(cc => cc.CustomerName)
+                                                .FirstOrDefault();
+                                        }
+
+                                        var generateInvoice = new GenerateInvoiceDto
+                                        {
+                                            Club = param.storeId[0],
+                                            CustomerCode = resultItem.CustomerId,
+                                            CustomerNo = GetCustomerNo,
+                                            CustomerName = customerName,
+                                            InvoiceNo = formattedInvoiceNumber,
+                                            InvoiceDate = resultItem.TransactionDate,
+                                            TransactionDate = resultItem.TransactionDate,
+                                            Location = getShortName.ShortName,
+                                            ReferenceNo = resultItem.OrderNo.Replace("-", ""),
+                                            InvoiceAmount = resultItem.SubTotal,
+                                            FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                        };
+
+                                        var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                                        _dbContext.GenerateInvoice.Add(genInvoice);
+                                        await _dbContext.SaveChangesAsync();
+
+                                        var param1 = new GenerateA0FileDto
+                                        {
+                                            Path = "",
+                                            analyticsParamsDto = new AnalyticsParamsDto
+                                            {
+                                                dates = new List<string> { item.Date.ToString() },
+                                                memCode = new List<string> { resultItem.CustomerId.ToString() },
+                                                storeId = new List<int> { item.LocationId ?? 0 },
+                                                orderNo = resultItem.OrderNo.ToString(),
+                                            }
+                                        };
+
+                                        var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                        if (getAnalytics.Any())
+                                        {
+                                            getAnalytics.ForEach(analyticsDto =>
+                                            {
+                                                analyticsDto.IsGenerate = true;
+                                                analyticsDto.InvoiceNo = formattedInvoiceNumber;
+                                            });
+
+                                            await _dbContext.BulkUpdateAsync(getAnalytics);
+                                            await _dbContext.SaveChangesAsync();
+
+                                        }
                                     }
                                 }
                             }
@@ -2745,7 +3158,7 @@ namespace CSI.Application.Services
                                 }
 
                                 var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
-
+                                
                                 var getShortName = locationList
                                     .Where(x => x.LocationName.Contains(result.FirstOrDefault().LocationName))
                                     .Select(n => new
@@ -2892,7 +3305,7 @@ namespace CSI.Application.Services
                                         n.ShortName,
                                     })
                                     .FirstOrDefault();
-
+                                    
                                 var GetCustomerNo = result
                                         .GroupJoin(
                                             _dbContext.CustomerCodes,
