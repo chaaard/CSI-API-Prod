@@ -1655,6 +1655,12 @@ namespace CSI.Application.Services
                                     else if (valueCust == "FoodPanda")
                                     {
                                         var foodPandaProofList = await ExtractAccountingFoodPanda(worksheet, rowCount, row, file.FileName.ToString(), customerName, strClub, userId);
+                                        var foodPandaProofListAdj = new List<AccountingProoflistAdjustments>();
+                                        if (package.Workbook.Worksheets.Count == 2)
+                                        {
+                                            var worksheetAdj = package.Workbook.Worksheets[1];
+                                            foodPandaProofListAdj = await ExtractAccountingFoodPandaAdjustments(worksheetAdj, rowCount, row, file.FileName.ToString(), customerName, strClub, userId, foodPandaProofList.Item3);
+                                        }
                                         if (foodPandaProofList.Item1 == null)
                                         {
                                             return (null, foodPandaProofList.Item2);
@@ -1668,6 +1674,11 @@ namespace CSI.Application.Services
                                             foreach (var item in foodPandaProofList.Item1)
                                             {
                                                 proofList.Add(item);
+                                            }
+
+                                            foreach (var item1 in foodPandaProofListAdj)
+                                            {
+                                                proofListAdj.Add(item1);
                                             }
                                         }
                                     }
@@ -1736,59 +1747,151 @@ namespace CSI.Application.Services
 
                 if (proofList != null)
                 {
+                    if (valueCust == "FoodPanda")
+                    {
+                        var locations = await _dbContext.Locations.ToListAsync();
+
+                        foreach (var proof in proofList)
+                        {
+                            foreach (var location in locations)
+                            {
+                                if (!string.IsNullOrEmpty(proof.OrderNo) && !string.IsNullOrEmpty(location.VendorCode) && proof.OrderNo.Contains(location.VendorCode))
+                                {
+                                    proof.StoreId = location.Id;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
                     await _dbContext.AccountingProoflists.AddRangeAsync(proofList);
                     await _dbContext.SaveChangesAsync();
 
-                    // Retrieve the saved prooflist records
                     var savedProofLists = _dbContext.AccountingProoflists
-                        .Where(pl => proofList.Select(p => p.Id).Contains(pl.Id))
+                        .Where(pl => proofList.Select(p => p.Id).Contains(pl.Id) && pl.StatusId == 3)
                         .ToList();
 
-                    foreach (var proof in savedProofLists)
-                    {
-                        var matchedAnalytics = _dbContext.AccountingAnalytics
-                            .Where(aa => aa.OrderNo == proof.OrderNo
-                                         && aa.TransactionDate == proof.TransactionDate
-                                         && aa.LocationId == proof.StoreId)
-                            .FirstOrDefault();
 
-                        if (matchedAnalytics != null)
+                    if (savedProofLists.Where(x => x.CustomerId == "9999011935" || x.CustomerId == "9999011931").Any())
+                    {
+                        foreach (var proof in savedProofLists)
                         {
-                            var accountingMatch = _dbContext.AccountingMatchPayment
-                                .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
+                            var matchedAnalytics = _dbContext.AccountingAnalytics
+                                .Where(aa => aa.OrderNo == proof.OrderNo
+                                             && aa.TransactionDate == proof.TransactionDate
+                                             && aa.LocationId == proof.StoreId)
                                 .FirstOrDefault();
 
-                            int accountingStatusId = (matchedAnalytics.SubTotal == null) ? 4 :
-                                                      (proof.Amount == null) ? 5 :
-                                                      matchedAnalytics.SubTotal == proof.Amount ? 1 :
-                                                      matchedAnalytics.SubTotal > proof.Amount ? 2 :
-                                                      matchedAnalytics.SubTotal < proof.Amount ? 3 : 4;
-
-                            if (accountingMatch != null)
+                            if (matchedAnalytics != null)
                             {
-                                accountingMatch.AccountingProofListId = proof.Id;
-                                accountingMatch.AccountingStatusId = accountingStatusId;
+                                var accountingMatch = _dbContext.AccountingMatchPayment
+                                    .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
+                                    .FirstOrDefault();
+
+                                int accountingStatusId = (matchedAnalytics.SubTotal == null) ? 4 :
+                                                          (proof.Amount == null) ? 5 :
+                                                          matchedAnalytics.SubTotal == proof.Amount ? 1 :
+                                                          matchedAnalytics.SubTotal > proof.Amount ? 2 :
+                                                          matchedAnalytics.SubTotal < proof.Amount ? 3 : 4;
+
+                                if (accountingMatch != null)
+                                {
+                                    accountingMatch.AccountingProofListId = proof.Id;
+                                    accountingMatch.AccountingStatusId = accountingStatusId;
+                                }
+                                else
+                                {
+                                    _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                    {
+                                        AccountingAnalyticsId = matchedAnalytics.Id,
+                                        AccountingProofListId = proof.Id,
+                                        AccountingStatusId = accountingStatusId
+                                    });
+                                }
                             }
                             else
                             {
+                                int accountingStatusId = 4;
+
                                 _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
                                 {
-                                    AccountingAnalyticsId = matchedAnalytics.Id,
+                                    AccountingAnalyticsId = null,
                                     AccountingProofListId = proof.Id,
                                     AccountingStatusId = accountingStatusId
                                 });
                             }
                         }
-                        else
+                    }
+                    else
+                    {
+                        foreach (var proof in savedProofLists)
                         {
-                            int accountingStatusId = 4;
+                            var matchedAnalytics = _dbContext.AccountingAnalytics
+                                .Where(aa => aa.OrderNo == proof.OrderNo
+                                             && aa.TransactionDate == proof.TransactionDate
+                                             && aa.LocationId == proof.StoreId)
+                                .FirstOrDefault();
 
-                            _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                            if (matchedAnalytics != null)
                             {
-                                AccountingAnalyticsId = null,
-                                AccountingProofListId = proof.Id,
-                                AccountingStatusId = accountingStatusId
-                            });
+                                var accountingMatch = _dbContext.AccountingMatchPayment
+                                    .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
+                                    .FirstOrDefault();
+
+                                int accountingStatusId;
+
+                                if (matchedAnalytics.Amount == null)
+                                {
+                                    accountingStatusId = 4;
+                                }
+                                else if (proof.Amount == null)
+                                {
+                                    accountingStatusId = 5;
+                                }
+                                else
+                                {
+                                    var amount = matchedAnalytics.Amount ?? 0;
+                                    var subTotal = proof.Amount ?? 0;
+                                    var difference = amount - subTotal;
+
+                                    if (difference <= 1 || difference >= -1)
+                                    {
+                                        accountingStatusId = 1;
+                                    }
+                                    else
+                                    {
+                                        accountingStatusId = amount == subTotal ? 1 :
+                                                             amount > subTotal ? 2 :
+                                                             amount < subTotal ? 3 : 4;
+                                    }
+                                }
+
+                                if (accountingMatch != null)
+                                {
+                                    accountingMatch.AccountingProofListId = proof.Id;
+                                    accountingMatch.AccountingStatusId = accountingStatusId;
+                                }
+                                else
+                                {
+                                    _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                    {
+                                        AccountingAnalyticsId = matchedAnalytics.Id,
+                                        AccountingProofListId = proof.Id,
+                                        AccountingStatusId = accountingStatusId
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                int accountingStatusId = 4;
+
+                                _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                {
+                                    AccountingAnalyticsId = null,
+                                    AccountingProofListId = proof.Id,
+                                    AccountingStatusId = accountingStatusId
+                                });
+                            }
                         }
                     }
 
@@ -1867,7 +1970,7 @@ namespace CSI.Application.Services
             var grabFoodProofList = new List<AccountingProoflist>();
             var fileId = 0;
             // Define expected headers
-            string[] expectedHeaders = { "updated on", "store name", "short order id", "net sales", "channel commission" };
+            string[] expectedHeaders = { "updated on", "store name", "short order id", "net sales", "channel commission", "status" };
 
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
@@ -1920,29 +2023,14 @@ namespace CSI.Application.Services
                     }
                 }
 
-                DateTime date;
-                if (DateTime.TryParse(DateTime.Now.ToString(), out date))
-                {
-                    var fileDescriptions = new FileDescriptions
-                    {
-                        FileName = fileName,
-                        UploadDate = date,
-                        Merchant = valueCust,
-                        Count = rowCount - 1,
-                    };
-                    _dbContext.FileDescription.Add(fileDescriptions);
-                    await _dbContext.SaveChangesAsync();
-
-                    fileId = fileDescriptions.Id;
-                }
-
                 for (row = 2; row <= rowCount; row++)
                 {
                     if (worksheet.Cells[row, columnIndexes["updated on"]].Value != null ||
                         worksheet.Cells[row, columnIndexes["store name"]].Value != null ||
                         worksheet.Cells[row, columnIndexes["short order id"]].Value != null ||
                         worksheet.Cells[row, columnIndexes["channel commission"]].Value != null ||
-                        worksheet.Cells[row, columnIndexes["net sales"]].Value != null)
+                        worksheet.Cells[row, columnIndexes["net sales"]].Value != null ||
+                        worksheet.Cells[row, columnIndexes["status"]].Value != null)
                     {
                         var orderNo = worksheet.Cells[row, columnIndexes["short order id"]].Value?.ToString();
                         decimal agencyfee = worksheet.Cells[row, columnIndexes["channel commission"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["channel commission"]].Value?.ToString()) : 0;
@@ -1967,7 +2055,7 @@ namespace CSI.Application.Services
                                     NonMembershipFee = (decimal?)0.00,
                                     PurchasedAmount = (decimal?)0.00,
                                     Amount = TotalPurchasedAmount,
-                                    StatusId = 3,
+                                    StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
                                     StoreId = await ReturnLocation(storeName),
                                     FileDescriptionId = fileId,
                                     AgencyFee = agencyfee,
@@ -1997,7 +2085,7 @@ namespace CSI.Application.Services
                                     NonMembershipFee = (decimal?)0.00,
                                     PurchasedAmount = (decimal?)0.00,
                                     Amount = TotalPurchasedAmount,
-                                    StatusId = 3,
+                                    StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
                                     StoreId = await ReturnLocation(storeName),
                                     FileDescriptionId = fileId,
                                     AgencyFee = agencyfee,
@@ -2005,6 +2093,57 @@ namespace CSI.Application.Services
                                 };
                                 grabFoodProofList.Add(prooflist);
                             }
+                        }
+                    }
+                }
+                if (grabFoodProofList.Any(x => x.CustomerId == "9999011929"))
+                {
+                    DateTime date1;
+                    if (DateTime.TryParse(DateTime.Now.ToString(), out date1))
+                    {
+                        var fileDescriptions = new FileDescriptions
+                        {
+                            FileName = fileName,
+                            UploadDate = date1,
+                            Merchant = "Grab Food",
+                            Count = grabFoodProofList.Count(x => x.CustomerId == "9999011929"),
+                        };
+                        _dbContext.FileDescription.Add(fileDescriptions);
+                        await _dbContext.SaveChangesAsync();
+
+                        var getOnlyGrabFood = grabFoodProofList
+                            .Where(x => x.CustomerId == "9999011929")
+                            .ToList();
+
+                        foreach (var item in getOnlyGrabFood)
+                        {
+                            item.FileDescriptionId = fileDescriptions.Id;
+                        }
+                    }
+                }
+
+                if (grabFoodProofList.Any(x => x.CustomerId == "9999011955"))
+                {
+                    DateTime date1;
+                    if (DateTime.TryParse(DateTime.Now.ToString(), out date1))
+                    {
+                        var fileDescriptions = new FileDescriptions
+                        {
+                            FileName = fileName,
+                            UploadDate = date1,
+                            Merchant = "Grab Mart",
+                            Count = grabFoodProofList.Count(x => x.CustomerId == "9999011955"),
+                        };
+                        _dbContext.FileDescription.Add(fileDescriptions);
+                        await _dbContext.SaveChangesAsync();
+
+                        var getOnlyGrabMart = grabFoodProofList
+                           .Where(x => x.CustomerId == "9999011955")
+                           .ToList();
+
+                        foreach (var item in getOnlyGrabMart)
+                        {
+                            item.FileDescriptionId = fileDescriptions.Id;
                         }
                     }
                 }
@@ -2405,12 +2544,12 @@ namespace CSI.Application.Services
             }
         }
 
-        private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingFoodPanda(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
+        private async Task<(List<AccountingProoflist>, string?, int?)> ExtractAccountingFoodPanda(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var foodPandaProofList = new List<AccountingProoflist>();
             var fileId = 0;
             // Define expected headers
-            string[] expectedHeaders = { "order code", "order date", "gross food value / product value" };
+            string[] expectedHeaders = { "order code", "order date", "gross food value / product value", "vendor code" };
 
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
             Dictionary<string, string> customers = new Dictionary<string, string>
@@ -2456,7 +2595,7 @@ namespace CSI.Application.Services
                         _dbContext.Logs.Add(logsMap);
                         await _dbContext.SaveChangesAsync();
 
-                        return (foodPandaProofList, $"Column not found.");
+                        return (foodPandaProofList, $"Column not found.", fileId);
                     }
                 }
 
@@ -2478,13 +2617,16 @@ namespace CSI.Application.Services
 
                 for (row = 2; row <= rowCount; row++)
                 {
-                    if (worksheet.Cells[row, columnIndexes["order code"]].Value != null ||
-                        worksheet.Cells[row, columnIndexes["order date"]].Value != null ||
-                        worksheet.Cells[row, columnIndexes["gross food value / product value"]].Value != null)
+                    if (worksheet.Cells[row, columnIndexes["order code"]].Value != null &&
+                        worksheet.Cells[row, columnIndexes["order date"]].Value != null &&
+                        worksheet.Cells[row, columnIndexes["gross food value / product value"]].Value != null &&
+                        worksheet.Cells[row, columnIndexes["vendor code"]].Value != null)
                     {
                         var transactionDate = GetDateTimeFoodPanda(worksheet.Cells[row, columnIndexes["order date"]].Value);
+                        var vendorCode = worksheet.Cells[row, columnIndexes["vendor code"]].Value?.ToString();
                         decimal TotalPurchasedAmount = worksheet.Cells[row, columnIndexes["gross food value / product value"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["gross food value / product value"]].Value?.ToString()) : 0;
                         var chktransactionDate = new DateTime();
+                        var storedId = await ReturnLocationByVendor(vendorCode);
                         if (transactionDate.HasValue)
                         {
                             chktransactionDate = transactionDate.Value.Date;
@@ -2501,7 +2643,7 @@ namespace CSI.Application.Services
                                 PurchasedAmount = (decimal?)0.00,
                                 Amount = TotalPurchasedAmount,
                                 StatusId = 3,
-                                StoreId = 0,
+                                StoreId = storedId,
                                 FileDescriptionId = fileId,
                                 DeleteFlag = false,
                             };
@@ -2510,7 +2652,7 @@ namespace CSI.Application.Services
                     }
                 }
 
-                return (foodPandaProofList, rowCount.ToString() + " rows extracted");
+                return (foodPandaProofList, rowCount.ToString() + " rows extracted", fileId);
             }
             catch (Exception ex)
             {
@@ -2529,10 +2671,140 @@ namespace CSI.Application.Services
                 _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
 
-                return (foodPandaProofList, "Error extracting proof list.");
+                return (foodPandaProofList, "Error extracting proof list.", fileId);
             }
         }
 
+        private async Task<List<AccountingProoflistAdjustments>> ExtractAccountingFoodPandaAdjustments(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId, int? fileId)
+        {
+            var foodPandaProofListAdj = new List<AccountingProoflistAdjustments>();
+            string[] expectedHeaders = { "invoice date", "vendor code", "category", "description", "net total" };
+
+            Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
+            Dictionary<string, string> customers = new Dictionary<string, string>
+            {
+                {  "9999011838", "Food Panda" },
+            };
+
+            customers.TryGetValue(customerNo, out string valueCust);
+
+            try
+            {
+                for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                {
+                    var header = worksheet.Cells[1, col].Text.ToLower().Trim();
+                    if (!string.IsNullOrEmpty(header))
+                    {
+                        columnIndexes[header] = col;
+                    }
+                }
+
+                // Check if all expected headers exist in the first row
+                foreach (var expectedHeader in expectedHeaders)
+                {
+                    if (!columnIndexes.ContainsKey(expectedHeader))
+                    {
+                        var logsDto = new LogsDto
+                        {
+                            UserId = userId,
+                            Date = DateTime.Now,
+                            Action = "Upload Accounting Analytics Adjustments",
+                            Remarks = $"Error: Column not found.",
+                            Club = strClub,
+                            CustomerId = customerNo,
+                            Filename = fileName
+                        };
+
+                        var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                        _dbContext.Logs.Add(logsMap);
+                        await _dbContext.SaveChangesAsync();
+
+                        return foodPandaProofListAdj;
+                    }
+                }
+
+                for (row = 2; row <= rowCount; row++)
+                {
+                   
+                    if (worksheet.Cells[row, columnIndexes["invoice date"]].Value != null ||
+                        worksheet.Cells[row, columnIndexes["vendor code"]].Value != null ||
+                        worksheet.Cells[row, columnIndexes["category"]].Value != null ||
+                        worksheet.Cells[row, columnIndexes["description"]].Value != null ||
+                        worksheet.Cells[row, columnIndexes["net total"]].Value != null)
+                    {
+                        var transactionDate = GetDateTimeFoodPandaAdj(worksheet.Cells[row, columnIndexes["invoice date"]].Value);
+                        var vendorCode = worksheet.Cells[row, columnIndexes["vendor code"]].Value?.ToString();
+                        decimal netTotal = worksheet.Cells[row, columnIndexes["net total"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net total"]].Value?.ToString()) : 0;
+                        var storedId = await ReturnLocationByVendor(vendorCode);
+                        var category = worksheet.Cells[row, columnIndexes["category"]].Value?.ToString();
+                        var description = worksheet.Cells[row, columnIndexes["description"]].Value?.ToString().Trim();
+                        var orderNo = "";
+
+                        if (category != "Platform Fee")
+                        {
+                            if (category == "Comm. rev. - OD dr")
+                            {
+                                orderNo = ExtractOrderNumberFromCommRev(description);
+                            }
+                            else if (category == "Wastage")
+                            {
+                                orderNo = ExtractOrderNumberFromWastage(description);
+                            }
+                            else if (category == "Penalty")
+                            {
+                                orderNo = ExtractOrderNumberFromPenalty(description);
+                            }
+                            else
+                            {
+                                orderNo = ExtractOrderNumberFromOtherCategories(description);
+                            }
+                        }
+
+                        if (transactionDate != null)
+                        {
+                            var prooflistAdj = new AccountingProoflistAdjustments
+                            {
+                                CustomerId = customerNo,
+                                TransactionDate = transactionDate,
+                                OrderNo = orderNo,
+                                NonMembershipFee = (decimal?)0.00,
+                                PurchasedAmount = (decimal?)0.00,
+                                Amount = netTotal,
+                                StatusId = 3,
+                                StoreId = storedId,
+                                FileDescriptionId = fileId,
+                                Category = category,
+                                Descriptions = description,
+                                DeleteFlag = false,
+
+                            };
+                            foodPandaProofListAdj.Add(prooflistAdj);
+                        }
+                    }
+                }
+
+                return (foodPandaProofListAdj);
+            }
+            catch (Exception ex)
+            {
+                var logsDto = new LogsDto
+                {
+                    UserId = userId,
+                    Date = DateTime.Now,
+                    Action = "Upload Accounting Analytics Adjustments",
+                    Remarks = $"Error: Please check error in row {row}: {ex.Message}",
+                    Club = strClub,
+                    CustomerId = customerNo,
+                    Filename = fileName
+                };
+
+                var logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+
+                return (foodPandaProofListAdj);
+            }
+        }
         private async Task<(List<AccountingProoflist>, string?)> ExtractAccountingMetroMart(ExcelWorksheet worksheet, int rowCount, int row, string fileName, string customerNo, string strClub, string userId)
         {
             var metroMartProofList = new List<AccountingProoflist>();
@@ -2696,6 +2968,22 @@ namespace CSI.Application.Services
             }
         }
 
+        private async Task<int?> ReturnLocationByVendor(string vendorCode)
+        {
+            if (vendorCode != null || vendorCode != string.Empty)
+            {
+                var getLocationCode = await _dbContext.Locations.Where(x => x.VendorCode.ToLower() == vendorCode.ToLower())
+                .Select(n => n.LocationCode)
+                .FirstOrDefaultAsync(); ;
+
+                return getLocationCode;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public async Task<bool> DeleteAccountingAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
         {
             var result = false;
@@ -2830,5 +3118,96 @@ namespace CSI.Application.Services
             }
         }
 
+        public DateTime? GetDateTimeFoodPandaAdj(object cellValue)
+        {
+            if (cellValue != null)
+            {
+                // Specify the format of the date string
+                if (DateTime.TryParseExact(cellValue.ToString(), "M/dd/yyyy h:mm:ss tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out var transactionDate))
+                {
+                    return transactionDate.Date;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private string ExtractOrderNumberFromCommRev(string description)
+        {
+            string searchPhrase = "Commission fee for ";
+            int startIndex = description.IndexOf(searchPhrase);
+
+            if (startIndex != -1)
+            {
+                startIndex += searchPhrase.Length;
+
+                int endIndex = description.IndexOf(' ', startIndex);
+                if (endIndex == -1)
+                {
+                    endIndex = description.Length;
+                }
+
+                string orderNo = description.Substring(startIndex, endIndex - startIndex).Trim();
+
+                orderNo = orderNo.TrimEnd(':', ',', ' ');
+
+                return orderNo;
+            }
+
+            return "";
+        }
+
+        private string ExtractOrderNumberFromWastage(string description)
+        {
+            string searchPhrase = "Missing Items payment: ";
+            int startIndex = description.IndexOf(searchPhrase);
+
+            if (startIndex != -1)
+            {
+                startIndex += searchPhrase.Length;
+
+                int endIndex = description.IndexOf(' ', startIndex);
+                int commaIndex = description.IndexOf(',', startIndex);
+
+                if (endIndex == -1 || (commaIndex != -1 && commaIndex < endIndex))
+                {
+                    endIndex = commaIndex;
+                }
+
+                string orderNo = description.Substring(startIndex, endIndex - startIndex).Trim();
+
+                orderNo = orderNo.TrimEnd(':', ',', ' ');
+
+                return orderNo;
+            }
+
+            return "";
+        }
+        private string ExtractOrderNumberFromPenalty(string description)
+        {
+            int colonIndex = description.IndexOf(':');
+
+            if (colonIndex != -1)
+            {
+                string orderNo = description.Substring(colonIndex + 1).Trim();
+
+                orderNo = orderNo.TrimEnd(':', ',', ' ');
+
+                return orderNo;
+            }
+
+            return "";
+        }
+
+        private string ExtractOrderNumberFromOtherCategories(string description)
+        {
+            return "";
+        }
     }
 }

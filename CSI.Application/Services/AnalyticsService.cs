@@ -2715,6 +2715,171 @@ namespace CSI.Application.Services
 
                                     }
                                 }
+                            };
+
+                            var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                            if (getAnalytics.Any())
+                            {
+                                getAnalytics.ForEach(analyticsDto =>
+                                {
+                                    analyticsDto.IsGenerate = true;
+                                    analyticsDto.InvoiceNo = formattedInvoiceNumber;
+                                });
+
+                                await _dbContext.BulkUpdateAsync(getAnalytics);
+                                await _dbContext.SaveChangesAsync();
+
+                                var accountingAnalyticsList = getAnalytics.Select(analytics => new AccountingAnalytics
+                                {
+                                    CustomerId = analytics.CustomerId,
+                                    LocationId = analytics.LocationId,
+                                    TransactionDate = analytics.TransactionDate,
+                                    MembershipNo = analytics.MembershipNo,
+                                    CashierNo = analytics.CashierNo,
+                                    RegisterNo = analytics.RegisterNo,
+                                    TransactionNo = analytics.TransactionNo,
+                                    OrderNo = analytics.OrderNo,
+                                    Qty = analytics.Qty,
+                                    Amount = analytics.Amount,
+                                    SubTotal = analytics.SubTotal,
+                                    InvoiceNo = analytics.InvoiceNo,
+                                    DeleteFlag = false
+                                }).ToList();
+
+                                await _dbContext.AccountingAnalytics.AddRangeAsync(accountingAnalyticsList);
+                                await _dbContext.SaveChangesAsync();
+
+                                var savedAnalytics = _dbContext.AccountingAnalytics
+                                   .Where(pl => accountingAnalyticsList.Select(p => p.Id).Contains(pl.Id))
+                                   .ToList();
+
+
+                                if (savedAnalytics.Where(x => x.CustomerId == "9999011935" || x.CustomerId == "9999011931").Any())
+                                {
+                                    foreach (var analytics in savedAnalytics)
+                                    {
+                                        var matchedAnalytics = _dbContext.AccountingProoflists
+                                            .Where(aa => aa.OrderNo == analytics.OrderNo
+                                                         && aa.TransactionDate == analytics.TransactionDate
+                                                         && aa.StoreId == analytics.LocationId
+                                                         && aa.StatusId == 3)
+                                            .FirstOrDefault();
+
+                                        if (matchedAnalytics != null)
+                                        {
+                                            var accountingMatch = _dbContext.AccountingMatchPayment
+                                                .Where(am => am.AccountingProofListId == matchedAnalytics.Id)
+                                                .FirstOrDefault();
+
+                                            int accountingStatusId = (matchedAnalytics.Amount == null) ? 5 :
+                                                                      (analytics.SubTotal == null) ? 4 :
+                                                                      matchedAnalytics.Amount == analytics.SubTotal ? 1 :
+                                                                      matchedAnalytics.Amount > analytics.SubTotal ? 3 :
+                                                                      matchedAnalytics.Amount < analytics.SubTotal ? 2 : 5;
+
+                                            if (accountingMatch != null)
+                                            {
+                                                accountingMatch.AccountingAnalyticsId = analytics.Id;
+                                                accountingMatch.AccountingStatusId = accountingStatusId;
+                                            }
+                                            else
+                                            {
+                                                _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                                {
+                                                    AccountingAnalyticsId = analytics.Id,
+                                                    AccountingProofListId = matchedAnalytics.Id,
+                                                    AccountingStatusId = accountingStatusId
+                                                });
+                                            }
+                                        }
+                                        else
+                                        {
+                                            int accountingStatusId = 5;
+
+                                            _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                            {
+                                                AccountingAnalyticsId = analytics.Id,
+                                                AccountingProofListId = null,
+                                                AccountingStatusId = accountingStatusId
+                                            });
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    foreach (var analytics in savedAnalytics)
+                                    {
+                                        var matchedAnalytics = _dbContext.AccountingProoflists
+                                            .Where(aa => aa.OrderNo == analytics.OrderNo
+                                                         && aa.TransactionDate == analytics.TransactionDate
+                                                         && aa.StoreId == analytics.LocationId
+                                                         && aa.StatusId == 3)
+                                            .FirstOrDefault();
+
+                                        if (matchedAnalytics != null)
+                                        {
+                                            var accountingMatch = _dbContext.AccountingMatchPayment
+                                                .Where(am => am.AccountingProofListId == matchedAnalytics.Id)
+                                                .FirstOrDefault();
+
+                                            int accountingStatusId;
+
+                                            if (matchedAnalytics.Amount == null)
+                                            {
+                                                accountingStatusId = 5;
+                                            }
+                                            else if (analytics.SubTotal == null)
+                                            {
+                                                accountingStatusId = 4;
+                                            }
+                                            else
+                                            {
+                                                var amount = matchedAnalytics.Amount ?? 0;
+                                                var subTotal = analytics.SubTotal ?? 0;
+                                                var difference = amount - subTotal;
+
+                                                if (difference <= 1 || difference <= -1)
+                                                {
+                                                    accountingStatusId = 1;
+                                                }
+                                                else
+                                                {
+                                                    accountingStatusId = amount == subTotal ? 1 :
+                                                                         amount > subTotal ? 3 :
+                                                                         amount < subTotal ? 2 : 5;
+                                                }
+                                            }
+
+                                            if (accountingMatch != null)
+                                            {
+                                                accountingMatch.AccountingAnalyticsId = analytics.Id;
+                                                accountingMatch.AccountingStatusId = accountingStatusId;
+                                            }
+                                            else
+                                            {
+                                                _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                                {
+                                                    AccountingAnalyticsId = analytics.Id,
+                                                    AccountingProofListId = matchedAnalytics.Id,
+                                                    AccountingStatusId = accountingStatusId
+                                                });
+                                            }
+                                        }
+                                        else
+                                        {
+                                            int accountingStatusId = 5;
+
+                                            _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                            {
+                                                AccountingAnalyticsId = analytics.Id,
+                                                AccountingProofListId = null,
+                                                AccountingStatusId = accountingStatusId
+                                            });
+                                        }
+                                    }
+                                }
+
+                                await _dbContext.SaveChangesAsync();
                             }
                             else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "GCASH")
                             {
@@ -3728,10 +3893,12 @@ namespace CSI.Application.Services
                     Amount = n.c.x.Amount,
                     Status = n.c.x.StatusId,
                     StoreName = n.c.Location != null ? n.c.Location.LocationName : "No Location",
+                    Category = n.c.x.Category,
                     Descriptions = n.c.x.Descriptions,
                     FileDescriptionId = n.c.x.FileDescriptionId,
                     DeleteFlag = n.c.x.DeleteFlag,
                 })
+                .OrderBy(x => x.Id)
                 .ToListAsync();
 
 
@@ -3814,8 +3981,8 @@ namespace CSI.Application.Services
 	                                p.[Amount] AS [ProofListAmount],  
 	                                p.[OrderNo] AS [ProofListOrderNo], 
 	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
-                                    c.[CustomerName] AS [ProofListPartner],
+	                                lo.LocationName AS [ProofListLocation], 
+                                    cu.[CustomerName] AS [ProofListPartner],
                                     p.AgencyFee AS [ProofListAgencyFee],
 	                                ac.[StatusName] AS [Status]
                                 FROM [tbl_accounting_match] am 
@@ -3824,34 +3991,11 @@ namespace CSI.Application.Services
                                 LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
                                 LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
                                 LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId
+                                LEFT JOIN [dbo].[tbl_customer] cu ON cu.CustomerCode = p.CustomerId
                                 WHERE ({cstDocCondition}) OR ({cstDocCondition1})")
                    .AsQueryable();
 
-
-                    var test = $@"SELECT   
-                                    am.[Id] AS [MatchId], 
-	                                n.Id AS [AnalyticsId],
-	                                n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
-                                    c.[CustomerName] AS [AnalyticsPartner],
-	                                l.LocationName AS [AnalyticsLocation], 
-	                                n.[TransactionDate] AS [AnalyticsTransactionDate], 
-	                                n.[OrderNo] AS [AnalyticsOrderNo], 
-	                                n.[SubTotal] AS [AnalyticsAmount], 
-	                                p.Id AS [ProofListId],
-	                                p.[Amount] AS [ProofListAmount],  
-	                                p.[OrderNo] AS [ProofListOrderNo], 
-	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
-                                    c.[CustomerName] AS [ProofListPartner],
-                                    p.AgencyFee AS [ProofListAgencyFee],
-	                                ac.[StatusName] AS [Status]
-                                FROM [tbl_accounting_match] am 
-                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
-                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
-                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
-                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
-                                WHERE ({cstDocCondition}) OR ({cstDocCondition1})";
                     matchDtos = result.Select(m => new AccountingMatchDto
                     {
                         MatchId = m.MatchId,
@@ -3885,7 +4029,9 @@ namespace CSI.Application.Services
                     {
                         if (analyticsParamsDto.status[0] == "All")
                         {
-                            analyticsParamsDto.status = new List<string> { "Paid", "Underpaid", "Overpaid", "Not Reported", "Unpaid", "Adjustments", "Re-Transact", "Paid w/AP", "Unpaid w/AP", "Underpaid w/AP", "Overpaid w/AP" };
+                            analyticsParamsDto.status = _dbContext.AccountingStatus
+                                .Select(n => n.StatusName)
+                                .ToList();
 
                             matchDtos = matchDtos
                                .Where(x => analyticsParamsDto.status.Any(status => x.Status.Trim().ToLower().Contains(status.Trim().ToLower())))
@@ -4334,51 +4480,142 @@ namespace CSI.Application.Services
 
                     if (getAccountingMatch != null)
                     {
-                        getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
-                        await _dbContext.SaveChangesAsync();
-
-                        var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
-                            .Where(x => x.Id == accountingAdjustmentDto.MatchId)
-                            .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
-                            .Join(_dbContext.AccountingProoflists, a => a.x.AccountingProofListId, b => b.Id, (a, b) => new { a, b })
-                            .Select(n => new
-                            {
-                                StatusId = (n.a.y.SubTotal == null) ? 4 :
-                                            (n.b.Amount == null) ? 5 :
-                                            n.a.y.SubTotal == n.b.Amount ? 1 :
-                                            n.a.y.SubTotal > n.b.Amount ? 2 :
-                                            n.a.y.SubTotal < n.b.Amount ? 3 : 4
-                            })
-                            .FirstOrDefault();
-
-                        if (getAccountingMatchStatus != null)
+                        if (getAccountingMatch.AccountingStatusId == 4)
                         {
-                            getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
-                            getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                            getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
                             await _dbContext.SaveChangesAsync();
 
-                            var updateDeleteFlag = _dbContext.AccountingMatchPayment
-                            .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
-                            .FirstOrDefault();
+                            var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
+                                .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                                .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                                .Join(_dbContext.AccountingProoflists, a => a.x.AccountingProofListId, b => b.Id, (a, b) => new { a, b })
+                                .Select(n => new
+                                {
+                                    StatusId = (n.a.y.SubTotal == null) ? 4 :
+                                                (n.b.Amount == null) ? 5 :
+                                                n.a.y.SubTotal == n.b.Amount ? 13 :
+                                                n.a.y.SubTotal > n.b.Amount ? 15 :
+                                                n.a.y.SubTotal < n.b.Amount ? 14 : 4
+                                })
+                                .FirstOrDefault();
 
-                            if (updateDeleteFlag != null)
+                            if (getAccountingMatchStatus != null)
                             {
-                                updateDeleteFlag.DeleteFlag = true;
+                                getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
+                                getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
                                 await _dbContext.SaveChangesAsync();
+
+                                var updateDeleteFlag = _dbContext.AccountingMatchPayment
+                                .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                                .FirstOrDefault();
+
+                                if (updateDeleteFlag != null)
+                                {
+                                    updateDeleteFlag.DeleteFlag = true;
+                                    await _dbContext.SaveChangesAsync();
+                                }
+
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            var newProofListId = 0;
+                            var getAccountingVariance = _dbContext.AccountingMatchPayment
+                                .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                                .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                                .Join(_dbContext.AccountingProoflists, a => a.x.AccountingProofListId, b => b.Id, (a, b) => new { a, b })
+                                .Select(n => new
+                                {
+                                    Variance = n.a.y.SubTotal - n.b.Amount
+
+                                })
+                                .FirstOrDefault();
+
+                            var getAccountingAnalyticsAmount = _dbContext.AccountingMatchPayment
+                                .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                                .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                                .Select(n => new
+                                {
+                                    SubTotal = n.y.SubTotal
+
+                                })
+                                .FirstOrDefault();
+
+                            if (getAccountingVariance != null && getAccountingAnalyticsAmount != null)
+                            {
+                                var difference = getAccountingAnalyticsAmount.SubTotal + getAccountingVariance.Variance;
+                                if (difference != 0)
+                                {
+                                    return false;
+                                }
+
+                                var getAccountingProofList = _dbContext.AccountingMatchPayment
+                                    .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                                    .Join(_dbContext.AccountingProoflists, x => x.AccountingProofListId, y => y.Id, (x, y) => new { x, y })
+                                    .FirstOrDefault();
+
+                                if (getAccountingProofList != null)
+                                {
+                                    var newAccountingProoflist = new AccountingProoflist
+                                    {
+                                        CustomerId = getAccountingProofList.y.CustomerId,
+                                        TransactionDate = getAccountingProofList.y.TransactionDate,
+                                        OrderNo = null,
+                                        NonMembershipFee = null,
+                                        PurchasedAmount = null,
+                                        Amount = Math.Abs(getAccountingVariance.Variance ?? 0),
+                                        StatusId = getAccountingProofList.y.StatusId,
+                                        StoreId = getAccountingProofList.y.StoreId,
+                                        AgencyFee = null,
+                                        FileDescriptionId = null,
+                                        DeleteFlag = getAccountingProofList.y.DeleteFlag,
+                                    };
+
+                                    _dbContext.AccountingProoflists.Add(newAccountingProoflist);
+                                    _dbContext.SaveChanges();
+
+                                    newProofListId = newAccountingProoflist.Id;
+                                }
+
+                                var getAccountingMatchToUpdate = _dbContext.AccountingMatchPayment
+                                  .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                                  .FirstOrDefault();
+
+                                if (getAccountingMatchToUpdate != null)
+                                {
+                                    getAccountingMatchToUpdate.AccountingStatusId = 16;
+                                    getAccountingMatchToUpdate.AccountingProofListId = newProofListId;
+                                    getAccountingMatchToUpdate.AccountingAdjustmentId = accountingAdj.Id;
+                                    await _dbContext.SaveChangesAsync();
+                                }
+
+                                var getAccountingMatchToUpdateVariance = _dbContext.AccountingMatchPayment
+                                 .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                                 .FirstOrDefault();
+
+                                if (getAccountingMatchToUpdateVariance != null)
+                                {
+                                    getAccountingMatchToUpdateVariance.AccountingStatusId = 16;
+                                    getAccountingMatchToUpdateVariance.AccountingAdjustmentId = accountingAdj.Id;
+                                    await _dbContext.SaveChangesAsync();
+                                }
+
+                                return true;
                             }
 
-                            return true;
+                            return false;
                         }
                     }
                 }
-                else
+                else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 3)
                 {
                     decimal? totalAmount = 0;
                     var getAccountingMatch = _dbContext.AccountingMatchPayment
                         .Where(x => x.Id == accountingAdjustmentDto.MatchId)
                         .FirstOrDefault();
 
-                    if (getAccountingMatch != null) 
+                    if (getAccountingMatch != null)
                     {
                         if (getAccountingMatch.AccountingProofListId != null)
                         {
@@ -4440,6 +4677,23 @@ namespace CSI.Application.Services
                         }
                     }
                 }
+                else
+                {
+                    var getAccountingMatch = _dbContext.AccountingMatchPayment
+                        .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                        .FirstOrDefault();
+
+                    if (getAccountingMatch != null)
+                    {
+                        getAccountingMatch.AccountingStatusId = 12;
+                        getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                        await _dbContext.SaveChangesAsync();
+
+                        return true;
+                    }
+
+                    return false;
+                }
 
                 var logsDto = new LogsDto
                 {
@@ -4489,7 +4743,7 @@ namespace CSI.Application.Services
                     string dateFromStr = dateFrom.Date.ToString("yyyy-MM-dd");
 
                     string cstDocCondition1 = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits =>
-                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId = 4 AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo = '{analyticsParamsDto.orderNo}' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
+                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId IN (4, 3) AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo LIKE '%{analyticsParamsDto.orderNo}%' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
 
                     var result = await _dbContext.AccountingProofListPayment
                    .FromSqlRaw($@"SELECT   
@@ -4499,9 +4753,11 @@ namespace CSI.Application.Services
 	                                ac.[StatusName] AS [Status],
 	                                p.[TransactionDate] AS [TransactionDate],  
 	                                p.[OrderNo] AS [OrderNo], 
-	                                p.[Amount] AS [Amount],  
+                                    a.[SubTotal] AS [AnalyticsAmount],  
+	                                p.[Amount] AS [ProofListAmount],  
 	                                l.LocationName AS [Location]
                                 FROM [tbl_accounting_match] am 
+                                LEFT JOIN [dbo].[tbl_accounting_analytics] a ON a.Id = am.AccountingAnalyticsId
                                 LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
                                 LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId 
                                 LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId 
@@ -4517,7 +4773,9 @@ namespace CSI.Application.Services
                         Status = m.Status,
                         TransactionDate = m.TransactionDate,
                         OrderNo = m.OrderNo,
-                        Amount = m.Amount,
+                        AnalyticsAmount = m.AnalyticsAmount,
+                        ProofListAmount = m.ProofListAmount,
+                        Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
                         Location = m.Location,
                     }).ToList();
                 }

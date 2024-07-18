@@ -12,8 +12,10 @@ namespace CSI.Application.DTOs
         public int? AccountingAdjustmentTypeId { get; set; }
         public DateTime? NewTransactionDate { get; set; }
         public string? AccountPaymentReferenceNo { get; set; }
+        public string? CashierName { get; set; } = string.Empty;
+        public string? Agency { get; set; } = string.Empty;
         public decimal? Amount { get; set; }
-        public string Remarks { get; set; }
+        public string? Remarks { get; set; } = string.Empty;
         public int? MatchId { get; set; }
         public int? ProofListMatchId { get; set; }
         public int? AccountingAnalyticsId { get; set; }
