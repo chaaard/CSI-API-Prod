@@ -2591,7 +2591,6 @@ namespace CSI.Application.Services
                         {
                             if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "OTHERS" || generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "WALK-IN" || generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "EMPLOYEE")
                             {
-
                                 var filteredResultWithUB = result.Where(r => r.CustomerId == "9999011984").ToList();
 
                                 var filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.Contains("CSI")).ToList();
@@ -2632,7 +2631,7 @@ namespace CSI.Application.Services
                                             n.ShortName,
                                         })
                                         .FirstOrDefault();
-
+                                        
                                     var GetCustomerNo = filteredResultUB
                                             .GroupJoin(
                                                 _dbContext.CustomerCodes,
@@ -3159,7 +3158,7 @@ namespace CSI.Application.Services
                                 }
 
                                 var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
-
+                                
                                 var getShortName = locationList
                                     .Where(x => x.LocationName.Contains(result.FirstOrDefault().LocationName))
                                     .Select(n => new
@@ -3306,7 +3305,7 @@ namespace CSI.Application.Services
                                         n.ShortName,
                                     })
                                     .FirstOrDefault();
-
+                                    
                                 var GetCustomerNo = result
                                         .GroupJoin(
                                             _dbContext.CustomerCodes,
