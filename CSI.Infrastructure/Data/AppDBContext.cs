@@ -48,6 +48,7 @@ namespace CSI.Infrastructure.Data
             AccountingAdjustments = Set<AccountingAdjustments>();
             AccountingProofListPayment = Set<AccountingProofListPayment>();
             AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
+            VarianceSubmit = Set<VarianceSubmit>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -85,6 +86,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingProofListPayment> AccountingProofListPayment { get; set; }
         public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
         public DbSet<AnalyticsSearch> AnalyticsSearch { get; set; }
+        public DbSet<VarianceSubmit> VarianceSubmit { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -192,6 +194,10 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<AnalyticsSearch>()
             .HasNoKey();
+
+            modelBuilder.Entity<VarianceSubmit>()
+            .HasNoKey();
+            
         }
     }
 }

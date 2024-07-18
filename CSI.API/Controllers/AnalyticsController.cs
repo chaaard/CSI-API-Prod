@@ -302,6 +302,12 @@ namespace CSI.API.Controllers
             var result = await _analyticsService.RevertAnalytics(updateAnalyticsDto);
             return (Ok(result));
         }
+        [HttpPut("UpdateRemarkInvoice")]
+        public async Task<IActionResult> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto)
+        {
+            var result = await _analyticsService.UpdateRemarkInvoice(updateGenerateInvoiceDto);
+            return (Ok(result));
+        }
 
         [HttpPut("UpdateAnalytics")]
         public async Task<IActionResult> UpdateAnalytics(UpdateAnalyticsDto updateAnalyticsDto)
@@ -520,6 +526,31 @@ namespace CSI.API.Controllers
                 }).ToList();
             }
             return Ok(data);
+        }
+        [HttpPost("GetVarianceMMSPerMerchant")]
+        public async Task<IActionResult> GetVarianceMMSPerMerchant(RefreshAnalyticsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetVarianceMMSPerMerchant(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
         }
 
         [HttpPost("UpdateAccountingAdjustments")]
