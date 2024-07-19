@@ -32,6 +32,7 @@ namespace CSI.Application.Interfaces
         Task<(string, string, string)> GenerateA0File(GenerateA0FileDto generateA0FileDto);
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
         Task<bool> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
+        Task<bool> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
@@ -45,6 +46,7 @@ namespace CSI.Application.Interfaces
         Task<List<Logs>> GetLogs();
         void InsertLogs(RefreshAnalyticsDto refreshAnalyticsDto);
         Task<List<VarianceMMS>> GetVarianceMMS(RefreshAnalyticsDto refreshAnalyticsDto);
+        Task<List<VarianceMMSCSIDto>> GetVarianceMMSPerMerchant(RefreshAnalyticsDto refreshAnalyticsDto);
         Task<bool> UpdateAccountingAdjustments(AccountingAdjustmentDto accountingAdjustmentDto);
         Task<List<AccountingMatchPaymentDto>> GetAccountingPaymentProofList(AnalyticsParamsDto analyticsParamsDto);
         Task<AccountingAdjustments> GetAdjustments(int Id);

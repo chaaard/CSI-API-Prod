@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CSI.Domain.Entities
+namespace CSI.Application.DTOs
 {
-    public class GenerateInvoice
+    public class UpdateGenerateInvoiceDto
     {
         public int Id { get; set; }
         public int Club { get; set; }
@@ -21,5 +21,8 @@ namespace CSI.Domain.Entities
         public decimal? InvoiceAmount { get; set; }
         public string? FileName { get; set; } = string.Empty;
         public string? Remarks { get; set; } = string.Empty;
+        public string? UserId { get; set; } = string.Empty;
+        public string? StoreId { get; set; } = string.Empty;
+
     }
 }

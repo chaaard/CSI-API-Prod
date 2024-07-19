@@ -20,5 +20,6 @@ namespace CSI.Application.DTOs
         public string ReferenceNo { get; set; } = string.Empty;
         public decimal? InvoiceAmount { get; set; }
         public string? FileName { get; set; } = string.Empty;
+        public string? Remarks { get; set; } = string.Empty;
     }
 }
