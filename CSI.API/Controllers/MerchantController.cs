@@ -27,5 +27,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("GetAllMerchant")]
+        public async Task<IActionResult> GetAllMerchant()
+        {
+            var result = await _merchantService.GetAllMerchant();
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }
