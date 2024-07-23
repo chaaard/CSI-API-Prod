@@ -14,7 +14,9 @@ namespace CSI.Application.DTOs
         public string? Status { get; set; } = string.Empty;
         public DateTime? TransactionDate { get; set; }
         public string? OrderNo { get; set; }
-        public decimal? Amount { get; set; }
+        public decimal? ProofListAmount { get; set; }
+        public decimal? AnalyticsAmount { get; set; }
+        public decimal? Variance { get; set; }
         public string? Location { get; set; } = string.Empty;
     }
 }

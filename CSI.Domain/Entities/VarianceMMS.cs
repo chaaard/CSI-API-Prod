@@ -8,8 +8,8 @@ namespace CSI.Domain.Entities
 {
     public class VarianceMMS
     {
-        public decimal MMS { get; set; }
-        public decimal CSI { get; set; }
-        public decimal Variance { get; set; }
+        public decimal? MMS { get; set; }
+        public decimal? CSI { get; set; }
+        public decimal? Variance { get; set; }
     }
 }

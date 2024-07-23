@@ -38,7 +38,7 @@ namespace CSI.Application.Interfaces
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);
         Task<List<DashboardAccounting>> DashboardAccounting(GenerateA0FileDto generateA0FileDto);
         Task<List<FileDescriptions>> FileDescriptions();
-        Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto);
+        Task<List<AccountingProoflistDto>> GetAccountingProoflist(PaginationDto paginationDto);
         Task<List<AnalyticsDto>> GetAccountingAnalyitcs(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<AccountingMatchDto>, int totalPages)> GetAccountingProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<List<ExceptionReportDto>> ExportExceptions(RefreshAnalyticsDto refreshAnalyticsDto);

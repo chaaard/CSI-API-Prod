@@ -4066,13 +4066,13 @@ namespace CSI.Application.Services
             return fileDescriptions;
         }
 
-        public async Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto)
+        public async Task<List<AccountingProoflistDto>> GetAccountingProoflist(PaginationDto paginationDto)
         {
             var accountingProoflistDto = new List<AccountingProoflistDto>();
 
             if (paginationDto.Id == null)
             {
-                return (accountingProoflistDto, 0);
+                return accountingProoflistDto;
             }
 
             var prooflist = await _dbContext.AccountingProoflists
@@ -4099,18 +4099,8 @@ namespace CSI.Application.Services
                 })
                 .ToListAsync();
 
-
-            var totalItemCount = prooflist.Count();
-            var totalPages = (int)Math.Ceiling((double)totalItemCount / paginationDto.PageSize);
-
-            var sortData = prooflist
-                .Skip((paginationDto.PageNumber - 1) * paginationDto.PageSize)
-                .Take(paginationDto.PageSize)
-                .OrderByDescending(x => x.TransactionDate)
-                .ThenBy(x => x.Id)
-                .ToList();
-
-            return (sortData, totalPages);
+           
+            return prooflist;
         }
 
         public async Task<List<AccountingProoflistAdjustmentsDto>> GetAccountingProoflistAdjustments(PaginationDto paginationDto)
@@ -4879,7 +4869,7 @@ namespace CSI.Application.Services
                     string dateFromStr = dateFrom.Date.ToString("yyyy-MM-dd");
 
                     string cstDocCondition1 = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits =>
-                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId = 4 AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo = '{analyticsParamsDto.orderNo}' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
+                         $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId IN (4, 3) AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo LIKE '%{analyticsParamsDto.orderNo}%' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
 
                     var result = await _dbContext.AccountingProofListPayment
                    .FromSqlRaw($@"SELECT   
@@ -4889,13 +4879,14 @@ namespace CSI.Application.Services
 	                                ac.[StatusName] AS [Status],
 	                                p.[TransactionDate] AS [TransactionDate],  
 	                                p.[OrderNo] AS [OrderNo], 
-	                                p.[Amount] AS [Amount],  
+                                    a.[SubTotal] AS [AnalyticsAmount],  
+	                                p.[Amount] AS [ProofListAmount],  
 	                                l.LocationName AS [Location]
                                 FROM [tbl_accounting_match] am 
+                                LEFT JOIN [dbo].[tbl_accounting_analytics] a ON a.Id = am.AccountingAnalyticsId
                                 LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
                                 LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId 
                                 LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
                                 WHERE ({cstDocCondition1})")
                    .ToListAsync();
 
@@ -4907,7 +4898,9 @@ namespace CSI.Application.Services
                         Status = m.Status,
                         TransactionDate = m.TransactionDate,
                         OrderNo = m.OrderNo,
-                        Amount = m.Amount,
+                        AnalyticsAmount = m.AnalyticsAmount,
+                        ProofListAmount = m.ProofListAmount,
+                        Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
                         Location = m.Location,
                     }).ToList();
                 }

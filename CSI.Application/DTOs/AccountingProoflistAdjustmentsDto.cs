@@ -18,6 +18,7 @@ namespace CSI.Application.DTOs
         public int? Status { get; set; }
         public string? StoreName { get; set; } = string.Empty;
         public int? FileDescriptionId { get; set; }
+        public string? Category { get; set; } = string.Empty;
         public string? Descriptions { get; set; } = string.Empty;
         public bool DeleteFlag { get; set; }
     }
