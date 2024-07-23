@@ -1876,8 +1876,8 @@ namespace CSI.Application.Services
                                     var amount = matchedAnalytics.Amount ?? 0;
                                     var subTotal = proof.Amount ?? 0;
                                     var difference = amount - subTotal;
-
-                                    if (difference <= 1 || difference >= -1)
+ 
+                                    if (difference <= 1.0M && difference >= -1.0M)
                                     {
                                         accountingStatusId = 1;
                                     }

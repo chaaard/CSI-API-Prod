@@ -4288,7 +4288,29 @@ namespace CSI.Application.Services
                     {
                         if (analyticsParamsDto.status[0] == "All")
                         {
-                            analyticsParamsDto.status = new List<string> { "Paid", "Underpaid", "Overpaid", "Not Reported", "Unpaid", "Adjustments", "Re-Transact", "Paid w/AP", "Unpaid w/AP", "Underpaid w/AP", "Overpaid w/AP" };
+                            analyticsParamsDto.status = new List<string> 
+                            { 
+                                "Paid",
+                                "Underpayment",
+                                "Overpayment", 
+                                "Not Reported", 
+                                "Unpaid", 
+                                "Adjustments",
+                                "Re-Transact",
+                                "Paid | with AP",
+                                "Unpaid | with AP",
+                                "Underpayment | with AP",
+                                "Overpayment | with AP",
+                                "Chargeable",
+                                "Paid | Matched",
+                                "Overpayment | Matched",
+                                "Underpayment | Matched",
+                                "Paid | Multiple Trx",
+                                "Paid | Adjusted",
+                                "Underpayment | Adjusted",
+                                "Overpayment | Adjusted",
+                                "Clawback"
+                            };
 
                             matchDtos = matchDtos
                                .Where(x => analyticsParamsDto.status.Any(status => x.Status.Trim().ToLower().Contains(status.Trim().ToLower())))
