@@ -119,7 +119,6 @@ namespace CSI.Application.Services
             var analytics = new List<AnalyticsDto>();
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
-               
                 var result = await _dbContext.AnalyticsView
               .FromSqlRaw($" SELECT  " +
                           $"     MAX(a.Id) AS Id, " +
@@ -140,7 +139,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal  " +
+                          $"     MAX(a.SubTotal) AS SubTotal,  " +
+                          $"     MAX(a.Remarks) AS Remarks  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -162,10 +162,12 @@ namespace CSI.Application.Services
                           $"         n.IsUpload,   " +
                           $"         n.IsGenerate,   " +
                           $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                          $"         a.Remarks " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                           $"     WHERE  " +
                           $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
                           $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
@@ -198,7 +200,191 @@ namespace CSI.Application.Services
                     IsGenerate = Convert.ToBoolean(n.IsGenerate),
                     IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                    Remarks = n.Remarks,
                 }).ToList();
+            }
+
+            return analytics;
+
+        }
+
+        public async Task<List<AnalyticsDto>> GetAnalyticsUB(AnalyticsParamsDto analyticsParamsDto)
+        {
+            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            var analyticsList = new List<AnalyticsDto>();
+            DateTime date;
+            var analytics = new List<AnalyticsDto>();
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
+            {
+                var result = await _dbContext.AnalyticsView
+              .FromSqlRaw($" SELECT  " +
+                          $"     MAX(a.Id) AS Id, " +
+                          $"     MAX(a.CustomerId) AS CustomerId, " +
+                          $"     MAX(a.CustomerName) AS CustomerName, " +
+                          $"     MAX(a.LocationId) AS LocationId, " +
+                          $"     MAX(a.LocationName) AS LocationName, " +
+                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                          $"     MAX(a.CashierNo) AS CashierNo, " +
+                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                          $"     a.OrderNo, " +
+                          $"     MAX(a.Qty) AS Qty, " +
+                          $"     MAX(a.Amount) AS Amount, " +
+                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                          $"     MAX(a.SubTotal) AS SubTotal,  " +
+                          $"     MAX(a.Remarks) AS Remarks  " +
+                          $" FROM ( " +
+                          $"     SELECT   " +
+                          $"         n.Id, " +
+                          $"         n.CustomerId,  " +
+                          $"         c.CustomerName,  " +
+                          $"         n.LocationId,  " +
+                          $"         l.LocationName,  " +
+                          $"         n.TransactionDate,   " +
+                          $"         n.MembershipNo,   " +
+                          $"         n.CashierNo,  " +
+                          $"         n.RegisterNo,  " +
+                          $"         n.TransactionNo,  " +
+                          $"         n.OrderNo,  " +
+                          $"         n.Qty,  " +
+                          $"         n.Amount,  " +
+                          $"         n.SubTotal, " +
+                          $"         n.StatusId, " +
+                          $"         n.DeleteFlag,   " +
+                          $"         n.IsUpload,   " +
+                          $"         n.IsGenerate,   " +
+                          $"         n.IsTransfer,   " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                          $"         a.Remarks " +
+                          $"     FROM tbl_analytics n " +
+                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
+                          $"     WHERE  " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
+                          $" ) a " +
+                          $" GROUP BY  " +
+                          $"     a.OrderNo,    " +
+                          $"     ABS(a.SubTotal),  " +
+                          $"     a.row_num " +
+                          $" HAVING " +
+                          $"     COUNT(a.OrderNo) = 1 "
+                          )
+                 .ToListAsync();
+                if (analyticsParamsDto.remarks == "ubpizzavoucher")
+                {
+                    analytics = result
+                       .Where(n => !n.OrderNo.ToUpper().ToString().Contains("CSI") && !n.OrderNo.ToUpper().ToString().Contains("PV"))
+                       .Select(n => new AnalyticsDto
+                       {
+                           Id = n.Id,
+                           CustomerId = n.CustomerId,
+                           CustomerName = n.CustomerName,
+                           LocationName = n.LocationName,
+                           TransactionDate = n.TransactionDate,
+                           MembershipNo = n.MembershipNo,
+                           CashierNo = n.CashierNo,
+                           RegisterNo = n.RegisterNo,
+                           TransactionNo = n.TransactionNo,
+                           OrderNo = n.OrderNo,
+                           Qty = n.Qty,
+                           Amount = n.Amount,
+                           SubTotal = n.SubTotal,
+                           StatusId = n.StatusId,
+                           IsUpload = Convert.ToBoolean(n.IsUpload),
+                           IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                           IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                           DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                           Remarks = n.Remarks,
+                       }).ToList();
+                }
+                else if (analyticsParamsDto.remarks == "ubrebateissuancecsi")
+                {
+                    analytics = result
+                       .Where(n => n.SubTotal > 900 && n.OrderNo.ToUpper().ToString().Contains("CSI"))
+                       .Select(n => new AnalyticsDto
+                       {
+                           Id = n.Id,
+                           CustomerId = n.CustomerId,
+                           CustomerName = n.CustomerName,
+                           LocationName = n.LocationName,
+                           TransactionDate = n.TransactionDate,
+                           MembershipNo = n.MembershipNo,
+                           CashierNo = n.CashierNo,
+                           RegisterNo = n.RegisterNo,
+                           TransactionNo = n.TransactionNo,
+                           OrderNo = n.OrderNo,
+                           Qty = n.Qty,
+                           Amount = n.Amount,
+                           SubTotal = n.SubTotal,
+                           StatusId = n.StatusId,
+                           IsUpload = Convert.ToBoolean(n.IsUpload),
+                           IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                           IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                           DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                           Remarks = n.Remarks,
+                       }).ToList();
+                }
+                else if (analyticsParamsDto.remarks == "ubrebateissuancepv")
+                {
+                    analytics = result
+                       .Where(n => n.SubTotal > 900 && n.OrderNo.ToUpper().ToString().Contains("PV"))
+                       .Select(n => new AnalyticsDto
+                       {
+                           Id = n.Id,
+                           CustomerId = n.CustomerId,
+                           CustomerName = n.CustomerName,
+                           LocationName = n.LocationName,
+                           TransactionDate = n.TransactionDate,
+                           MembershipNo = n.MembershipNo,
+                           CashierNo = n.CashierNo,
+                           RegisterNo = n.RegisterNo,
+                           TransactionNo = n.TransactionNo,
+                           OrderNo = n.OrderNo,
+                           Qty = n.Qty,
+                           Amount = n.Amount,
+                           SubTotal = n.SubTotal,
+                           StatusId = n.StatusId,
+                           IsUpload = Convert.ToBoolean(n.IsUpload),
+                           IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                           IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                           DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                           Remarks = n.Remarks,
+                       }).ToList();
+                }
+                else if (analyticsParamsDto.remarks == "ubrenewal")
+                {
+                    analytics = result
+                       .Where(n => n.OrderNo.ToUpper().ToString().Contains("CSI") && (n.SubTotal == 700 || n.SubTotal == 400 || n.SubTotal == 900))
+                       .Select(n => new AnalyticsDto
+                       {
+                           Id = n.Id,
+                           CustomerId = n.CustomerId,
+                           CustomerName = n.CustomerName,
+                           LocationName = n.LocationName,
+                           TransactionDate = n.TransactionDate,
+                           MembershipNo = n.MembershipNo,
+                           CashierNo = n.CashierNo,
+                           RegisterNo = n.RegisterNo,
+                           TransactionNo = n.TransactionNo,
+                           OrderNo = n.OrderNo,
+                           Qty = n.Qty,
+                           Amount = n.Amount,
+                           SubTotal = n.SubTotal,
+                           StatusId = n.StatusId,
+                           IsUpload = Convert.ToBoolean(n.IsUpload),
+                           IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                           IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                           DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                           Remarks = n.Remarks,
+                       }).ToList();
+                }
             }
 
             return analytics;
@@ -232,7 +418,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal  " +
+                          $"     MAX(a.SubTotal) AS SubTotal,  " +
+                          $"     MAX(a.Remarks) AS Remarks  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -254,10 +441,12 @@ namespace CSI.Application.Services
                           $"         n.IsUpload,   " +
                           $"         n.IsGenerate,   " +
                           $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                          $"         a.Remarks " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                           $"     WHERE  " +
                           $"        (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
                           $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
@@ -304,60 +493,6 @@ namespace CSI.Application.Services
             var analytics = new List<Analytics>();
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
-                string test = $" SELECT  " +
-                          $"     MAX(a.Id) AS Id, " +
-                          $"     MAX(a.CustomerId) AS CustomerId, " +
-                          $"     MAX(a.CustomerName) AS CustomerName, " +
-                          $"     MAX(a.LocationId) AS LocationId, " +
-                          $"     MAX(a.LocationName) AS LocationName, " +
-                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                          $"     MAX(a.CashierNo) AS CashierNo, " +
-                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                          $"     a.OrderNo, " +
-                          $"     MAX(a.Qty) AS Qty, " +
-                          $"     MAX(a.Amount) AS Amount, " +
-                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal  " +
-                          $" FROM ( " +
-                          $"     SELECT   " +
-                          $"         n.Id, " +
-                          $"         n.CustomerId,  " +
-                          $"         c.CustomerName,  " +
-                          $"         n.LocationId,  " +
-                          $"         l.LocationName,  " +
-                          $"         n.TransactionDate,   " +
-                          $"         n.MembershipNo,   " +
-                          $"         n.CashierNo,  " +
-                          $"         n.RegisterNo,  " +
-                          $"         n.TransactionNo,  " +
-                          $"         n.OrderNo,  " +
-                          $"         n.Qty,  " +
-                          $"         n.Amount,  " +
-                          $"         n.SubTotal, " +
-                          $"         n.StatusId, " +
-                          $"         n.DeleteFlag,   " +
-                          $"         n.IsUpload,   " +
-                          $"         n.IsGenerate,   " +
-                          $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
-                          $"     FROM tbl_analytics n " +
-                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                          $"     WHERE  " +
-                          $"        (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.OrderNo = '{analyticsParamsDto.orderNo}') " +
-                          $" ) a " +
-                          $" GROUP BY  " +
-                          $"     a.OrderNo,    " +
-                          $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num " +
-                          $" HAVING " +
-                          $"     COUNT(a.OrderNo) = 1 ";
                 var result = await _dbContext.AnalyticsView
               .FromSqlRaw($" SELECT  " +
                           $"     MAX(a.Id) AS Id, " +
@@ -378,7 +513,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal  " +
+                          $"     MAX(a.SubTotal) AS SubTotal,  " +
+                          $"     MAX(a.Remarks) AS Remarks  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -400,10 +536,12 @@ namespace CSI.Application.Services
                           $"         n.IsUpload,   " +
                           $"         n.IsGenerate,   " +
                           $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                          $"         a.Remarks " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                           $"     WHERE  " +
                           $"        (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND n.DeleteFlag = 0 AND n.OrderNo = '{analyticsParamsDto.orderNo}') " +
                           $" ) a " +
@@ -469,7 +607,8 @@ namespace CSI.Application.Services
                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                         $"     MAX(a.SubTotal) AS SubTotal  " +
+                         $"     MAX(a.SubTotal) AS SubTotal,  " +
+                         $"     MAX(a.Remarks) AS Remarks  " +
                          $" FROM ( " +
                          $"     SELECT   " +
                          $"         n.Id, " +
@@ -491,10 +630,12 @@ namespace CSI.Application.Services
                          $"         n.IsUpload,   " +
                          $"         n.IsGenerate,   " +
                          $"         n.IsTransfer,   " +
-                         $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                         $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                         $"         a.Remarks " +
                          $"     FROM tbl_analytics n " +
                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                         $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                          $"     WHERE  " +
                          $"        (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {refreshAnalyticsDto.storeId[0]} AND CustomerId LIKE '%{memCodeLast6Digits[0]}%') AND n.DeleteFlag = 0" +
                          $" ) a " +
@@ -557,7 +698,173 @@ namespace CSI.Application.Services
             }
 
         }
+        public async Task<List<GenerateUBVoucherDto>> GenerateUBVoucher(RefreshAnalyticsDto analyticsParam)
+        {
+            try
+            {
+                List<string> memCodeLast6Digits = analyticsParam.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+                string storeList = $"CSSTOR IN ({string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))})";
+                var analytics = new List<GenerateUBVoucherDto>();
 
+                DateTime date;
+                if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
+                {
+                    var result = await _dbContext.GenerateUBVoucher
+                                    .FromSqlRaw($@"
+                                        SELECT CAST(a.Id AS int) AS Id,a.LocationId,a.TransactionDate,a.OrderNo,a.TransactionNo,b.cssku as [SKU],b.idescr as [Description],b.csexpr as [SRP],a.UnionBank,a.KMC
+	                                            FROM (
+                                        SELECT 
+                                            ROW_NUMBER() OVER (ORDER BY a.TransactionDate, a.LocationId, a.RegisterNo, a.TransactionNo) AS Id,
+	                                        a.LocationId,
+	                                        a.TransactionDate,
+	                                        a.RegisterNo,
+	                                        a.OrderNo,
+	                                        a.TransactionNo,
+	                                        a.SubTotal as [UnionBank], 
+	                                        b.SubTotal as [KMC] ,
+	                                        a.InvoiceNo
+                                        FROM 
+	                                        (SELECT * FROM[dbo].[tbl_analytics] WHERE CustomerId = '9999011984') as a 
+	                                        INNER JOIN
+	                                        (SELECT * FROM [dbo].[tbl_analytics] WHERE CustomerId = '9999011542') as b 
+	                                        ON a.LocationId = b.LocationId AND a.TransactionDate = b.TransactionDate AND a.OrderNo = b.OrderNo And a.TransactionNo =b.TransactionNo and a.SubTotal != b.SubTotal
+                                        WHERE  
+                                        a.TransactionDate BETWEEN '{analyticsParam.dates[0].ToString()}' AND '{analyticsParam.dates[1].ToString()}' AND
+                                        a.LocationId = {analyticsParam.storeId[0].ToString()} AND 
+                                        a.OrderNo NOT LIKE '%CSI%' AND 
+                                        a.OrderNo NOT LIKE '%PIZZA GIFT%' AND
+                                        LEN(a.InvoiceNo) > 0) as a
+                                        INNER JOIN 
+                                        (
+                                        SELECT *
+                                        FROM OPENQUERY(SNR, 'SELECT a.CSDATE, a.CSSTOR, a.CSREG, a.CSTRAN, b.cssku,c.idescr, b.csexpr
+					                                        FROM 
+						                                        MMJDALIB.CSHTND a
+						                                        INNER JOIN
+						                                        mmjdalib.condtx b
+							                                        ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN
+						                                        INNER JOIN
+						                                        mmjdalib.invmst c
+							                                        ON b.cssku = c.inumbr
+						                                        WHERE ((a.CSDATE between {analyticsParam.dates[0].ToString("yyMMdd")} and {analyticsParam.dates[1].ToString("yyMMdd")}) AND a.CSTDOC LIKE ''%{memCodeLast6Digits[0]}%'' AND a.CSCARD NOT LIKE ''%CSI%'' AND a.CSCARD NOT LIKE ''%GIFT%'' AND a.csstor = {analyticsParam.storeId[0].ToString()}) AND a.CSDTYP IN (''AR'') ')
+                                        ) as b ON
+                                        a.LocationId = b.csstor AND FORMAT(a.TransactionDate, 'yyMMdd') = b.csdate AND a.RegisterNo = b.csreg AND a.TransactionNo = b.cstran
+                                    ")
+                                    .ToListAsync();
+                    analytics = result.Select(n => new GenerateUBVoucherDto
+                    {
+                        Id = n.Id,
+                        LocationId = n.LocationId,
+                        TransactionDate = n.TransactionDate,
+                        OrderNo = n.OrderNo,
+                        TransactionNo = n.TransactionNo,
+                        SKU = n.SKU,
+                        Description = n.Description,
+                        SRP = n.SRP,
+                        UnionBank = n.UnionBank,
+                        KMC = n.KMC,
+                    }).ToList();
+                }
+
+                return analytics;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+        public async Task<List<GenerateUBRenewalDto>> GenerateUBRenewal(RefreshAnalyticsDto analyticsParam)
+        {
+            try
+            {
+                var analytics = new List<GenerateUBRenewalDto>();
+
+                DateTime date;
+                if (DateTime.TryParse(analyticsParam.dates[0].ToString(), out date))
+                {
+
+                    string test = $@"
+                                            SELECT 
+	                                            LocationId,
+	                                            TransactionDate AS [AutoChargeDate],
+	                                            Count(Id) AS [Gold],
+	                                            SUM(SubTotal) AS [Amount700],
+	                                            0 AS [Business],
+	                                            0 AS [Amount900],
+	                                            0 AS [AddOnFree],
+	                                            SUM(SubTotal) AS [TotalAmount],
+	                                            OrderNo AS [CSINo],
+	                                            '' as [TransactedDate] 
+                                            FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 700 AND TransactionDate BETWEEN '{analyticsParam.dates[0].ToString()}' AND '{analyticsParam.dates[1].ToString()}' AND LocationId = {analyticsParam.storeId[0].ToString()}
+                                            GROUP BY LocationId,TransactionDate,OrderNo
+                                            UNION
+                                            SELECT 
+	                                            LocationId,
+	                                            TransactionDate AS [AutoChargeDate],
+	                                            0 AS [Gold], 
+	                                            0 AS [Amount700],
+	                                            Count(Id) AS [Business],
+	                                            SUM(SubTotal) AS [Amount900],
+	                                            0 AS [AddOnFree],
+	                                            SUM(SubTotal) AS [TotalAmount],
+	                                            OrderNo AS [CSINo],
+	                                            '' as [TransactedDate] 
+                                            FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 900 AND TransactionDate BETWEEN '{analyticsParam.dates[0].ToString()}' AND '{analyticsParam.dates[1].ToString()}' AND LocationId = {analyticsParam.storeId[0].ToString()}
+                                            GROUP BY LocationId,TransactionDate,OrderNo
+                                    ";
+                    var result = await _dbContext.GenerateUBRenewal
+                                    .FromSqlRaw($@"
+                                            SELECT 
+	                                            LocationId,
+	                                            TransactionDate AS [AutoChargeDate],
+	                                            Count(Id) AS [Gold],
+	                                            SUM(SubTotal) AS [Amount700],
+	                                            0 AS [Business],
+	                                            0 AS [Amount900],
+	                                            0 AS [AddOnFree],
+	                                            SUM(SubTotal) AS [TotalAmount],
+	                                            OrderNo AS [CSINo],
+	                                            '' as [TransactedDate] 
+                                            FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 700 AND TransactionDate BETWEEN '{analyticsParam.dates[0].ToString()}' AND '{analyticsParam.dates[1].ToString()}' AND LocationId = {analyticsParam.storeId[0].ToString()}
+                                            GROUP BY LocationId,TransactionDate,OrderNo
+                                            UNION
+                                            SELECT 
+	                                            LocationId,
+	                                            TransactionDate AS [AutoChargeDate],
+	                                            0 AS [Gold], 
+	                                            0 AS [Amount700],
+	                                            Count(Id) AS [Business],
+	                                            SUM(SubTotal) AS [Amount900],
+	                                            0 AS [AddOnFree],
+	                                            SUM(SubTotal) AS [TotalAmount],
+	                                            OrderNo AS [CSINo],
+	                                            '' as [TransactedDate] 
+                                            FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 900 AND TransactionDate BETWEEN '{analyticsParam.dates[0].ToString()}' AND '{analyticsParam.dates[1].ToString()}' AND LocationId = {analyticsParam.storeId[0].ToString()}
+                                            GROUP BY LocationId,TransactionDate,OrderNo
+                                    ")
+                                    .ToListAsync();
+                    analytics = result.Select(n => new GenerateUBRenewalDto
+                    {
+                        LocationId = n.LocationId,
+                        AutoChargeDate = n.AutoChargeDate,
+                        Gold = n.Gold,
+                        Amount700 = n.Amount700,
+                        Business = n.Business,
+                        Amount900 = n.Amount900,
+                        AddOnFree = n.AddOnFree,
+                        TotalAmount = n.TotalAmount,
+                        CSINo = n.CSINo,
+                        TransactedDate = n.TransactedDate,
+                    }).ToList();
+                }
+
+                return analytics;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
         public async Task<List<AnalyticsSearchDto>> GetAnalyticsByItem(RefreshAnalyticsDto analyticsParam)
         {
             try
@@ -1938,6 +2245,86 @@ namespace CSI.Application.Services
             }
         }
 
+        public async Task<bool> CreateUpdateAnalyticsRemarks(UpdateGenerateInvoiceDto updateGenerateInvoiceDto)
+        {
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            string action = "";
+            try
+            {
+                var result = false;
+
+                var GetAnalyticsRemarks = await _dbContext.AnalyticsRemarks
+                    .Where(x => x.AnalyticsId == updateGenerateInvoiceDto.Id)
+                    .FirstOrDefaultAsync();
+
+                if (GetAnalyticsRemarks != null)
+                {
+                    action = "Modify";
+                    GetAnalyticsRemarks.Remarks = updateGenerateInvoiceDto.Remarks;
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = updateGenerateInvoiceDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Modify Analytics Remarks",
+                        Remarks = $"Successfully modified Analytics remarks",
+                        AnalyticsId = updateGenerateInvoiceDto.Id,
+                        Club = updateGenerateInvoiceDto.StoreId
+
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    action = "Create";
+                    var newAnalyticsRemark = new AnalyticsRemarks
+                    {
+                        AnalyticsId = updateGenerateInvoiceDto.Id,
+                        Remarks = updateGenerateInvoiceDto.Remarks
+                    };
+                    _dbContext.AnalyticsRemarks.Add(newAnalyticsRemark);
+                    await _dbContext.SaveChangesAsync();
+                    result = true;
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = updateGenerateInvoiceDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Create Analytics Remarks",
+                        Remarks = $"Successfully created new Analytics remarks",
+                        AnalyticsId = updateGenerateInvoiceDto.Id,
+                        Club = updateGenerateInvoiceDto.StoreId
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = updateGenerateInvoiceDto.UserId,
+                    Date = DateTime.Now,
+                    Action = action + " Analytics Remarks",
+                    Remarks = $"Error: {ex.Message}",
+                    AnalyticsId = updateGenerateInvoiceDto.Id
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
+                throw;
+            }
+        }
+
         public async Task<(bool, bool)> IsSubmittedGenerated(AnalyticsParamsDto analyticsParamsDto)
         {
             var isSubmitted = false;
@@ -2008,7 +2395,8 @@ namespace CSI.Application.Services
                             $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                             $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                             $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                            $"     MAX(a.SubTotal) AS SubTotal  " +
+                            $"     MAX(a.SubTotal) AS SubTotal,  " +
+                            $"     MAX(a.Remarks) AS Remarks  " +
                             $" FROM ( " +
                             $"     SELECT   " +
                             $"         n.Id, " +
@@ -2030,10 +2418,12 @@ namespace CSI.Application.Services
                             $"         n.IsUpload,   " +
                             $"         n.IsGenerate,   " +
                             $"         n.IsTransfer,   " +
-                            $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                            $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                            $"         a.Remarks " +
                             $"     FROM tbl_analytics n " +
                             $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                             $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                            $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                             $"     WHERE  " +
                             $"        (CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND " +
                             $" ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
@@ -2161,7 +2551,8 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                               $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                               $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                              $"     MAX(a.SubTotal) AS SubTotal  " +
+                              $"     MAX(a.SubTotal) AS SubTotal,  " +
+                              $"     MAX(a.Remarks) AS Remarks  " +
                               $" FROM ( " +
                               $"     SELECT   " +
                               $"         n.Id, " +
@@ -2183,10 +2574,12 @@ namespace CSI.Application.Services
                               $"         n.IsUpload,   " +
                               $"         n.IsGenerate,   " +
                               $"         n.IsTransfer,   " +
-                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                              $"         a.Remarks " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                               $"     WHERE  " +
                               $"       {cstDocCondition}" +
                               $" ) a " +
@@ -2259,7 +2652,8 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
                               $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                               $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                              $"     MAX(a.SubTotal) AS SubTotal  " +
+                              $"     MAX(a.SubTotal) AS SubTotal,  " +
+                              $"     MAX(a.Remarks) AS Remarks  " +
                               $" FROM ( " +
                               $"     SELECT   " +
                               $"         n.Id, " +
@@ -2281,10 +2675,12 @@ namespace CSI.Application.Services
                               $"         n.IsUpload,   " +
                               $"         n.IsGenerate,   " +
                               $"         n.IsTransfer,   " +
-                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num " +
+                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                              $"         a.Remarks " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                               $"     WHERE  " +
                               $"        {cstDocCondition}" +
                               $" ) a " +
@@ -2593,7 +2989,7 @@ namespace CSI.Application.Services
                             {
                                 var filteredResultWithUB = result.Where(r => r.CustomerId == "9999011984").ToList();
 
-                                var filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.Contains("CSI")).ToList();
+                                var filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.ToUpper().ToString().Contains("CSI")).ToList();
                                 if (filteredResultUB.Count > 0)
                                 {
                                     var total = filteredResultUB.Sum(x => x.SubTotal);
@@ -2674,7 +3070,8 @@ namespace CSI.Application.Services
                                         DTL_VAT_CODE = "",
                                         DTL_CURRENCY = "PHP",
                                         INVOICE_APPLIED = "0",
-                                        FILENAME = fileName
+                                        FILENAME = fileName,
+                                        REMARKS = "PIZZA VOUCHER"
                                     };
 
                                     invoiceAnalytics.Add(invoice);
@@ -2703,6 +3100,7 @@ namespace CSI.Application.Services
                                         ReferenceNo = getReference.MerchReference + club + dateFormat,
                                         InvoiceAmount = total,
                                         FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                        Remarks = "PIZZA VOUCHER"
                                     };
 
                                     var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
@@ -2734,7 +3132,7 @@ namespace CSI.Application.Services
                                     }
                                 }
 
-                                var filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && (r.OrderNo.Contains("CSI") || r.CustomerId.Contains("PV"))).ToList();
+                                var filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && (r.OrderNo.ToUpper().ToString().Contains("CSI") || r.CustomerId.ToUpper().ToString().Contains("PV"))).ToList();
                                 if (filteredResultCSI.Count > 0) 
                                 {
                                     foreach (var resultItem in filteredResultCSI)
@@ -2781,6 +3179,7 @@ namespace CSI.Application.Services
                                             .Select(cc => cc.CustomerNo)
                                             .FirstOrDefault();
 
+                                        
                                         var invoice = new InvoiceDto
                                         {
                                             HDR_TRX_NUMBER = formattedInvoiceNumber,
@@ -2800,7 +3199,8 @@ namespace CSI.Application.Services
                                             DTL_VAT_CODE = "",
                                             DTL_CURRENCY = "PHP",
                                             INVOICE_APPLIED = "0",
-                                            FILENAME = fileName
+                                            FILENAME = fileName,
+                                            REMARKS = resultItem.OrderNo.ToUpper().ToString().Contains("PV") ? "PV ISSUANCE" : resultItem.OrderNo.ToUpper().ToString().Contains("CSI") ? "REBATES ISSUANCE" : "",
                                         };
 
                                         invoiceAnalytics.Add(invoice);
@@ -2829,6 +3229,7 @@ namespace CSI.Application.Services
                                             ReferenceNo = resultItem.OrderNo.Replace("-", ""),
                                             InvoiceAmount = resultItem.SubTotal,
                                             FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                            Remarks = resultItem.OrderNo.ToUpper().ToString().Contains("PV") ? "PV ISSUANCE" : resultItem.OrderNo.ToUpper().ToString().Contains("CSI") ? "REBATES ISSUANCE" : "",
                                         };
 
                                         var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
@@ -2863,140 +3264,164 @@ namespace CSI.Application.Services
                                     }
                                 }
 
+                               
+
                                 var filteredResultUBAR = filteredResultWithUB
-                                    .Where(r => r.OrderNo.Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900))
-                                    .ToList();
-                                if (filteredResultUBAR.Count > 0) 
+                                   .Where(r => r.OrderNo.ToUpper().ToString().Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900))
+                                   .GroupBy(r => r.OrderNo)
+                                   .Select(g => new AnalyticsDto
+                                   {
+                                       OrderNo = g.Key,
+                                       CustomerId = g.First().CustomerId,
+                                       CustomerName = g.First().CustomerName,
+                                       LocationName = g.First().LocationName,
+                                       TransactionDate = g.First().TransactionDate,
+                                       MembershipNo = g.First().MembershipNo,
+                                       CashierNo = g.First().CashierNo,
+                                       RegisterNo = g.First().RegisterNo,
+                                       TransactionNo = g.First().TransactionNo,
+                                       Qty = g.Sum(r => r.Qty),
+                                       Amount = g.Sum(r => r.Amount),
+                                       SubTotal = g.Sum(r => r.SubTotal),
+                                       StatusId = g.First().StatusId,
+                                       IsUpload = g.First().IsUpload,
+                                       IsGenerate = g.First().IsGenerate,
+                                       IsTransfer = g.First().IsTransfer,
+                                       DeleteFlag = g.First().DeleteFlag,
+                                       TrxCount = g.Count()
+                                   })
+                                   .ToList();
+
+                                if (filteredResultUBAR.Count > 0)
                                 {
-                                    var total = filteredResultUBAR.Sum(x => x.SubTotal);
-                                    var locationList = await GetLocations();
-
-                                    var club = param.storeId[0];
-                                    var trxCount = filteredResultUBAR.Count();
-                                    var dateFormat = filteredResultUBAR.FirstOrDefault().TransactionDate?.ToString("MMddyy");
-
-                                    isPending = filteredResultUBAR
-                                        .Where(x => x.StatusId == 5)
-                                        .Any();
-
-                                    var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
-                                    long startingInvoiceNumber = 000000000001;
-
-                                    if (lastInvoice != null)
+                                    foreach (var resultItem in filteredResultUBAR)
                                     {
-                                        startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
-                                    }
+                                        var club = param.storeId[0];
+                                        var dateFormat = resultItem.TransactionDate?.ToString("MMddyy");
+                                        var locationList = await GetLocations();
+                                        var lastInvoice = await _dbContext.GenerateInvoice.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
+                                        long startingInvoiceNumber = 000000000001;
 
-                                    long newInvoiceNumber = startingInvoiceNumber;
-
-                                    while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
-                                    {
-                                        newInvoiceNumber++;
-                                    }
-
-                                    var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
-
-                                    var getShortName = locationList
-                                        .Where(x => x.LocationName.Contains(filteredResultUBAR.FirstOrDefault().LocationName))
-                                        .Select(n => new
+                                        if (lastInvoice != null)
                                         {
-                                            n.ShortName,
-                                        })
-                                        .FirstOrDefault();
+                                            startingInvoiceNumber = Convert.ToInt64(lastInvoice.InvoiceNo) + 1;
+                                        }
 
-                                    var GetCustomerNo = filteredResultUBAR
+                                        long newInvoiceNumber = startingInvoiceNumber;
+
+                                        while (await _dbContext.GenerateInvoice.AnyAsync(i => i.InvoiceNo == newInvoiceNumber.ToString("000000000000")))
+                                        {
+                                            newInvoiceNumber++;
+                                        }
+
+                                        var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
+
+                                        var getShortName = locationList
+                                            .Where(x => x.LocationName.Contains(resultItem.LocationName))
+                                            .Select(n => new
+                                            {
+                                                n.ShortName,
+                                            })
+                                            .FirstOrDefault();
+
+
+                                        var GetCustomerNo = result
                                             .GroupJoin(
                                                 _dbContext.CustomerCodes,
                                                 x => x.CustomerId,
-                                                y => y.CustomerCode,
+                                                y => y.CustomerCode, // Assuming CustomerId is the correct field to join on in CustomerCodes
                                                 (x, y) => new { x, y }
                                             )
                                             .SelectMany(
                                                 group => group.y,
-                                                (group, y) => y.CustomerNo
+                                                (group, y) => new { group.x.CustomerId, y.CustomerNo }
                                             )
+                                            .Where(cc => cc.CustomerId == resultItem.CustomerId)
+                                            .Select(cc => cc.CustomerNo)
                                             .FirstOrDefault();
 
-                                    var formatCustomerNo = GetCustomerNo.Replace("P", "").Trim();
 
-                                  
-
-                                    var invoice = new InvoiceDto
-                                    {
-                                        HDR_TRX_NUMBER = formattedInvoiceNumber,
-                                        HDR_TRX_DATE = filteredResultUBAR.FirstOrDefault().TransactionDate,
-                                        HDR_PAYMENT_TYPE = "HS",
-                                        HDR_BRANCH_CODE = getShortName.ShortName ?? "",
-                                        HDR_CUSTOMER_NUMBER = GetCustomerNo,
-                                        HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
-                                        HDR_PAYMENT_TERM = "0",
-                                        HDR_BUSINESS_LINE = "1",
-                                        HDR_BATCH_SOURCE_NAME = "POS",
-                                        HDR_GL_DATE = filteredResultUBAR.FirstOrDefault().TransactionDate,
-                                        HDR_SOURCE_REFERENCE = "HS",
-                                        DTL_LINE_DESC = "UBAR" + club + dateFormat + "-" + trxCount,
-                                        DTL_QUANTITY = 1,
-                                        DTL_AMOUNT = total,
-                                        DTL_VAT_CODE = "",
-                                        DTL_CURRENCY = "PHP",
-                                        INVOICE_APPLIED = "0",
-                                        FILENAME = fileName
-                                    };
-
-                                    invoiceAnalytics.Add(invoice);
-
-                                    var formattedResult = filteredResultUBAR.FirstOrDefault();
-
-                                    var customerName = string.Empty;
-                                    if (formattedResult != null)
-                                    {
-                                        customerName = _dbContext.CustomerCodes
-                                            .Where(cc => cc.CustomerCode == formattedResult.CustomerId)
-                                            .Select(cc => cc.CustomerName)
-                                            .FirstOrDefault();
-                                    }
-
-                                    var generateInvoice = new GenerateInvoiceDto
-                                    {
-                                        Club = club,
-                                        CustomerCode = formattedResult.CustomerId,
-                                        CustomerNo = GetCustomerNo,
-                                        CustomerName = customerName,
-                                        InvoiceNo = formattedInvoiceNumber,
-                                        InvoiceDate = formattedResult.TransactionDate,
-                                        TransactionDate = formattedResult.TransactionDate,
-                                        Location = getShortName.ShortName,
-                                        ReferenceNo = "UBAR" + club + dateFormat,
-                                        InvoiceAmount = total,
-                                        FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
-                                    };
-
-                                    var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
-                                    _dbContext.GenerateInvoice.Add(genInvoice);
-                                    await _dbContext.SaveChangesAsync();
-
-                                    var param1 = new GenerateA0FileDto
-                                    {
-                                        Path = "",
-                                        analyticsParamsDto = new AnalyticsParamsDto
+                                        var invoice = new InvoiceDto
                                         {
-                                            dates = new List<string> { item.Date.ToString() },
-                                            memCode = generateA0FileDto.analyticsParamsDto.memCode,
-                                            storeId = new List<int> { item.LocationId ?? 0 },
+                                            HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                            HDR_TRX_DATE = resultItem.TransactionDate,
+                                            HDR_PAYMENT_TYPE = "HS",
+                                            HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                            HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                            HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                            HDR_PAYMENT_TERM = "0",
+                                            HDR_BUSINESS_LINE = "1",
+                                            HDR_BATCH_SOURCE_NAME = "POS",
+                                            HDR_GL_DATE = resultItem.TransactionDate,
+                                            HDR_SOURCE_REFERENCE = "HS",
+                                            DTL_LINE_DESC = "UBAR" + club + dateFormat + "-" + resultItem.TrxCount,
+                                            DTL_QUANTITY = 1,
+                                            DTL_AMOUNT = resultItem.SubTotal,
+                                            DTL_VAT_CODE = "",
+                                            DTL_CURRENCY = "PHP",
+                                            INVOICE_APPLIED = "0",
+                                            FILENAME = fileName,
+                                            REMARKS = "RENEWAL",
+                                        };
+
+                                        invoiceAnalytics.Add(invoice);
+
+                                        var formattedResult = resultItem.CustomerId;
+
+                                        var customerName = string.Empty;
+                                        if (formattedResult != null)
+                                        {
+                                            customerName = _dbContext.CustomerCodes
+                                                .Where(cc => cc.CustomerCode == resultItem.CustomerId)
+                                                .Select(cc => cc.CustomerName)
+                                                .FirstOrDefault();
                                         }
-                                    };
 
-                                    var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
-                                    if (getAnalytics.Any())
-                                    {
-                                        getAnalytics.ForEach(analyticsDto =>
+                                        var generateInvoice = new GenerateInvoiceDto
                                         {
-                                            analyticsDto.IsGenerate = true;
-                                            analyticsDto.InvoiceNo = formattedInvoiceNumber;
-                                        });
+                                            Club = param.storeId[0],
+                                            CustomerCode = resultItem.CustomerId,
+                                            CustomerNo = GetCustomerNo,
+                                            CustomerName = customerName,
+                                            InvoiceNo = formattedInvoiceNumber,
+                                            InvoiceDate = resultItem.TransactionDate,
+                                            TransactionDate = resultItem.TransactionDate,
+                                            Location = getShortName.ShortName,
+                                            ReferenceNo = "UBAR" + club + dateFormat + "-" + resultItem.TrxCount,
+                                            InvoiceAmount = resultItem.SubTotal,
+                                            FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                            Remarks = "RENEWAL",
+                                        };
 
-                                        await _dbContext.BulkUpdateAsync(getAnalytics);
+                                        var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                                        _dbContext.GenerateInvoice.Add(genInvoice);
                                         await _dbContext.SaveChangesAsync();
+
+                                        var param1 = new GenerateA0FileDto
+                                        {
+                                            Path = "",
+                                            analyticsParamsDto = new AnalyticsParamsDto
+                                            {
+                                                dates = new List<string> { item.Date.ToString() },
+                                                memCode = new List<string> { resultItem.CustomerId.ToString() },
+                                                storeId = new List<int> { item.LocationId ?? 0 },
+                                                orderNo = resultItem.OrderNo.ToString(),
+                                            }
+                                        };
+
+                                        var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                        if (getAnalytics.Any())
+                                        {
+                                            getAnalytics.ForEach(analyticsDto =>
+                                            {
+                                                analyticsDto.IsGenerate = true;
+                                                analyticsDto.InvoiceNo = formattedInvoiceNumber;
+                                            });
+
+                                            await _dbContext.BulkUpdateAsync(getAnalytics);
+                                            await _dbContext.SaveChangesAsync();
+
+                                        }
                                     }
                                 }
 
@@ -3047,6 +3472,21 @@ namespace CSI.Application.Services
                                             .Select(cc => cc.CustomerNo)
                                             .FirstOrDefault();
 
+                                        var GetRemarks = result
+                                            .GroupJoin(
+                                                _dbContext.AnalyticsRemarks,
+                                                x => x.Id,
+                                                y => y.AnalyticsId,
+                                                (x, y) => new { x, y }
+                                            )
+                                            .SelectMany(
+                                                group => group.y,
+                                                (group, y) => new { group.x.Id, y.AnalyticsId, y.Remarks }
+                                            )
+                                            .Where(cc => cc.Id == resultItem.Id)
+                                            .Select(cc => new {cc.Remarks })
+                                            .FirstOrDefault();
+
                                         var invoice = new InvoiceDto
                                         {
                                             HDR_TRX_NUMBER = formattedInvoiceNumber,
@@ -3066,7 +3506,8 @@ namespace CSI.Application.Services
                                             DTL_VAT_CODE = "",
                                             DTL_CURRENCY = "PHP",
                                             INVOICE_APPLIED = "0",
-                                            FILENAME = fileName
+                                            FILENAME = fileName,
+                                            REMARKS = GetRemarks?.Remarks ?? ""
                                         };
 
                                         invoiceAnalytics.Add(invoice);
@@ -3095,6 +3536,7 @@ namespace CSI.Application.Services
                                             ReferenceNo = resultItem.OrderNo.Replace("-", ""),
                                             InvoiceAmount = resultItem.SubTotal,
                                             FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                                            Remarks = GetRemarks?.Remarks ?? "",
                                         };
 
                                         var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
