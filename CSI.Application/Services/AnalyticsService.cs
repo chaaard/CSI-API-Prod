@@ -1242,10 +1242,45 @@ namespace CSI.Application.Services
                 {
                     for (int j = 0; j < memCodeLast6Digits.Count(); j++)
                     {
+
+                        string remarks = analyticsParam.remarks.ToString().ToLower();
+                        bool containsValue = memCodeLast6Digits[j].Contains("011984");
+
                         var analyticsToDelete = _dbContext.Analytics
-                        .Where(a => a.TransactionDate == date.Date &&
-                             a.CustomerId.Contains(memCodeLast6Digits[j]) &&
-                             a.LocationId == analyticsParam.storeId[i]);
+                            .Where(a => a.TransactionDate == date.Date &&
+                                 a.CustomerId.Contains(memCodeLast6Digits[j]) &&
+                                 a.LocationId == analyticsParam.storeId[i]);
+
+                        if (containsValue)
+                        {
+                            switch (remarks)
+                            {
+                                case "ubpizzavoucher":
+                                    analyticsToDelete = analyticsToDelete
+                                        .Where(a => !a.OrderNo.ToUpper().Contains("CSI"));
+                                    break;
+                                case "ubrebateissuancecsi":
+                                    analyticsToDelete = analyticsToDelete
+                                        .Where(a => a.OrderNo.ToUpper().Contains("CSI") && a.SubTotal > 900);
+                                    break;
+                                case "ubrebateissuancepv":
+                                    analyticsToDelete = analyticsToDelete
+                                        .Where(a => a.OrderNo.ToUpper().Contains("PV") && a.SubTotal > 900);
+                                    break;
+                                case "ubrenewal":
+                                    analyticsToDelete = analyticsToDelete
+                                        .Where(a => a.OrderNo.ToUpper().Contains("CSI") &&
+                                                    (a.SubTotal == 700 || a.SubTotal == 400 || a.SubTotal == 900));
+                                    break;
+                                default:
+                                    analyticsToDelete = analyticsToDelete;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            analyticsToDelete = analyticsToDelete;
+                        }
 
                         analyticsCount += analyticsToDelete.Count();
 
@@ -1322,15 +1357,68 @@ namespace CSI.Application.Services
                         memCnt += memCnt;
                     }
 
-                    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
-                                      $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                      $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                      $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+                    bool containsValue = memCodeLast6Digits.Contains("011984");
 
-                    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
-                                    $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                    $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                    $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    if (analyticsParam.remarks.ToString().ToLower() == "ubpizzavoucher" && containsValue)
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                          $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                          $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                        $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                        $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    }
+                    else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancecsi" && containsValue)
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                          $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                          $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                        $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                        $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    }
+                    else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancepv" && containsValue)
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                          $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                          $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                        $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                        $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    }
+                    else if (analyticsParam.remarks.ToString().ToLower() == "ubrenewal" && containsValue)
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                          $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                          $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                        $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                        $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    }
+                    else
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
+                                          $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
+                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                          $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
+
+                        await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                        $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                        $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+                    }
 
                 }
 
@@ -1879,6 +1967,39 @@ namespace CSI.Application.Services
                     return false;
                 }
 
+                string remarks = analyticsParamsDto.remarks.ToString().ToLower();
+                bool containsValue = merchantLogs.Contains("011984");
+                if (containsValue)
+                {
+                    switch (remarks)
+                    {
+                        case "ubpizzavoucher":
+                            result = result
+                                .Where(a => !a.OrderNo.ToUpper().Contains("CSI")).ToList();
+                            break;
+                        case "ubrebateissuancecsi":
+                            result = result
+                                .Where(a => a.OrderNo.ToUpper().Contains("CSI") && a.SubTotal > 900).ToList();
+                            break;
+                        case "ubrebateissuancepv":
+                            result = result
+                                .Where(a => a.OrderNo.ToUpper().Contains("PV") && a.SubTotal > 900).ToList();
+                            break;
+                        case "ubrenewal":
+                            result = result
+                                .Where(a => a.OrderNo.ToUpper().Contains("CSI") &&
+                                            (a.SubTotal == 700 || a.SubTotal == 400 || a.SubTotal == 900)).ToList();
+                            break;
+                        default:
+                            result = result;
+                            break;
+                    }
+                }
+                else
+                {
+                    result = result;
+                }
+
                 foreach (var analytics in result)
                 {
                     analytics.StatusId = 3;
@@ -2330,6 +2451,42 @@ namespace CSI.Application.Services
             var isSubmitted = false;
             var isGenerated = false;
             var result = await ReturnAnalytics(analyticsParamsDto);
+
+            string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
+
+            string remarks = analyticsParamsDto.remarks.ToString().ToLower();
+            bool containsValue = merchantLogs.Contains("011984");
+
+            if (containsValue)
+            {
+                switch (remarks)
+                {
+                    case "ubpizzavoucher":
+                        result = result
+                            .Where(a => !a.OrderNo.ToUpper().Contains("CSI")).ToList();
+                        break;
+                    case "ubrebateissuancecsi":
+                        result = result
+                            .Where(a => a.OrderNo.ToUpper().Contains("CSI") && a.SubTotal > 900).ToList();
+                        break;
+                    case "ubrebateissuancepv":
+                        result = result
+                            .Where(a => a.OrderNo.ToUpper().Contains("PV") && a.SubTotal > 900).ToList();
+                        break;
+                    case "ubrenewal":
+                        result = result
+                            .Where(a => a.OrderNo.ToUpper().Contains("CSI") &&
+                                        (a.SubTotal == 700 || a.SubTotal == 400 || a.SubTotal == 900)).ToList();
+                        break;
+                    default:
+                        result = result;
+                        break;
+                }
+            }
+            else
+            {
+                result = result;
+            }
 
             isSubmitted = result
                .Where(x => x.StatusId == 3)
