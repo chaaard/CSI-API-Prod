@@ -26,5 +26,6 @@ namespace CSI.Application.DTOs
         public string DTL_CURRENCY { get; set; } = string.Empty;
         public string INVOICE_APPLIED { get; set; } = string.Empty;
         public string FILENAME { get; set; } = string.Empty;
+        public string REMARKS { get; set; } = string.Empty;
     }
 }

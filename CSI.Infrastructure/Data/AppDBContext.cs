@@ -49,6 +49,9 @@ namespace CSI.Infrastructure.Data
             AccountingProofListPayment = Set<AccountingProofListPayment>();
             AccountingProoflistAdjustments = Set<AccountingProoflistAdjustments>();
             VarianceSubmit = Set<VarianceSubmit>();
+            AnalyticsRemarks = Set<AnalyticsRemarks>();
+            GenerateUBVoucher = Set<GenerateUBVoucher>();
+            GenerateUBRenewal = Set<GenerateUBRenewal>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -71,6 +74,8 @@ namespace CSI.Infrastructure.Data
         public DbSet<Source> Source { get; set; }
         public DbSet<AdjustmentExceptions> AdjustmentExceptions { get; set; }
         public DbSet<GenerateInvoice> GenerateInvoice { get; set; }
+        public DbSet<GenerateUBVoucher> GenerateUBVoucher { get; set; }
+        public DbSet<GenerateUBRenewal> GenerateUBRenewal { get; set; }
         public DbSet<Reference> Reference { get; set; }
         public DbSet<DashboardAccounting> DashboardAccounting { get; set; }
         public DbSet<FileDescriptions> FileDescription { get; set; }
@@ -87,6 +92,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingProoflistAdjustments> AccountingProoflistAdjustments { get; set; }
         public DbSet<AnalyticsSearch> AnalyticsSearch { get; set; }
         public DbSet<VarianceSubmit> VarianceSubmit { get; set; }
+        public DbSet<AnalyticsRemarks> AnalyticsRemarks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -197,7 +203,15 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<VarianceSubmit>()
             .HasNoKey();
-            
+
+            modelBuilder.Entity<AnalyticsRemarks>()
+           .ToTable("tbl_analytics_remarks");
+
+            modelBuilder.Entity<GenerateUBVoucher>()
+            .HasNoKey();
+
+            modelBuilder.Entity<GenerateUBRenewal>()
+            .HasNoKey();
         }
     }
 }

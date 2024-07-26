@@ -11,8 +11,11 @@ namespace CSI.Application.Interfaces
     public interface IAnalyticsService
     {
         Task<List<AnalyticsDto>> GetAnalytics(AnalyticsParamsDto analyticsParamsDto);
+        Task<List<AnalyticsDto>> GetAnalyticsUB(AnalyticsParamsDto analyticsParamsDto);
         Task<List<MatchDto>> GetAnalyticsProofListVariance(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AnalyticsSearchDto>> GetAnalyticsByItem(RefreshAnalyticsDto analyticsParam);
+        Task<List<GenerateUBVoucherDto>> GenerateUBVoucher(RefreshAnalyticsDto analyticsParam);
+        Task<List<GenerateUBRenewalDto>> GenerateUBRenewal(RefreshAnalyticsDto analyticsParam);
         Task<Dictionary<string, decimal?>> GetTotalAmountPerMerchant(AnalyticsParamsDto analyticsParamsDto);
         Task RefreshAnalytics(RefreshAnalyticsDto analyticsParam);
         Task<int> SaveException(AnalyticsProoflistDto analyticsParam);
@@ -33,6 +36,7 @@ namespace CSI.Application.Interfaces
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
         Task<bool> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         Task<bool> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto);
+        Task<bool> CreateUpdateAnalyticsRemarks(UpdateGenerateInvoiceDto updateGenerateInvoiceDto);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AccntGenerateInvoiceDto>> AccountingGenerateInvoice(GenerateA0FileDto generateA0FileDto);

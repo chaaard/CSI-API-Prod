@@ -27,5 +27,6 @@ namespace CSI.Domain.Entities
         public int? IsUpload { get; set; }
         public int? IsGenerate { get; set; }
         public int? IsTransfer { get; set; }
+        public string? Remarks { get; set; } = string.Empty;
     }
 }
