@@ -32,7 +32,25 @@ namespace CSI.API.Controllers
                     TotalPages = result.Item2
                 };
 
-                return (Ok(data));                                                                                                                                               
+                return (Ok(data));
+            }
+            return (NotFound());
+        }
+
+        [HttpPost("GetAdjustmentsAsyncUB")]
+        public async Task<IActionResult> GetAdjustmentsAsyncUB(AdjustmentParams adjustmentParams)
+        {
+            var result = await _adjustmentService.GetAdjustmentsAsyncUB(adjustmentParams);
+
+            if (result.Item1 != null)
+            {
+                var data = new
+                {
+                    ExceptionList = result.Item1,
+                    TotalPages = result.Item2
+                };
+
+                return (Ok(data));
             }
             return (NotFound());
         }

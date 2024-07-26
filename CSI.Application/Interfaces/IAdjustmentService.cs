@@ -11,6 +11,7 @@ namespace CSI.Application.Interfaces
     public interface IAdjustmentService
     {
         Task<(List<AdjustmentDto>, int totalPages)> GetAdjustmentsAsync(AdjustmentParams adjustmentParams);
+        Task<(List<AdjustmentDto>, int totalPages)> GetAdjustmentsAsyncUB(AdjustmentParams adjustmentParams);
         Task<AnalyticsProoflist> CreateAnalyticsProofList(AnalyticsProoflistDto adjustmentTypeDto);
         Task<bool> UpdateAnalyticsProofList(AnalyticsProoflistDto adjustmentTypeDto);
         Task<bool> UpdateJO(AnalyticsProoflistDto adjustmentTypeDto);

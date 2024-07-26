@@ -109,6 +109,262 @@ namespace CSI.Application.Services
             return (customerCodesList, totalPages);
         }
 
+        public async Task<(List<AdjustmentDto>, int totalPages)> GetAdjustmentsAsyncUB(AdjustmentParams adjustmentParams)
+        {
+            DateTime date;
+            List<string> memCodeLast6Digits = adjustmentParams.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            IQueryable<AdjustmentDto> query = Enumerable.Empty<AdjustmentDto>().AsQueryable();
+
+
+            var result = await _dbContext.AdjustmentExceptions
+                   .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
+                            $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
+                            $"adj.OldJO, adj.NewJO, adj.CustomerIdOld, adj.CustomerId AS CustomerIdNew, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                            $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId , re.ReasonDesc, " +
+                            $"adj.Descriptions " +
+                            $"FROM [dbo].[tbl_analytics_prooflist] ap " +
+                            $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
+                            $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
+                            $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId " +
+                            $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
+                            $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
+                            $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
+                            $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
+                            $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
+                            $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
+                            $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND ({string.Join(" OR ", adjustmentParams.memCode.Select(code => $"a.CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})  AND a.DeleteFlag = 0 " +
+                            $"UNION ALL " +
+                            $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
+                            $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
+                            $"	adj.OldJO, adj.NewJO, adj.CustomerIdOld, adj.CustomerId AS CustomerIdNew, adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
+                            $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId , re.ReasonDesc, " +
+                            $"	adj.Descriptions " +
+                            $"FROM [dbo].[tbl_analytics_prooflist] ap " +
+                            $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
+                            $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
+                            $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId " +
+                            $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
+                            $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
+                            $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
+                            $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
+                            $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
+                            $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
+                            $"WHERE p.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND p.StoreId = {adjustmentParams.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND so.SourceType = 'Portal'AND p.DeleteFlag = 0 " +
+                            $" ORDER BY so.SourceType, a.SubTotal ASC ")
+                   .ToListAsync();
+
+
+            if (adjustmentParams.remarks == "ubpizzavoucher")
+            {
+                query = result
+                .Where(n => !n.OrderNo.ToUpper().ToString().Contains("CSI") && !n.OrderNo.ToUpper().ToString().Contains("PV"))
+                .Select(m => new AdjustmentDto
+                {
+                    Id = m.Id,
+                    CustomerId = m.CustomerName,
+                    JoNumber = m.OrderNo,
+                    TransactionDate = m.TransactionDate,
+                    Amount = m.SubTotal,
+                    AdjustmentType = m.Action,
+                    Source = m.SourceType,
+                    Status = m.StatusName,
+                    AdjustmentId = m.AdjustmentId,
+                    LocationName = m.LocationName,
+                    AnalyticsId = m.AnalyticsId,
+                    ProofListId = m.ProoflistId,
+                    OldJo = m.OldJO,
+                    OldCustomerId = m.CustomerIdOld,
+                    DisputeReferenceNumber = m.DisputeReferenceNumber,
+                    DisputeAmount = m.DisputeAmount,
+                    DateDisputeFiled = m.DateDisputeFiled,
+                    DescriptionOfDispute = m.DescriptionOfDispute,
+                    AccountsPaymentDate = m.AccountsPaymentDate,
+                    AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                    AccountsPaymentAmount = m.AccountsPaymentAmount,
+                    ReasonId = m.ReasonId,
+                    Descriptions = m.Descriptions
+                }).AsQueryable();
+
+                var totalItemCount = query.Count();
+                var totalPages = (int)Math.Ceiling((double)totalItemCount / adjustmentParams.PageSize);
+
+                var customerCodesList = query
+                    .Skip((adjustmentParams.PageNumber - 1) * adjustmentParams.PageSize)
+                    .Take(adjustmentParams.PageSize)
+                    .OrderBy(x => x.Source).OrderBy(x => x.Amount)
+                    .ToList();
+
+                return (customerCodesList, totalPages);
+            }
+            else if (adjustmentParams.remarks == "ubrebateissuancecsi")
+            {
+                query = result
+                .Where(n => n.SubTotal > 900 && n.OrderNo.ToUpper().ToString().Contains("CSI"))
+                .Select(m => new AdjustmentDto
+                {
+                    Id = m.Id,
+                    CustomerId = m.CustomerName,
+                    JoNumber = m.OrderNo,
+                    TransactionDate = m.TransactionDate,
+                    Amount = m.SubTotal,
+                    AdjustmentType = m.Action,
+                    Source = m.SourceType,
+                    Status = m.StatusName,
+                    AdjustmentId = m.AdjustmentId,
+                    LocationName = m.LocationName,
+                    AnalyticsId = m.AnalyticsId,
+                    ProofListId = m.ProoflistId,
+                    OldJo = m.OldJO,
+                    OldCustomerId = m.CustomerIdOld,
+                    DisputeReferenceNumber = m.DisputeReferenceNumber,
+                    DisputeAmount = m.DisputeAmount,
+                    DateDisputeFiled = m.DateDisputeFiled,
+                    DescriptionOfDispute = m.DescriptionOfDispute,
+                    AccountsPaymentDate = m.AccountsPaymentDate,
+                    AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                    AccountsPaymentAmount = m.AccountsPaymentAmount,
+                    ReasonId = m.ReasonId,
+                    Descriptions = m.Descriptions
+                }).AsQueryable();
+
+                var totalItemCount = query.Count();
+                var totalPages = (int)Math.Ceiling((double)totalItemCount / adjustmentParams.PageSize);
+
+                var customerCodesList = query
+                    .Skip((adjustmentParams.PageNumber - 1) * adjustmentParams.PageSize)
+                    .Take(adjustmentParams.PageSize)
+                    .OrderBy(x => x.Source).OrderBy(x => x.Amount)
+                    .ToList();
+
+                return (customerCodesList, totalPages);
+            }
+            else if (adjustmentParams.remarks == "ubrebateissuancepv")
+            {
+                query = result
+                .Where(n => n.SubTotal > 900 && n.OrderNo.ToUpper().ToString().Contains("PV"))
+                .Select(m => new AdjustmentDto
+                {
+                    Id = m.Id,
+                    CustomerId = m.CustomerName,
+                    JoNumber = m.OrderNo,
+                    TransactionDate = m.TransactionDate,
+                    Amount = m.SubTotal,
+                    AdjustmentType = m.Action,
+                    Source = m.SourceType,
+                    Status = m.StatusName,
+                    AdjustmentId = m.AdjustmentId,
+                    LocationName = m.LocationName,
+                    AnalyticsId = m.AnalyticsId,
+                    ProofListId = m.ProoflistId,
+                    OldJo = m.OldJO,
+                    OldCustomerId = m.CustomerIdOld,
+                    DisputeReferenceNumber = m.DisputeReferenceNumber,
+                    DisputeAmount = m.DisputeAmount,
+                    DateDisputeFiled = m.DateDisputeFiled,
+                    DescriptionOfDispute = m.DescriptionOfDispute,
+                    AccountsPaymentDate = m.AccountsPaymentDate,
+                    AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                    AccountsPaymentAmount = m.AccountsPaymentAmount,
+                    ReasonId = m.ReasonId,
+                    Descriptions = m.Descriptions
+                }).AsQueryable();
+
+                var totalItemCount = query.Count();
+                var totalPages = (int)Math.Ceiling((double)totalItemCount / adjustmentParams.PageSize);
+
+                var customerCodesList = query
+                    .Skip((adjustmentParams.PageNumber - 1) * adjustmentParams.PageSize)
+                    .Take(adjustmentParams.PageSize)
+                    .OrderBy(x => x.Source).OrderBy(x => x.Amount)
+                    .ToList();
+
+                return (customerCodesList, totalPages);
+            }
+            else if (adjustmentParams.remarks == "ubrenewal")
+            {
+                query = result
+                .Where(n => n.OrderNo.ToUpper().ToString().Contains("CSI") && (n.SubTotal == 700 || n.SubTotal == 400 || n.SubTotal == 900))
+                .Select(m => new AdjustmentDto
+                {
+                    Id = m.Id,
+                    CustomerId = m.CustomerName,
+                    JoNumber = m.OrderNo,
+                    TransactionDate = m.TransactionDate,
+                    Amount = m.SubTotal,
+                    AdjustmentType = m.Action,
+                    Source = m.SourceType,
+                    Status = m.StatusName,
+                    AdjustmentId = m.AdjustmentId,
+                    LocationName = m.LocationName,
+                    AnalyticsId = m.AnalyticsId,
+                    ProofListId = m.ProoflistId,
+                    OldJo = m.OldJO,
+                    OldCustomerId = m.CustomerIdOld,
+                    DisputeReferenceNumber = m.DisputeReferenceNumber,
+                    DisputeAmount = m.DisputeAmount,
+                    DateDisputeFiled = m.DateDisputeFiled,
+                    DescriptionOfDispute = m.DescriptionOfDispute,
+                    AccountsPaymentDate = m.AccountsPaymentDate,
+                    AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                    AccountsPaymentAmount = m.AccountsPaymentAmount,
+                    ReasonId = m.ReasonId,
+                    Descriptions = m.Descriptions
+                }).AsQueryable();
+
+                var totalItemCount = query.Count();
+                var totalPages = (int)Math.Ceiling((double)totalItemCount / adjustmentParams.PageSize);
+
+                var customerCodesList = query
+                    .Skip((adjustmentParams.PageNumber - 1) * adjustmentParams.PageSize)
+                    .Take(adjustmentParams.PageSize)
+                    .OrderBy(x => x.Source).OrderBy(x => x.Amount)
+                    .ToList();
+
+                return (customerCodesList, totalPages);
+            }
+            else
+            {
+                query = result
+                .Select(m => new AdjustmentDto
+                {
+                    Id = m.Id,
+                    CustomerId = m.CustomerName,
+                    JoNumber = m.OrderNo,
+                    TransactionDate = m.TransactionDate,
+                    Amount = m.SubTotal,
+                    AdjustmentType = m.Action,
+                    Source = m.SourceType,
+                    Status = m.StatusName,
+                    AdjustmentId = m.AdjustmentId,
+                    LocationName = m.LocationName,
+                    AnalyticsId = m.AnalyticsId,
+                    ProofListId = m.ProoflistId,
+                    OldJo = m.OldJO,
+                    OldCustomerId = m.CustomerIdOld,
+                    DisputeReferenceNumber = m.DisputeReferenceNumber,
+                    DisputeAmount = m.DisputeAmount,
+                    DateDisputeFiled = m.DateDisputeFiled,
+                    DescriptionOfDispute = m.DescriptionOfDispute,
+                    AccountsPaymentDate = m.AccountsPaymentDate,
+                    AccountsPaymentTransNo = m.AccountsPaymentTransNo,
+                    AccountsPaymentAmount = m.AccountsPaymentAmount,
+                    ReasonId = m.ReasonId,
+                    Descriptions = m.Descriptions
+                }).AsQueryable();
+
+                var totalItemCount = query.Count();
+                var totalPages = (int)Math.Ceiling((double)totalItemCount / adjustmentParams.PageSize);
+
+                var customerCodesList = query
+                    .Skip((adjustmentParams.PageNumber - 1) * adjustmentParams.PageSize)
+                    .Take(adjustmentParams.PageSize)
+                    .OrderBy(x => x.Source).OrderBy(x => x.Amount)
+                    .ToList();
+
+                return (customerCodesList, totalPages);
+            }
+        }
+
         public async Task<AnalyticsProoflist> CreateAnalyticsProofList(AnalyticsProoflistDto adjustmentTypeDto)
         {
             var analyticsProoflist = new AnalyticsProoflist();

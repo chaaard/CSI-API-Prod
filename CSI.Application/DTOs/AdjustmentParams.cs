@@ -18,5 +18,6 @@ namespace CSI.Application.DTOs
         public List<string> memCode2 { get; set; } = new List<string>();
         public string? userId { get; set; } = string.Empty;
         public List<int> storeId { get; set; } = new List<int>();
+        public string? remarks { get; set; } = string.Empty;
     }
 }
