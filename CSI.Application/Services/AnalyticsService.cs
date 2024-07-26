@@ -4773,6 +4773,91 @@ namespace CSI.Application.Services
                         }
                     }
                 }
+                else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 3)
+                {
+                    var getAccountingMatch = _dbContext.AccountingMatchPayment
+                       .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                       .FirstOrDefault();
+
+                    if (getAccountingMatch != null)
+                    {
+                        getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
+                        await _dbContext.SaveChangesAsync();
+
+                        var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                            .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                            .Join(_dbContext.AccountingProoflists, a => a.x.AccountingProofListId, b => b.Id, (a, b) => new { a, b })
+                            .Select(n => new
+                            {
+                                StatusId = (n.a.y.SubTotal == null) ? 4 :
+                                            (n.b.Amount == null) ? 5 :
+                                            n.a.y.SubTotal == n.b.Amount ? 1 :
+                                            n.a.y.SubTotal > n.b.Amount ? 2 :
+                                            n.a.y.SubTotal < n.b.Amount ? 3 : 4
+                            })
+                            .FirstOrDefault();
+
+                        if (getAccountingMatchStatus != null)
+                        {
+                            getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
+                            getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                            await _dbContext.SaveChangesAsync();
+
+                            var updateDeleteFlag = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                            .FirstOrDefault();
+
+                            if (updateDeleteFlag != null)
+                            {
+                                updateDeleteFlag.DeleteFlag = true;
+                                await _dbContext.SaveChangesAsync();
+                            }
+
+                            return true;
+                        }
+                    }
+                }
+                else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 4)
+                {
+                    var getAccountingMatch = _dbContext.AccountingMatchPayment
+                       .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                       .FirstOrDefault();
+
+                    if (getAccountingMatch != null)
+                    {
+                        getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
+                        await _dbContext.SaveChangesAsync();
+
+                        var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                            .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                            .Select(n => new
+                            {
+                                StatusId = 12
+                            })
+                            .FirstOrDefault();
+
+                        if (getAccountingMatchStatus != null)
+                        {
+                            getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
+                            getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                            await _dbContext.SaveChangesAsync();
+
+                            var updateDeleteFlag = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                            .FirstOrDefault();
+
+                            if (updateDeleteFlag != null)
+                            {
+                                updateDeleteFlag.DeleteFlag = true;
+                                await _dbContext.SaveChangesAsync();
+                            }
+
+                            return true;
+                        }
+                    }
+                }
                 else
                 {
                     decimal? totalAmount = 0;

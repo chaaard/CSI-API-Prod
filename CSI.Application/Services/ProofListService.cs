@@ -1863,7 +1863,7 @@ namespace CSI.Application.Services
 
                                 int accountingStatusId;
 
-                                if (matchedAnalytics.Amount == null)
+                                if (matchedAnalytics.SubTotal == null)
                                 {
                                     accountingStatusId = 4;
                                 }
@@ -1873,9 +1873,9 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
-                                    var amount = matchedAnalytics.Amount ?? 0;
-                                    var subTotal = proof.Amount ?? 0;
-                                    var difference = amount - subTotal;
+                                    var subTotal = matchedAnalytics.SubTotal ?? 0;
+                                    var amount = proof.Amount ?? 0;
+                                    var difference = subTotal - amount;
  
                                     if (difference <= 1.0M && difference >= -1.0M)
                                     {
@@ -1883,9 +1883,9 @@ namespace CSI.Application.Services
                                     }
                                     else
                                     {
-                                        accountingStatusId = amount == subTotal ? 1 :
-                                                             amount > subTotal ? 2 :
-                                                             amount < subTotal ? 3 : 4;
+                                        accountingStatusId = subTotal == amount ? 1 :
+                                                             subTotal > amount ? 2 :
+                                                             subTotal < amount ? 3 : 4;
                                     }
                                 }
 
@@ -1968,7 +1968,7 @@ namespace CSI.Application.Services
                                             var getAccountingAnalytics = await _dbContext.AccountingAnalytics
                                            .FirstOrDefaultAsync(am => am.Id == accountingMatch.AccountingAnalyticsId);
 
-                                            var aAmount = getAccountingAnalytics?.Amount ?? 0;
+                                            var aAmount = getAccountingAnalytics?.SubTotal ?? 0;
                                             var plAmount = getAdjustment.Amount;
 
                                             int accountingStatusId = aAmount == plAmount ? 17 :
@@ -2028,7 +2028,7 @@ namespace CSI.Application.Services
                                             var getAccountingAnalytics = await _dbContext.AccountingAnalytics
                                                 .FirstOrDefaultAsync(am => am.Id == accountingMatch.AccountingAnalyticsId);
 
-                                            var aAmount = getAccountingAnalytics?.Amount ?? 0;
+                                            var aAmount = getAccountingAnalytics?.SubTotal ?? 0;
                                             var plAmount = getAdjustment.Amount;
 
                                             int accountingStatusId = aAmount == plAmount ? 17 :
