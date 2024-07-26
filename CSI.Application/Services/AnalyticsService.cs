@@ -4066,13 +4066,13 @@ namespace CSI.Application.Services
             return fileDescriptions;
         }
 
-        public async Task<(List<AccountingProoflistDto>, int totalPages)> GetAccountingProoflist(PaginationDto paginationDto)
+        public async Task<List<AccountingProoflistDto>> GetAccountingProoflist(PaginationDto paginationDto)
         {
             var accountingProoflistDto = new List<AccountingProoflistDto>();
 
             if (paginationDto.Id == null)
             {
-                return (accountingProoflistDto, 0);
+                return accountingProoflistDto;
             }
 
             var prooflist = await _dbContext.AccountingProoflists
@@ -4099,18 +4099,8 @@ namespace CSI.Application.Services
                 })
                 .ToListAsync();
 
-
-            var totalItemCount = prooflist.Count();
-            var totalPages = (int)Math.Ceiling((double)totalItemCount / paginationDto.PageSize);
-
-            var sortData = prooflist
-                .Skip((paginationDto.PageNumber - 1) * paginationDto.PageSize)
-                .Take(paginationDto.PageSize)
-                .OrderByDescending(x => x.TransactionDate)
-                .ThenBy(x => x.Id)
-                .ToList();
-
-            return (sortData, totalPages);
+           
+            return prooflist;
         }
 
         public async Task<List<AccountingProoflistAdjustmentsDto>> GetAccountingProoflistAdjustments(PaginationDto paginationDto)
@@ -4298,7 +4288,29 @@ namespace CSI.Application.Services
                     {
                         if (analyticsParamsDto.status[0] == "All")
                         {
-                            analyticsParamsDto.status = new List<string> { "Paid", "Underpaid", "Overpaid", "Not Reported", "Unpaid", "Adjustments", "Re-Transact", "Paid w/AP", "Unpaid w/AP", "Underpaid w/AP", "Overpaid w/AP" };
+                            analyticsParamsDto.status = new List<string> 
+                            { 
+                                "Paid",
+                                "Underpayment",
+                                "Overpayment", 
+                                "Not Reported", 
+                                "Unpaid", 
+                                "Adjustments",
+                                "Re-Transact",
+                                "Paid | with AP",
+                                "Unpaid | with AP",
+                                "Underpayment | with AP",
+                                "Overpayment | with AP",
+                                "Chargeable",
+                                "Paid | Matched",
+                                "Overpayment | Matched",
+                                "Underpayment | Matched",
+                                "Paid | Multiple Trx",
+                                "Paid | Adjusted",
+                                "Underpayment | Adjusted",
+                                "Overpayment | Adjusted",
+                                "Clawback"
+                            };
 
                             matchDtos = matchDtos
                                .Where(x => analyticsParamsDto.status.Any(status => x.Status.Trim().ToLower().Contains(status.Trim().ToLower())))
@@ -4366,12 +4378,6 @@ namespace CSI.Application.Services
                             $"a.CustomerId LIKE '%{last6Digits}%' AND " +
                             $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
                             $"a.DeleteFlag = 0 )"));
-                        string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
-                            $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
-                            $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
-                            $"p.CustomerId LIKE '%{last6Digits}%' AND " +
-                            $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
-                            $"p.DeleteFlag = 0 )"));
                         var result = await _dbContext.AdjustmentExceptions
                            .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
                                     $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
@@ -4389,23 +4395,6 @@ namespace CSI.Application.Services
                                     $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
                                     $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
                                     $"WHERE {cstDocCondition} " +
-                                    $"UNION ALL " +
-                                    $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
-                                    $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                    $"	adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                    $"	adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                    $"	adj.Descriptions " +
-                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId " +
-                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
-                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                    $"WHERE {cstDocCondition1} " +
                                     $" ORDER BY so.SourceType, a.SubTotal ASC ")
                            .ToListAsync();
 
@@ -4902,7 +4891,7 @@ namespace CSI.Application.Services
                     string dateFromStr = dateFrom.Date.ToString("yyyy-MM-dd");
 
                     string cstDocCondition1 = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits =>
-                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId = 4 AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo = '{analyticsParamsDto.orderNo}' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
+                         $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND am.AccountingStatusId IN (4, 3) AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo LIKE '%{analyticsParamsDto.orderNo}%' AND p.StoreId = {analyticsParamsDto.storeId[0]} AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0)"));
 
                     var result = await _dbContext.AccountingProofListPayment
                    .FromSqlRaw($@"SELECT   
@@ -4912,13 +4901,14 @@ namespace CSI.Application.Services
 	                                ac.[StatusName] AS [Status],
 	                                p.[TransactionDate] AS [TransactionDate],  
 	                                p.[OrderNo] AS [OrderNo], 
-	                                p.[Amount] AS [Amount],  
+                                    a.[SubTotal] AS [AnalyticsAmount],  
+	                                p.[Amount] AS [ProofListAmount],  
 	                                l.LocationName AS [Location]
                                 FROM [tbl_accounting_match] am 
+                                LEFT JOIN [dbo].[tbl_accounting_analytics] a ON a.Id = am.AccountingAnalyticsId
                                 LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
                                 LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = p.StoreId 
                                 LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
                                 WHERE ({cstDocCondition1})")
                    .ToListAsync();
 
@@ -4930,7 +4920,9 @@ namespace CSI.Application.Services
                         Status = m.Status,
                         TransactionDate = m.TransactionDate,
                         OrderNo = m.OrderNo,
-                        Amount = m.Amount,
+                        AnalyticsAmount = m.AnalyticsAmount,
+                        ProofListAmount = m.ProofListAmount,
+                        Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
                         Location = m.Location,
                     }).ToList();
                 }

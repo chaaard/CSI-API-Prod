@@ -413,7 +413,7 @@ namespace CSI.API.Controllers
         {
             var result = await _analyticsService.GetAccountingProoflist(paginationDto);
 
-            if (result.Item1 != null)
+            if (result != null)
             {
                 return (Ok(result));
             }

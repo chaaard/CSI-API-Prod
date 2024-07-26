@@ -27,7 +27,7 @@ namespace CSI.Application.Services
         public async Task<List<Category>> GetCategory()
         {
             var getCategory = new List<Category>();
-            getCategory = await _dbContext.Category.Where(c => c.DeleteFlag == false).ToListAsync();
+            getCategory = await _dbContext.Category.Where(c => c.CategoryName == "Walk-In" || c.CategoryName == "Others").ToListAsync();
             return getCategory;
         }
     }

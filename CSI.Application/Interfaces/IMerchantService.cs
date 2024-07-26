@@ -10,5 +10,6 @@ namespace CSI.Application.Interfaces
     public interface IMerchantService
     {
         Task<List<Merchant>> GetMerchant();
+        Task<List<Merchant>> GetAllMerchant();
     }
 }

@@ -18,6 +18,7 @@ namespace CSI.Domain.Entities
         public int? StatusId { get; set; }
         public int? StoreId { get; set; }
         public int? FileDescriptionId { get; set; }
+        public string? Category { get; set; } = string.Empty;
         public string? Descriptions { get; set; } = string.Empty;
         public bool DeleteFlag { get; set; }
     }
