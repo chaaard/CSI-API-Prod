@@ -49,12 +49,89 @@ namespace CSI.API.Controllers
             }
         }
 
+        [HttpPost("GetAnalyticsUB")]
+        public async Task<IActionResult> GetAnalyticsUB(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetAnalyticsUB(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
         [HttpPost("GetAnalyticsByItem")]
         public async Task<IActionResult> GetAnalyticsByItem(RefreshAnalyticsDto analyticsParamsDto)
         {
             try
             {
                 var result = await _analyticsService.GetAnalyticsByItem(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        [HttpPost("GenerateUBVoucher")]
+        public async Task<IActionResult> GenerateUBVoucher(RefreshAnalyticsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GenerateUBVoucher(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+        [HttpPost("GenerateUBRenewal")]
+        public async Task<IActionResult> GenerateUBRenewal(RefreshAnalyticsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GenerateUBRenewal(analyticsParamsDto);
 
                 if (result != null)
                 {
@@ -306,6 +383,12 @@ namespace CSI.API.Controllers
         public async Task<IActionResult> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto)
         {
             var result = await _analyticsService.UpdateRemarkInvoice(updateGenerateInvoiceDto);
+            return (Ok(result));
+        }
+        [HttpPut("CreateUpdateAnalyticsRemarks")]
+        public async Task<IActionResult> CreateUpdateAnalyticsRemarks(UpdateGenerateInvoiceDto updateGenerateInvoiceDto)
+        {
+            var result = await _analyticsService.CreateUpdateAnalyticsRemarks(updateGenerateInvoiceDto);
             return (Ok(result));
         }
 
