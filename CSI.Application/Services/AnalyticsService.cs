@@ -4977,25 +4977,78 @@ namespace CSI.Application.Services
                             $"a.CustomerId LIKE '%{last6Digits}%' AND " +
                             $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
                             $"a.DeleteFlag = 0 )"));
+
+                        string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
+                              $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
+                              $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
+                              $"p.CustomerId LIKE '%{last6Digits}%' AND " +
+                              $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
+                              $"p.DeleteFlag = 0 AND " +
+                              $"so.SourceType = 'Portal' ) "));
+
                         var result = await _dbContext.AdjustmentExceptions
-                           .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
-                                    $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                    $"adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                    $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                    $"adj.Descriptions " +
-                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId " +
-                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
-                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                    $"WHERE {cstDocCondition} " +
-                                    $" ORDER BY so.SourceType, a.SubTotal ASC ")
-                           .ToListAsync();
+                            .FromSqlRaw($@"
+                                SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, 
+                                    so.SourceType, 
+                                    CASE WHEN EXISTS (
+                                        SELECT 1 
+                                        FROM [dbo].[tbl_analytics_prooflist] ap2
+                                        LEFT JOIN [dbo].[tbl_analytics] a2 ON a2.Id = ap2.AnalyticsId
+                                        LEFT JOIN [dbo].[tbl_source] so2 ON so2.Id = ap2.SourceId
+                                        WHERE a2.OrderNo = a.OrderNo
+                                            AND CAST(a2.TransactionDate AS DATE) = CAST(a.TransactionDate AS DATE)
+                                            AND a2.LocationId = a.LocationId
+                                            AND so2.SourceType = 'Portal'
+                                            AND a2.DeleteFlag = 0
+                                    ) THEN 'Completed' ELSE st.StatusName END AS StatusName,
+                                    ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, 
+                                    adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], 
+                                    adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, 
+                                    adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, 
+                                    adj.Descriptions 
+                                FROM [dbo].[tbl_analytics_prooflist] ap 
+                                LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId 
+                                LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId 
+                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId 
+                                LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId 
+                                LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId 
+                                LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId 
+                                LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId 
+                                LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId 
+                                LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId 
+                                WHERE {cstDocCondition} 
+                                UNION ALL 
+                                SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  
+                                    so.SourceType, 
+                                    CASE WHEN EXISTS (
+                                        SELECT 1 
+                                        FROM [dbo].[tbl_analytics_prooflist] ap2
+                                        LEFT JOIN [dbo].[tbl_prooflist] p2 ON p2.Id = ap2.ProoflistId
+                                        LEFT JOIN [dbo].[tbl_source] so2 ON so2.Id = ap2.SourceId
+                                        WHERE p2.OrderNo = p.OrderNo
+                                            AND CAST(p2.TransactionDate AS DATE) = CAST(p.TransactionDate AS DATE)
+                                            AND p2.StoreId = p.StoreId
+                                            AND so2.SourceType = 'Portal'
+                                            AND p2.DeleteFlag = 0
+                                    ) THEN 'Completed' ELSE st.StatusName END AS StatusName,
+                                    ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, 
+                                    adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], 
+                                    adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, 
+                                    adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, 
+                                    adj.Descriptions 
+                                FROM [dbo].[tbl_analytics_prooflist] ap 
+                                LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId 
+                                LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId 
+                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId 
+                                LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId 
+                                LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId 
+                                LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId 
+                                LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId 
+                                LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId 
+                                LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId 
+                                WHERE {cstDocCondition1} 
+                                ORDER BY a.TransactionDate, a.OrderNo, so.SourceType, ap.Id ASC ")
+                            .ToListAsync();
 
                         query = result.Select(m => new ExceptionReportDto
                         {
