@@ -4814,8 +4814,11 @@ namespace CSI.Application.Services
                                     n.[SubTotal] AS [AnalyticsAmount], 
                                     p.Id AS [ProofListId],
                                     CASE 
-                                        WHEN ac.[StatusName] IN ('Paid | with AP', 'Unpaid | with AP', 'Underpayment | with AP', 'Overpayment | with AP', 'Chargeable') 
-                                        THEN aa.[Amount]
+                                        WHEN ac.[StatusName] IN ('Paid | with AP', 'Unpaid | with AP', 'Underpayment | with AP', 'Overpayment | with AP', 'Chargeable') THEN 
+                                            CASE 
+                                                WHEN aa.[Amount] IS NOT NULL AND p.[Amount] IS NOT NULL THEN aa.[Amount] + p.[Amount]
+                                                ELSE aa.[Amount]
+                                            END
                                         ELSE p.[Amount]
                                     END AS [ProofListAmount],  
                                     p.[OrderNo] AS [ProofListOrderNo], 
