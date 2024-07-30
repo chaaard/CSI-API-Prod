@@ -4805,56 +4805,36 @@ namespace CSI.Application.Services
                     var result = _dbContext.AccountingMatch
                    .FromSqlRaw($@"SELECT   
                                     am.[Id] AS [MatchId], 
-	                                n.Id AS [AnalyticsId],
-	                                n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
+                                    n.Id AS [AnalyticsId],
+                                    n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
                                     c.[CustomerName] AS [AnalyticsPartner],
-	                                l.LocationName AS [AnalyticsLocation], 
-	                                n.[TransactionDate] AS [AnalyticsTransactionDate], 
-	                                n.[OrderNo] AS [AnalyticsOrderNo], 
-	                                n.[SubTotal] AS [AnalyticsAmount], 
-	                                p.Id AS [ProofListId],
-	                                p.[Amount] AS [ProofListAmount],  
-	                                p.[OrderNo] AS [ProofListOrderNo], 
-	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
+                                    l.LocationName AS [AnalyticsLocation], 
+                                    n.[TransactionDate] AS [AnalyticsTransactionDate], 
+                                    n.[OrderNo] AS [AnalyticsOrderNo], 
+                                    n.[SubTotal] AS [AnalyticsAmount], 
+                                    p.Id AS [ProofListId],
+                                    CASE 
+                                        WHEN ac.[StatusName] IN ('Paid | with AP', 'Unpaid | with AP', 'Underpayment | with AP', 'Overpayment | with AP', 'Chargeable') 
+                                        THEN aa.[Amount]
+                                        ELSE p.[Amount]
+                                    END AS [ProofListAmount],  
+                                    p.[OrderNo] AS [ProofListOrderNo], 
+                                    p.[TransactionDate] AS [ProofListTransactionDate],  
+                                    l.LocationName AS [ProofListLocation], 
                                     c.[CustomerName] AS [ProofListPartner],
                                     p.AgencyFee AS [ProofListAgencyFee],
-	                                ac.[StatusName] AS [Status]
+                                    ac.[StatusName] AS [Status]
                                 FROM [tbl_accounting_match] am 
-                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
-                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
-                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
-                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                    LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
+                                    LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
+                                    LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
+                                    LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
+                                    LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                    LEFT JOIN [dbo].[tbl_accounting_adjustments] aa ON aa.Id = am.AccountingAdjustmentId
                                 WHERE ({cstDocCondition}) OR ({cstDocCondition1})")
                    .AsQueryable();
 
-
-                    var test = $@"SELECT   
-                                    am.[Id] AS [MatchId], 
-	                                n.Id AS [AnalyticsId],
-	                                n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
-                                    c.[CustomerName] AS [AnalyticsPartner],
-	                                l.LocationName AS [AnalyticsLocation], 
-	                                n.[TransactionDate] AS [AnalyticsTransactionDate], 
-	                                n.[OrderNo] AS [AnalyticsOrderNo], 
-	                                n.[SubTotal] AS [AnalyticsAmount], 
-	                                p.Id AS [ProofListId],
-	                                p.[Amount] AS [ProofListAmount],  
-	                                p.[OrderNo] AS [ProofListOrderNo], 
-	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
-                                    c.[CustomerName] AS [ProofListPartner],
-                                    p.AgencyFee AS [ProofListAgencyFee],
-	                                ac.[StatusName] AS [Status]
-                                FROM [tbl_accounting_match] am 
-                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
-                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
-                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
-                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
-                                WHERE ({cstDocCondition}) OR ({cstDocCondition1})";
-                    matchDtos = result.Select(m => new AccountingMatchDto
+                    matchDtos = await result.Select(m => new AccountingMatchDto
                     {
                         MatchId = m.MatchId,
                         AnalyticsId = m.AnalyticsId,
@@ -4873,15 +4853,18 @@ namespace CSI.Application.Services
                         ProofListLocation = m.ProofListLocation,
                         ProofListAgencyFee = m.ProofListAgencyFee,
                         Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
-                    }).ToList();
+                    }).ToListAsync();
 
-                    totalItemCount = matchDtos.Count();
-                    totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
+                    if (analyticsParamsDto.PageSize != null)
+                    {
+                        totalItemCount = matchDtos.Count();
+                        totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                    updatedMatch = matchDtos
-                        .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                        .Take((int)analyticsParamsDto.PageSize)
-                        .ToList();
+                        updatedMatch = matchDtos
+                            .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                            .Take((int)analyticsParamsDto.PageSize)
+                            .ToList();
+                    }
 
                     if (analyticsParamsDto.status.Count != 0)
                     {
@@ -4918,14 +4901,22 @@ namespace CSI.Application.Services
                                .ToList();
 
                             totalItemCount = matchDtos.Count();
-                            totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            updatedMatch = matchDtos
-                                .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                                .Take((int)analyticsParamsDto.PageSize)
-                                .ToList();
+                            if (analyticsParamsDto.PageSize != null)
+                            {
+                                totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            return (updatedMatch, totalPages);
+                                updatedMatch = matchDtos
+                                    .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                                    .Take((int)analyticsParamsDto.PageSize)
+                                    .ToList();
+
+                                return (updatedMatch, totalPages);
+                            }
+
+
+                            return (matchDtos, totalPages);
+
                         }
                         else
                         {
@@ -4936,14 +4927,19 @@ namespace CSI.Application.Services
                                .ToList();
 
                             totalItemCount = matchDtos.Count();
-                            totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            updatedMatch = matchDtos
-                                .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                                .Take((int)analyticsParamsDto.PageSize)
-                                .ToList();
+                            if (analyticsParamsDto.PageSize != null)
+                            {
+                                totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            return (updatedMatch, totalPages);
+                                updatedMatch = matchDtos
+                                    .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                                    .Take((int)analyticsParamsDto.PageSize)
+                                    .ToList();
+
+                                return (updatedMatch, totalPages);
+                            }
+                            return (matchDtos, totalPages);
                         }
                     }
                     return (updatedMatch, totalPages);
@@ -5427,44 +5423,33 @@ namespace CSI.Application.Services
                 }
                 else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 3)
                 {
+                    decimal? totalAmount = 0;
                     var getAccountingMatch = _dbContext.AccountingMatchPayment
                        .Where(x => x.Id == accountingAdjustmentDto.MatchId)
                        .FirstOrDefault();
 
                     if (getAccountingMatch != null)
                     {
-                        getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
-                        await _dbContext.SaveChangesAsync();
+                        totalAmount = accountingAdjustmentDto.Amount;
 
                         var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
-                            .Where(x => x.Id == accountingAdjustmentDto.MatchId)
-                            .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
-                            .Join(_dbContext.AccountingProoflists, a => a.x.AccountingProofListId, b => b.Id, (a, b) => new { a, b })
-                            .Select(n => new
-                            {
-                                StatusId = (n.a.y.SubTotal == null) ? 4 :
-                                            (n.b.Amount == null) ? 5 :
-                                            n.a.y.SubTotal == n.b.Amount ? 1 :
-                                            n.a.y.SubTotal > n.b.Amount ? 2 :
-                                            n.a.y.SubTotal < n.b.Amount ? 3 : 4
-                            })
-                            .FirstOrDefault();
+                        .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                        .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                        .Select(n => new
+                        {
+                            StatusId = (n.y.SubTotal == null) ? 4 :
+                                        totalAmount == null ? 9 :
+                                        n.y.SubTotal == totalAmount ? 8 :
+                                        n.y.SubTotal > totalAmount ? 10 :
+                                        n.y.SubTotal < totalAmount ? 11 : 8
+                        })
+                        .FirstOrDefault();
 
                         if (getAccountingMatchStatus != null)
                         {
                             getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
                             getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
                             await _dbContext.SaveChangesAsync();
-
-                            var updateDeleteFlag = _dbContext.AccountingMatchPayment
-                            .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
-                            .FirstOrDefault();
-
-                            if (updateDeleteFlag != null)
-                            {
-                                updateDeleteFlag.DeleteFlag = true;
-                                await _dbContext.SaveChangesAsync();
-                            }
 
                             return true;
                         }
@@ -5536,10 +5521,10 @@ namespace CSI.Application.Services
                             .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
                             .Select(n => new
                             {
-                                StatusId = (n.y.SubTotal == null) ? 9 :
-                                            n.y.SubTotal == totalAmount ? 8 :
-                                            n.y.SubTotal > totalAmount ? 10 :
-                                            n.y.SubTotal < totalAmount ? 11 : 8
+                                StatusId = (n.y.SubTotal == null) ? 4 :
+                                            n.y.SubTotal == totalAmount ? 17 :
+                                            n.y.SubTotal > totalAmount ? 18 :
+                                            n.y.SubTotal < totalAmount ? 19 : 4
                             })
                             .FirstOrDefault();
 

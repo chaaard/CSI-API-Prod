@@ -2119,7 +2119,7 @@ namespace CSI.Application.Services
             var fileIdGM = 0;
             var fileIdGF = 0;
             // Define expected headers
-            string[] expectedHeaders = { "updated on", "store name", "short order id", "net sales", "channel commission", "status" };
+            string[] expectedHeaders = { "updated on", "store name", "short order id", "net sales", "channel commission", "status", "category", "type" };
 
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
@@ -2127,10 +2127,6 @@ namespace CSI.Application.Services
             {
                 {  "9999011929", "Grab Food" },
                 {  "9999011955", "Grab Mart" },
-                {  "9999011931", "Pick A Roo - Merch" },
-                {  "9999011935", "Pick A Roo - FS" },
-                {  "9999011838", "Food Panda" },
-                {  "9999011855", "MetroMart" }
             };
 
             customers.TryGetValue(customerNo, out string valueCust);
@@ -2181,66 +2177,71 @@ namespace CSI.Application.Services
                         worksheet.Cells[row, columnIndexes["net sales"]].Value != null ||
                         worksheet.Cells[row, columnIndexes["status"]].Value != null)
                     {
-                        var orderNo = worksheet.Cells[row, columnIndexes["short order id"]].Value?.ToString();
-                        decimal agencyfee = worksheet.Cells[row, columnIndexes["channel commission"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["channel commission"]].Value?.ToString()) : 0;
-                        if (orderNo.Contains("GF"))
+                        var category = worksheet.Cells[row, columnIndexes["category"]].Value?.ToString() ?? "";
+                        var type = worksheet.Cells[row, columnIndexes["type"]].Value?.ToString() ?? "";
+                        if (category != "Adjustment")
                         {
-                            var transactionDate = GetDateTime(worksheet.Cells[row, columnIndexes["updated on"]].Value);
-                            var storeName = worksheet.Cells[row, columnIndexes["store name"]].Value?.ToString();
-                            decimal TotalPurchasedAmount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : 0;
-                            var chktransactionDate = new DateTime();
-                            if (transactionDate.HasValue)
+                            var orderNo = worksheet.Cells[row, columnIndexes["short order id"]].Value?.ToString();
+                            decimal agencyfee = worksheet.Cells[row, columnIndexes["channel commission"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["channel commission"]].Value?.ToString()) : 0;
+                            if (type == "GrabFood")
                             {
-                                chktransactionDate = transactionDate.Value.Date;
-                            }
-
-                            if (transactionDate != null)
-                            {
-                                var prooflist = new AccountingProoflist
+                                var transactionDate = GetDateTime(worksheet.Cells[row, columnIndexes["updated on"]].Value);
+                                var storeName = worksheet.Cells[row, columnIndexes["store name"]].Value?.ToString();
+                                decimal TotalPurchasedAmount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : 0;
+                                var chktransactionDate = new DateTime();
+                                if (transactionDate.HasValue)
                                 {
-                                    CustomerId = customerNo,
-                                    TransactionDate = transactionDate,
-                                    OrderNo = orderNo,
-                                    NonMembershipFee = (decimal?)0.00,
-                                    PurchasedAmount = (decimal?)0.00,
-                                    Amount = TotalPurchasedAmount,
-                                    StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
-                                    StoreId = await ReturnLocation(storeName),
-                                    FileDescriptionId = fileIdGF,
-                                    AgencyFee = agencyfee,
-                                    DeleteFlag = false,
-                                };
-                                grabFoodProofList.Add(prooflist);
-                            }
-                        }
-                        else
-                        {
-                            var transactionDate = GetDateTime(worksheet.Cells[row, columnIndexes["updated on"]].Value);
-                            var storeName = worksheet.Cells[row, columnIndexes["store name"]].Value?.ToString();
-                            decimal TotalPurchasedAmount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : 0;
-                            var chktransactionDate = new DateTime();
-                            if (transactionDate.HasValue)
-                            {
-                                chktransactionDate = transactionDate.Value.Date;
-                            }
+                                    chktransactionDate = transactionDate.Value.Date;
+                                }
 
-                            if (transactionDate != null)
-                            {
-                                var prooflist = new AccountingProoflist
+                                if (transactionDate != null)
                                 {
-                                    CustomerId = "9999011955",
-                                    TransactionDate = transactionDate,
-                                    OrderNo = orderNo,
-                                    NonMembershipFee = (decimal?)0.00,
-                                    PurchasedAmount = (decimal?)0.00,
-                                    Amount = TotalPurchasedAmount,
-                                    StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
-                                    StoreId = await ReturnLocation(storeName),
-                                    FileDescriptionId = fileIdGM,
-                                    AgencyFee = agencyfee,
-                                    DeleteFlag = false,
-                                };
-                                grabFoodProofList.Add(prooflist);
+                                    var prooflist = new AccountingProoflist
+                                    {
+                                        CustomerId = customerNo,
+                                        TransactionDate = transactionDate,
+                                        OrderNo = orderNo,
+                                        NonMembershipFee = (decimal?)0.00,
+                                        PurchasedAmount = (decimal?)0.00,
+                                        Amount = TotalPurchasedAmount,
+                                        StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
+                                        StoreId = await ReturnLocation(storeName),
+                                        FileDescriptionId = fileIdGF,
+                                        AgencyFee = agencyfee,
+                                        DeleteFlag = false,
+                                    };
+                                    grabFoodProofList.Add(prooflist);
+                                }
+                            }
+                            else
+                            {
+                                var transactionDate = GetDateTime(worksheet.Cells[row, columnIndexes["updated on"]].Value);
+                                var storeName = worksheet.Cells[row, columnIndexes["store name"]].Value?.ToString();
+                                decimal TotalPurchasedAmount = worksheet.Cells[row, columnIndexes["net sales"]].Value != null ? decimal.Parse(worksheet.Cells[row, columnIndexes["net sales"]].Value?.ToString()) : 0;
+                                var chktransactionDate = new DateTime();
+                                if (transactionDate.HasValue)
+                                {
+                                    chktransactionDate = transactionDate.Value.Date;
+                                }
+
+                                if (transactionDate != null)
+                                {
+                                    var prooflist = new AccountingProoflist
+                                    {
+                                        CustomerId = "9999011955",
+                                        TransactionDate = transactionDate,
+                                        OrderNo = orderNo,
+                                        NonMembershipFee = (decimal?)0.00,
+                                        PurchasedAmount = (decimal?)0.00,
+                                        Amount = TotalPurchasedAmount,
+                                        StatusId = worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Completed" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Delivered" || worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Transferred" ? 3 : worksheet.Cells[row, columnIndexes["status"]].Value?.ToString() == "Cancelled" ? 4 : 3,
+                                        StoreId = await ReturnLocation(storeName),
+                                        FileDescriptionId = fileIdGM,
+                                        AgencyFee = agencyfee,
+                                        DeleteFlag = false,
+                                    };
+                                    grabFoodProofList.Add(prooflist);
+                                }
                             }
                         }
                     }
@@ -2328,7 +2329,7 @@ namespace CSI.Application.Services
         {
             var grabFoodProofListAdj = new List<AccountingProoflistAdjustments>();
             // Define expected headers
-            string[] expectedHeaders = { "updated on", "store name", "short order id", "total", "description" };
+            string[] expectedHeaders = { "updated on", "store name", "short order id", "total", "description", "category", "type" };
 
             Dictionary<string, int> columnIndexes = new Dictionary<string, int>();
 
@@ -2336,10 +2337,6 @@ namespace CSI.Application.Services
             {
                 {  "9999011929", "Grab Food" },
                 {  "9999011955", "Grab Mart" },
-                {  "9999011931", "Pick A Roo - Merch" },
-                {  "9999011935", "Pick A Roo - FS" },
-                {  "9999011838", "Food Panda" },
-                {  "9999011855", "MetroMart" }
             };
 
             customers.TryGetValue(customerNo, out string valueCust);
@@ -2383,11 +2380,13 @@ namespace CSI.Application.Services
 
                 for (row = 2; row <= rowCount; row++)
                 {
-                    if (worksheet.Cells[row, columnIndexes["description"]].Value != null)
+                    var category = worksheet.Cells[row, columnIndexes["category"]].Value?.ToString() ?? "";
+                    var type = worksheet.Cells[row, columnIndexes["type"]].Value?.ToString() ?? "";
+                    if (category == "Adjustments")
                     {
                         var orderNo = worksheet.Cells[row, columnIndexes["short order id"]].Value?.ToString();
                         var description = worksheet.Cells[row, columnIndexes["description"]].Value?.ToString();
-                        if (orderNo.Contains("GF"))
+                        if (type == "GrabFood")
                         {
                             var transactionDate = GetDateTime(worksheet.Cells[row, columnIndexes["updated on"]].Value);
                             var storeName = worksheet.Cells[row, columnIndexes["store name"]].Value?.ToString();
@@ -3296,7 +3295,22 @@ namespace CSI.Application.Services
 
                 if (accountingProoflistsDelete != null)
                 {
+
                     _dbContext.AccountingProoflists.RemoveRange(accountingProoflistsDelete);
+                    await _dbContext.SaveChangesAsync();
+
+                    var proofListIds = accountingProoflistsDelete.Select(x => x.Id).ToList();
+
+                    var accountingMatchPayments = await _dbContext.AccountingMatchPayment
+                        .Where(x => proofListIds.Contains(x.AccountingProofListId ?? 0))
+                        .ToListAsync();
+
+                    foreach (var matchPayment in accountingMatchPayments)
+                    {
+                        matchPayment.AccountingProofListId = null;
+                        matchPayment.AccountingStatusId = 5;
+                    }
+
                     await _dbContext.SaveChangesAsync();
 
                     var logsDto = new LogsDto

@@ -536,12 +536,12 @@ namespace CSI.API.Controllers
             {
                 var result = await _analyticsService.GetAccountingProofListVariance(analyticsParamsDto);
 
-                if (result.Item1 != null)
+                if (result.Item1.Count() >= 1)
                 {
                     return (Ok(result));
                 }
 
-                return NotFound();
+                return NotFound(result);
             }
             catch (OperationCanceledException)
             {
