@@ -9,7 +9,7 @@ namespace CSI.Domain.Entities
     public class GenerateUBRenewal
     {
         public int? LocationId { get; set; }
-        public DateTime? AutoChargeDate { get; set; }
+        public string? AutoChargeDate { get; set; } 
         public int? Gold { get; set; }
         public decimal? Amount700 { get; set; }
         public int? Business { get; set; }
@@ -17,6 +17,6 @@ namespace CSI.Domain.Entities
         public int? AddOnFree { get; set; }
         public decimal? TotalAmount { get; set; }
         public string? CSINo { get; set; } = string.Empty;
-        public string? TransactedDate { get; set; } = string.Empty;
+        public DateTime? TransactedDate { get; set; }
     }
 }
