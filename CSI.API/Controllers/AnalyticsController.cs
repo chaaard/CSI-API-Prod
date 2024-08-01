@@ -679,5 +679,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("GetHistoryPaymentRecon")]
+        public async Task<IActionResult> GetHistoryPaymentRecon(int id)
+        {
+            var result = await _analyticsService.GetHistoryPaymentRecon(id);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }

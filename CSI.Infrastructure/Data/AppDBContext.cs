@@ -52,6 +52,7 @@ namespace CSI.Infrastructure.Data
             AnalyticsRemarks = Set<AnalyticsRemarks>();
             GenerateUBVoucher = Set<GenerateUBVoucher>();
             GenerateUBRenewal = Set<GenerateUBRenewal>();
+            AccountingChronology = Set<AccountingChronology>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -93,6 +94,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AnalyticsSearch> AnalyticsSearch { get; set; }
         public DbSet<VarianceSubmit> VarianceSubmit { get; set; }
         public DbSet<AnalyticsRemarks> AnalyticsRemarks { get; set; }
+        public DbSet<AccountingChronology> AccountingChronology { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -212,6 +214,9 @@ namespace CSI.Infrastructure.Data
 
             modelBuilder.Entity<GenerateUBRenewal>()
             .HasNoKey();
+
+            modelBuilder.Entity<AccountingChronology>()
+            .ToTable("tbl_accounting_chronology");
         }
     }
 }

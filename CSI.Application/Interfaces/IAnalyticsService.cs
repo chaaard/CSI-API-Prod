@@ -55,5 +55,6 @@ namespace CSI.Application.Interfaces
         Task<List<AccountingMatchPaymentDto>> GetAccountingPaymentProofList(AnalyticsParamsDto analyticsParamsDto);
         Task<AccountingAdjustments> GetAdjustments(int Id);
         Task<List<AccountingProoflistAdjustmentsDto>> GetAccountingProoflistAdjustments(PaginationDto paginationDto);
+        Task<List<AccountingChronologyDto>> GetHistoryPaymentRecon(int Id);
     }
 }
