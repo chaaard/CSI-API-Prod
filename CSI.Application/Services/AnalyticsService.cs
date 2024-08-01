@@ -4863,56 +4863,39 @@ namespace CSI.Application.Services
                     var result = _dbContext.AccountingMatch
                    .FromSqlRaw($@"SELECT   
                                     am.[Id] AS [MatchId], 
-	                                n.Id AS [AnalyticsId],
-	                                n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
+                                    n.Id AS [AnalyticsId],
+                                    n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
                                     c.[CustomerName] AS [AnalyticsPartner],
-	                                l.LocationName AS [AnalyticsLocation], 
-	                                n.[TransactionDate] AS [AnalyticsTransactionDate], 
-	                                n.[OrderNo] AS [AnalyticsOrderNo], 
-	                                n.[SubTotal] AS [AnalyticsAmount], 
-	                                p.Id AS [ProofListId],
-	                                p.[Amount] AS [ProofListAmount],  
-	                                p.[OrderNo] AS [ProofListOrderNo], 
-	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
+                                    l.LocationName AS [AnalyticsLocation], 
+                                    n.[TransactionDate] AS [AnalyticsTransactionDate], 
+                                    n.[OrderNo] AS [AnalyticsOrderNo], 
+                                    n.[SubTotal] AS [AnalyticsAmount], 
+                                    p.Id AS [ProofListId],
+                                    CASE 
+                                        WHEN ac.[StatusName] IN ('Paid | with AP', 'Unpaid | with AP', 'Underpayment | with AP', 'Overpayment | with AP', 'Chargeable') THEN 
+                                            CASE 
+                                                WHEN aa.[Amount] IS NOT NULL AND p.[Amount] IS NOT NULL THEN aa.[Amount] + p.[Amount]
+                                                ELSE aa.[Amount]
+                                            END
+                                        ELSE p.[Amount]
+                                    END AS [ProofListAmount],  
+                                    p.[OrderNo] AS [ProofListOrderNo], 
+                                    p.[TransactionDate] AS [ProofListTransactionDate],  
+                                    l.LocationName AS [ProofListLocation], 
                                     c.[CustomerName] AS [ProofListPartner],
                                     p.AgencyFee AS [ProofListAgencyFee],
-	                                ac.[StatusName] AS [Status]
+                                    ac.[StatusName] AS [Status]
                                 FROM [tbl_accounting_match] am 
-                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
-                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
-                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
-                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                    LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
+                                    LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
+                                    LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
+                                    LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
+                                    LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                    LEFT JOIN [dbo].[tbl_accounting_adjustments] aa ON aa.Id = am.AccountingAdjustmentId
                                 WHERE ({cstDocCondition}) OR ({cstDocCondition1})")
                    .AsQueryable();
 
-
-                    var test = $@"SELECT   
-                                    am.[Id] AS [MatchId], 
-	                                n.Id AS [AnalyticsId],
-	                                n.[InvoiceNo] AS [AnalyticsInvoiceNo], 
-                                    c.[CustomerName] AS [AnalyticsPartner],
-	                                l.LocationName AS [AnalyticsLocation], 
-	                                n.[TransactionDate] AS [AnalyticsTransactionDate], 
-	                                n.[OrderNo] AS [AnalyticsOrderNo], 
-	                                n.[SubTotal] AS [AnalyticsAmount], 
-	                                p.Id AS [ProofListId],
-	                                p.[Amount] AS [ProofListAmount],  
-	                                p.[OrderNo] AS [ProofListOrderNo], 
-	                                p.[TransactionDate] AS [ProofListTransactionDate],  
-	                                l.LocationName AS [ProofListLocation], 
-                                    c.[CustomerName] AS [ProofListPartner],
-                                    p.AgencyFee AS [ProofListAgencyFee],
-	                                ac.[StatusName] AS [Status]
-                                FROM [tbl_accounting_match] am 
-                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
-                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
-                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
-                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
-                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
-                                WHERE ({cstDocCondition}) OR ({cstDocCondition1})";
-                    matchDtos = result.Select(m => new AccountingMatchDto
+                    matchDtos = await result.Select(m => new AccountingMatchDto
                     {
                         MatchId = m.MatchId,
                         AnalyticsId = m.AnalyticsId,
@@ -4931,15 +4914,18 @@ namespace CSI.Application.Services
                         ProofListLocation = m.ProofListLocation,
                         ProofListAgencyFee = m.ProofListAgencyFee,
                         Variance = (m.AnalyticsAmount == null) ? m.ProofListAmount : (m.ProofListAmount == null) ? m.AnalyticsAmount : m.AnalyticsAmount - m.ProofListAmount.Value,
-                    }).ToList();
+                    }).ToListAsync();
 
-                    totalItemCount = matchDtos.Count();
-                    totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
+                    if (analyticsParamsDto.PageSize != null)
+                    {
+                        totalItemCount = matchDtos.Count();
+                        totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                    updatedMatch = matchDtos
-                        .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                        .Take((int)analyticsParamsDto.PageSize)
-                        .ToList();
+                        updatedMatch = matchDtos
+                            .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                            .Take((int)analyticsParamsDto.PageSize)
+                            .ToList();
+                    }
 
                     if (analyticsParamsDto.status.Count != 0)
                     {
@@ -4976,14 +4962,22 @@ namespace CSI.Application.Services
                                .ToList();
 
                             totalItemCount = matchDtos.Count();
-                            totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            updatedMatch = matchDtos
-                                .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                                .Take((int)analyticsParamsDto.PageSize)
-                                .ToList();
+                            if (analyticsParamsDto.PageSize != null)
+                            {
+                                totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            return (updatedMatch, totalPages);
+                                updatedMatch = matchDtos
+                                    .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                                    .Take((int)analyticsParamsDto.PageSize)
+                                    .ToList();
+
+                                return (updatedMatch, totalPages);
+                            }
+
+
+                            return (matchDtos, totalPages);
+
                         }
                         else
                         {
@@ -4994,14 +4988,19 @@ namespace CSI.Application.Services
                                .ToList();
 
                             totalItemCount = matchDtos.Count();
-                            totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            updatedMatch = matchDtos
-                                .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
-                                .Take((int)analyticsParamsDto.PageSize)
-                                .ToList();
+                            if (analyticsParamsDto.PageSize != null)
+                            {
+                                totalPages = (int)Math.Ceiling((double)totalItemCount / (double)analyticsParamsDto.PageSize);
 
-                            return (updatedMatch, totalPages);
+                                updatedMatch = matchDtos
+                                    .Skip((int)((analyticsParamsDto.PageNumber - 1) * analyticsParamsDto.PageSize))
+                                    .Take((int)analyticsParamsDto.PageSize)
+                                    .ToList();
+
+                                return (updatedMatch, totalPages);
+                            }
+                            return (matchDtos, totalPages);
                         }
                     }
                     return (updatedMatch, totalPages);
@@ -5035,25 +5034,78 @@ namespace CSI.Application.Services
                             $"a.CustomerId LIKE '%{last6Digits}%' AND " +
                             $"a.LocationId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
                             $"a.DeleteFlag = 0 )"));
+
+                        string cstDocCondition1 = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
+                              $"(CAST(p.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
+                              $"CAST(p.TransactionDate AS DATE) <= '{dateTo.Date.ToString("yyyy-MM-dd")}' AND " +
+                              $"p.CustomerId LIKE '%{last6Digits}%' AND " +
+                              $"p.StoreId IN ({string.Join(",", refreshAnalyticsDto.storeId)}) AND " +
+                              $"p.DeleteFlag = 0 AND " +
+                              $"so.SourceType = 'Portal' ) "));
+
                         var result = await _dbContext.AdjustmentExceptions
-                           .FromSqlRaw($"SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, " +
-                                    $"so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
-                                    $"adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, " +
-                                    $"adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, " +
-                                    $"adj.Descriptions " +
-                                    $"FROM [dbo].[tbl_analytics_prooflist] ap " +
-                                    $"	LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId " +
-                                    $"	LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId " +
-                                    $"	LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId " +
-                                    $"	LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId " +
-                                    $"	LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId " +
-                                    $"	LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId " +
-                                    $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
-                                    $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
-                                    $"	LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                                    $"WHERE {cstDocCondition} " +
-                                    $" ORDER BY so.SourceType, a.SubTotal ASC ")
-                           .ToListAsync();
+                            .FromSqlRaw($@"
+                                SELECT ap.Id, c.CustomerName, a.OrderNo, a.TransactionDate, a.SubTotal, act.Action, 
+                                    so.SourceType, 
+                                    CASE WHEN EXISTS (
+                                        SELECT 1 
+                                        FROM [dbo].[tbl_analytics_prooflist] ap2
+                                        LEFT JOIN [dbo].[tbl_analytics] a2 ON a2.Id = ap2.AnalyticsId
+                                        LEFT JOIN [dbo].[tbl_source] so2 ON so2.Id = ap2.SourceId
+                                        WHERE a2.OrderNo = a.OrderNo
+                                            AND CAST(a2.TransactionDate AS DATE) = CAST(a.TransactionDate AS DATE)
+                                            AND a2.LocationId = a.LocationId
+                                            AND so2.SourceType = 'Portal'
+                                            AND a2.DeleteFlag = 0
+                                    ) THEN 'Completed' ELSE st.StatusName END AS StatusName,
+                                    ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, 
+                                    adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], 
+                                    adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, 
+                                    adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, 
+                                    adj.Descriptions 
+                                FROM [dbo].[tbl_analytics_prooflist] ap 
+                                LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId 
+                                LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId 
+                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = a.CustomerId 
+                                LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId 
+                                LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId 
+                                LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId 
+                                LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId 
+                                LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId 
+                                LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId 
+                                WHERE {cstDocCondition} 
+                                UNION ALL 
+                                SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  
+                                    so.SourceType, 
+                                    CASE WHEN EXISTS (
+                                        SELECT 1 
+                                        FROM [dbo].[tbl_analytics_prooflist] ap2
+                                        LEFT JOIN [dbo].[tbl_prooflist] p2 ON p2.Id = ap2.ProoflistId
+                                        LEFT JOIN [dbo].[tbl_source] so2 ON so2.Id = ap2.SourceId
+                                        WHERE p2.OrderNo = p.OrderNo
+                                            AND CAST(p2.TransactionDate AS DATE) = CAST(p.TransactionDate AS DATE)
+                                            AND p2.StoreId = p.StoreId
+                                            AND so2.SourceType = 'Portal'
+                                            AND p2.DeleteFlag = 0
+                                    ) THEN 'Completed' ELSE st.StatusName END AS StatusName,
+                                    ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, 
+                                    adj.OldJO, a.OrderNo AS [NewJO], adj.CustomerIdOld, a.CustomerId AS [CustomerIdNew], 
+                                    adj.DisputeReferenceNumber, adj.DisputeAmount, adj.DateDisputeFiled, adj.DescriptionOfDispute, 
+                                    adj.AccountsPaymentDate, adj.AccountsPaymentTransNo, adj.AccountsPaymentAmount,  adj.ReasonId, re.ReasonDesc, 
+                                    adj.Descriptions 
+                                FROM [dbo].[tbl_analytics_prooflist] ap 
+                                LEFT JOIN [dbo].[tbl_analytics] a ON a.Id = ap.AnalyticsId 
+                                LEFT JOIN [dbo].[tbl_prooflist] p ON p.Id = ap.ProoflistId 
+                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = p.CustomerId 
+                                LEFT JOIN [dbo].[tbl_action] act ON act.Id = ap.ActionId 
+                                LEFT JOIN [dbo].[tbl_adjustments] adj ON adj.Id = ap.AdjustmentId 
+                                LEFT JOIN [dbo].[tbl_status] st ON st.Id = ap.StatusId 
+                                LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId 
+                                LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId 
+                                LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId 
+                                WHERE {cstDocCondition1} 
+                                ORDER BY a.TransactionDate, a.OrderNo, so.SourceType, ap.Id ASC ")
+                            .ToListAsync();
 
                         query = result.Select(m => new ExceptionReportDto
                         {
@@ -5430,6 +5482,80 @@ namespace CSI.Application.Services
                         }
                     }
                 }
+                else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 3)
+                {
+                    decimal? totalAmount = 0;
+                    var getAccountingMatch = _dbContext.AccountingMatchPayment
+                       .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                       .FirstOrDefault();
+
+                    if (getAccountingMatch != null)
+                    {
+                        totalAmount = accountingAdjustmentDto.Amount;
+
+                        var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
+                        .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                        .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                        .Select(n => new
+                        {
+                            StatusId = (n.y.SubTotal == null) ? 4 :
+                                        totalAmount == null ? 9 :
+                                        n.y.SubTotal == totalAmount ? 8 :
+                                        n.y.SubTotal > totalAmount ? 10 :
+                                        n.y.SubTotal < totalAmount ? 11 : 8
+                        })
+                        .FirstOrDefault();
+
+                        if (getAccountingMatchStatus != null)
+                        {
+                            getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
+                            getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                            await _dbContext.SaveChangesAsync();
+
+                            return true;
+                        }
+                    }
+                }
+                else if (accountingAdjustmentDto.AccountingAdjustmentTypeId == 4)
+                {
+                    var getAccountingMatch = _dbContext.AccountingMatchPayment
+                       .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                       .FirstOrDefault();
+
+                    if (getAccountingMatch != null)
+                    {
+                        getAccountingMatch.AccountingProofListId = accountingAdjustmentDto.AccountingProofListId;
+                        await _dbContext.SaveChangesAsync();
+
+                        var getAccountingMatchStatus = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.MatchId)
+                            .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
+                            .Select(n => new
+                            {
+                                StatusId = 12
+                            })
+                            .FirstOrDefault();
+
+                        if (getAccountingMatchStatus != null)
+                        {
+                            getAccountingMatch.AccountingStatusId = getAccountingMatchStatus.StatusId;
+                            getAccountingMatch.AccountingAdjustmentId = accountingAdj.Id;
+                            await _dbContext.SaveChangesAsync();
+
+                            var updateDeleteFlag = _dbContext.AccountingMatchPayment
+                            .Where(x => x.Id == accountingAdjustmentDto.ProofListMatchId)
+                            .FirstOrDefault();
+
+                            if (updateDeleteFlag != null)
+                            {
+                                updateDeleteFlag.DeleteFlag = true;
+                                await _dbContext.SaveChangesAsync();
+                            }
+
+                            return true;
+                        }
+                    }
+                }
                 else
                 {
                     decimal? totalAmount = 0;
@@ -5456,10 +5582,10 @@ namespace CSI.Application.Services
                             .Join(_dbContext.AccountingAnalytics, x => x.AccountingAnalyticsId, y => y.Id, (x, y) => new { x, y })
                             .Select(n => new
                             {
-                                StatusId = (n.y.SubTotal == null) ? 9 :
-                                            n.y.SubTotal == totalAmount ? 8 :
-                                            n.y.SubTotal > totalAmount ? 10 :
-                                            n.y.SubTotal < totalAmount ? 11 : 8
+                                StatusId = (n.y.SubTotal == null) ? 4 :
+                                            n.y.SubTotal == totalAmount ? 17 :
+                                            n.y.SubTotal > totalAmount ? 18 :
+                                            n.y.SubTotal < totalAmount ? 19 : 4
                             })
                             .FirstOrDefault();
 
