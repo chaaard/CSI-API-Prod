@@ -1785,6 +1785,103 @@ namespace CSI.Application.Services
                                 }
                             }
                         }
+
+                        var getProofListId = proofList
+                            .Select(n => n.OrderNo)
+                            .ToList();
+
+                        var getPreviousProofList = _dbContext.AccountingProoflists
+                            .Where(x => getProofListId.Contains(x.OrderNo))
+                            .ToList();
+
+                        if (getPreviousProofList.Count >= 1)
+                        {
+                            foreach (var previousProof in getPreviousProofList)
+                            {
+                                var newProof = proofList.FirstOrDefault(p => p.OrderNo == previousProof.OrderNo);
+                                if (newProof != null)
+                                {
+                                    var accountingMatch = await _dbContext.AccountingMatchPayment
+                                        .FirstOrDefaultAsync(am => am.AccountingProofListId == previousProof.Id);
+
+                                    var previousChronology = new AccountingChronology
+                                    {
+                                        MatchId = accountingMatch != null ? accountingMatch.Id : 0,
+                                        AdjustmentId = 0,
+                                        CustomerId = previousProof.CustomerId,
+                                        TransactionDate = previousProof.TransactionDate,
+                                        OrderNo = previousProof.OrderNo,
+                                        NonMembershipFee = previousProof.NonMembershipFee,
+                                        PurchasedAmount = previousProof.PurchasedAmount,
+                                        Amount = previousProof.Amount,
+                                        StatusId = previousProof.StatusId,
+                                        StoreId = previousProof.StoreId,
+                                        AgencyFee = previousProof.AgencyFee,
+                                        FileDescriptionId = previousProof.FileDescriptionId,
+                                        DeleteFlag = false
+                                    };
+
+                                    _dbContext.AccountingChronology.Add(previousChronology);
+
+                                    previousProof.Amount = newProof.Amount;
+                                    _dbContext.AccountingProoflists.Update(previousProof);
+
+                                    AccountingAnalytics getAccountingAnalytics = null;
+                                    if (accountingMatch != null)
+                                    {
+                                        getAccountingAnalytics = await _dbContext.AccountingAnalytics
+                                            .FirstOrDefaultAsync(am => am.Id == accountingMatch.AccountingAnalyticsId);
+                                    }
+
+                                    var aAmount = getAccountingAnalytics?.SubTotal ?? 0;
+                                    var plAmount = previousProof.Amount;
+
+                                    int accountingStatusId = aAmount == plAmount ? 17 :
+                                                             aAmount > plAmount ? 18 :
+                                                             aAmount < plAmount ? 19 : 4;
+
+                                    if (accountingMatch != null)
+                                    {
+                                        accountingMatch.AccountingStatusId = accountingStatusId;
+                                        _dbContext.AccountingMatchPayment.Update(accountingMatch);
+                                    }
+
+                                    var newChronology = new AccountingChronology
+                                    {
+                                        MatchId = accountingMatch != null ? accountingMatch.Id : 0,
+                                        AdjustmentId = 0,
+                                        CustomerId = newProof.CustomerId,
+                                        TransactionDate = newProof.TransactionDate,
+                                        OrderNo = newProof.OrderNo,
+                                        NonMembershipFee = newProof.NonMembershipFee,
+                                        PurchasedAmount = newProof.PurchasedAmount,
+                                        Amount = newProof.Amount,
+                                        StatusId = newProof.StatusId,
+                                        StoreId = newProof.StoreId,
+                                        AgencyFee = newProof.AgencyFee,
+                                        FileDescriptionId = newProof.FileDescriptionId,
+                                        DeleteFlag = false
+                                    };
+
+                                    _dbContext.AccountingChronology.Add(newChronology);
+                                }
+                            }
+
+                            await _dbContext.SaveChangesAsync();
+
+                            foreach (var proof in getPreviousProofList)
+                            {
+                                var filteredProofList = proofList.Where(p => p.OrderNo == proof.OrderNo).ToList();
+                                foreach (var item in filteredProofList)
+                                {
+                                    item.StatusId = 7;
+                                }
+                            }
+
+                            var updatedProofList = getPreviousProofList
+                                .Where(p => getProofListId.Contains(p.OrderNo))
+                                .ToList();
+                        }
                     }
 
                     await _dbContext.AccountingProoflists.AddRangeAsync(proofList);
@@ -1849,71 +1946,74 @@ namespace CSI.Application.Services
                     {
                         foreach (var proof in savedProofLists)
                         {
-                            var matchedAnalytics = _dbContext.AccountingAnalytics
-                                .Where(aa => aa.OrderNo == proof.OrderNo
-                                             && aa.TransactionDate == proof.TransactionDate
-                                             && aa.LocationId == proof.StoreId)
-                                .FirstOrDefault();
-
-                            if (matchedAnalytics != null)
+                            if (proof.StatusId != 7)
                             {
-                                var accountingMatch = _dbContext.AccountingMatchPayment
-                                    .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
-                                    .FirstOrDefault();
+                                var matchedAnalytics = _dbContext.AccountingAnalytics
+                               .Where(aa => aa.OrderNo == proof.OrderNo
+                                            && aa.TransactionDate == proof.TransactionDate
+                                            && aa.LocationId == proof.StoreId)
+                               .FirstOrDefault();
 
-                                int accountingStatusId;
+                                if (matchedAnalytics != null)
+                                {
+                                    var accountingMatch = _dbContext.AccountingMatchPayment
+                                        .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
+                                        .FirstOrDefault();
 
-                                if (matchedAnalytics.SubTotal == null)
-                                {
-                                    accountingStatusId = 4;
-                                }
-                                else if (proof.Amount == null)
-                                {
-                                    accountingStatusId = 5;
-                                }
-                                else
-                                {
-                                    var subTotal = matchedAnalytics.SubTotal ?? 0;
-                                    var amount = proof.Amount ?? 0;
-                                    var difference = subTotal - amount;
- 
-                                    if (difference <= 1.0M && difference >= -1.0M)
+                                    int accountingStatusId;
+
+                                    if (matchedAnalytics.SubTotal == null)
                                     {
-                                        accountingStatusId = 1;
+                                        accountingStatusId = 4;
+                                    }
+                                    else if (proof.Amount == null)
+                                    {
+                                        accountingStatusId = 5;
                                     }
                                     else
                                     {
-                                        accountingStatusId = subTotal == amount ? 1 :
-                                                             subTotal > amount ? 2 :
-                                                             subTotal < amount ? 3 : 4;
-                                    }
-                                }
+                                        var subTotal = matchedAnalytics.SubTotal ?? 0;
+                                        var amount = proof.Amount ?? 0;
+                                        var difference = subTotal - amount;
 
-                                if (accountingMatch != null)
-                                {
-                                    accountingMatch.AccountingProofListId = proof.Id;
-                                    accountingMatch.AccountingStatusId = accountingStatusId;
+                                        if (difference <= 1.0M && difference >= -1.0M)
+                                        {
+                                            accountingStatusId = 1;
+                                        }
+                                        else
+                                        {
+                                            accountingStatusId = subTotal == amount ? 1 :
+                                                                 subTotal > amount ? 2 :
+                                                                 subTotal < amount ? 3 : 4;
+                                        }
+                                    }
+
+                                    if (accountingMatch != null)
+                                    {
+                                        accountingMatch.AccountingProofListId = proof.Id;
+                                        accountingMatch.AccountingStatusId = accountingStatusId;
+                                    }
+                                    else
+                                    {
+                                        _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
+                                        {
+                                            AccountingAnalyticsId = matchedAnalytics.Id,
+                                            AccountingProofListId = proof.Id,
+                                            AccountingStatusId = accountingStatusId
+                                        });
+                                    }
                                 }
                                 else
                                 {
+                                    int accountingStatusId = 4;
+
                                     _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
                                     {
-                                        AccountingAnalyticsId = matchedAnalytics.Id,
+                                        AccountingAnalyticsId = null,
                                         AccountingProofListId = proof.Id,
                                         AccountingStatusId = accountingStatusId
                                     });
                                 }
-                            }
-                            else
-                            {
-                                int accountingStatusId = 4;
-
-                                _dbContext.AccountingMatchPayment.Add(new AccountingMatchPayment
-                                {
-                                    AccountingAnalyticsId = null,
-                                    AccountingProofListId = proof.Id,
-                                    AccountingStatusId = accountingStatusId
-                                });
                             }
                         }
                     }
@@ -1924,7 +2024,6 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.AccountingProoflistAdjustments.AddRangeAsync(proofListAdj);
                         await _dbContext.SaveChangesAsync();
-
 
                         if (proofListAdj.Any(x => x.CustomerId.Contains("9999011838")))
                         {

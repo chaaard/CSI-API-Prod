@@ -5743,5 +5743,64 @@ namespace CSI.Application.Services
                 throw;
             }
         }
+
+        public async Task<List<AccountingChronologyDto>> GetHistoryPaymentRecon(int Id)
+        {
+            try
+            {
+                var history = new List<AccountingChronologyDto>();
+
+                if (Id != 0)
+                {
+                    history = await _dbContext.AccountingChronology
+                            .GroupJoin(
+                                _dbContext.Locations,
+                                a => a.StoreId,
+                                b => b.LocationCode,
+                                (a, locationGroup) => new { a, locationGroup })
+                            .SelectMany(
+                                x => x.locationGroup.DefaultIfEmpty(),
+                                (x, b) => new { x.a, b })
+                            .Join(
+                                _dbContext.Status,
+                                c => c.a.StatusId,
+                                d => d.Id,
+                                (c, d) => new { c, d })
+                            .Join(
+                                _dbContext.CustomerCodes,
+                                e => e.c.a.CustomerId,
+                                f => f.CustomerCode,
+                                (e, f) => new { e, f })
+                            .Join(
+                                _dbContext.FileDescription,
+                                g => g.e.c.a.FileDescriptionId,
+                                h => h.Id,
+                                (g, h) => new { g, h })
+                            .Where(x => x.g.e.c.a.MatchId == Id)
+                            .Select(n => new AccountingChronologyDto
+                            {
+                                Id = n.g.e.c.a.Id,
+                                MatchId = n.g.e.c.a.MatchId,
+                                AdjustmentId = n.g.e.c.a.AdjustmentId,
+                                CustomerId = n.g.f.CustomerName,
+                                TransactionDate = n.g.e.c.a.TransactionDate,
+                                OrderNo = n.g.e.c.a.OrderNo,
+                                NonMembershipFee = n.g.e.c.a.NonMembershipFee,
+                                PurchasedAmount = n.g.e.c.a.PurchasedAmount,
+                                Amount = n.g.e.c.a.Amount,
+                                Status = n.g.e.d.StatusName,
+                                StoreName = n.g.e.c.b != null ? n.g.e.c.b.LocationName : null,
+                                FileName = n.h.FileName,
+                                DeleteFlag = n.g.e.c.a.DeleteFlag
+                            })
+                         .ToListAsync();
+                }
+                return history;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
     }
 }
