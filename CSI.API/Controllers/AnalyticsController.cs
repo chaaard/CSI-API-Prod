@@ -691,5 +691,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("GetBalancesDetails")]
+        public async Task<IActionResult> GetBalancesDetails(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.GetBalancesDetails(analyticsParamsDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }
