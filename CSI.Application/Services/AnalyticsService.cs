@@ -5802,5 +5802,129 @@ namespace CSI.Application.Services
                 throw;
             }
         }
+
+        public async Task<List<AccountingBalancesDetailsDto>> GetBalancesDetails(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+                DateTime dateFrom;
+                DateTime dateTo;
+                var accountingBalances = new List<AccountingBalancesDetailsDto>();
+
+                if (DateTime.TryParse(analyticsParamsDto.dates[0], out dateFrom) && DateTime.TryParse(analyticsParamsDto.dates[1], out dateTo))
+                {
+                    string dateFromStr = dateFrom.Date.ToString("yyyy-MM-dd");
+                    string dateToStr = dateTo.Date.ToString("yyyy-MM-dd");
+
+                    string cstDocCondition = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits =>
+                        $"(CAST(n.TransactionDate AS DATE) >= '{dateFromStr}' AND CAST(n.TransactionDate AS DATE) <= '{dateToStr}' AND n.CustomerId LIKE '%{last6Digits}%' AND n.OrderNo LIKE '%{analyticsParamsDto.orderNo}%' AND n.DeleteFlag = 0 AND  n.InvoiceNo IS NOT NULL AND am.DeleteFlag = 0)"));
+
+                    string cstDocCondition1 = string.Join(" OR ", memCodeLast6Digits.Select(last6Digits =>
+                        $"(CAST(p.TransactionDate AS DATE) >= '{dateFromStr}' AND CAST(p.TransactionDate AS DATE) <= '{dateToStr}' AND p.CustomerId LIKE '%{last6Digits}%' AND p.OrderNo LIKE '%{analyticsParamsDto.orderNo}%' AND p.Amount IS NOT NULL AND p.Amount <> 0 AND p.StatusId != 4 AND p.DeleteFlag = 0 AND am.DeleteFlag = 0)"));
+
+                    var result = _dbContext.AccountingBalancesDetails
+                   .FromSqlRaw($@"SELECT   
+                                am.[Id] AS [MatchId], 
+                                n.[InvoiceNo] AS [OracleInvNo], 
+                                gi.[InvoiceDate] AS [InvoiceDate],
+                                n.OrderNo AS [OrderNumber], 
+                                n.TransactionNo AS [TrxNo], 
+                                n.RegisterNo AS [RegNo], 
+                                n.LocationId AS [LocationCode], 
+                                l.LocationName AS [Outletname], 
+                                n.SubTotal AS [GROSSPERSNR],
+                                p.Amount AS [GROSSPERMERCHANT],
+                                CASE 
+                                    WHEN am.AccountingStatusId IN (8, 9, 10, 11) THEN aa.Amount 
+                                    ELSE NULL 
+                                END AS [ACCOUNTSPAYMENT],
+                                CASE 
+                                    WHEN am.AccountingStatusId = 12  THEN aa.Amount 
+                                    ELSE NULL 
+                                END [CHARGEABLE],
+                                ac.[StatusName] AS [Status]
+                            FROM [tbl_accounting_match] am 
+                                LEFT JOIN [dbo].[tbl_accounting_analytics] n ON n.Id = am.AccountingAnalyticsId
+                                LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
+                                LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
+                                LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
+                                LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
+                                LEFT JOIN [dbo].[tbl_accounting_adjustments] aa ON aa.Id = am.AccountingAdjustmentId
+	                            INNER JOIN [dbo].[tbl_generated_invoice] gi ON gi.InvoiceNo = n.InvoiceNo
+                            WHERE ({cstDocCondition}) OR ({cstDocCondition1})")
+                   .AsQueryable();
+
+                    accountingBalances = await result.Select(m => new AccountingBalancesDetailsDto
+                    {
+                        MatchId = m.MatchId,
+                        OracleInvNo = m.OracleInvNo,
+                        InvoiceDate = m.InvoiceDate,
+                        OrderNumber = m.OrderNumber,
+                        TrxNo = m.TrxNo,
+                        RegNo = m.RegNo,
+                        LocationCode = m.LocationCode,
+                        OutletName = m.OutletName,
+                        GROSSPERSNR = m.GROSSPERSNR,
+                        GROSSPERMERCHANT = m.GROSSPERMERCHANT,
+                        ACCOUNTSPAYMENT = m.ACCOUNTSPAYMENT,
+                        CHARGEABLE = m.CHARGEABLE,
+                        Status = m.Status.ToUpper(),
+                    }).ToListAsync();
+
+                    if (analyticsParamsDto.status.Count != 0)
+                    {
+                        if (analyticsParamsDto.status[0] == "All")
+                        {
+                            analyticsParamsDto.status = new List<string>
+                            {
+                                "Paid",
+                                "Underpayment",
+                                "Overpayment",
+                                "Not Reported",
+                                "Unpaid",
+                                "Adjustments",
+                                "Re-Transact",
+                                "Paid | with AP",
+                                "Unpaid | with AP",
+                                "Underpayment | with AP",
+                                "Overpayment | with AP",
+                                "Chargeable",
+                                "Paid | Matched",
+                                "Overpayment | Matched",
+                                "Underpayment | Matched",
+                                "Paid | Multiple Trx",
+                                "Paid | Adjusted",
+                                "Underpayment | Adjusted",
+                                "Overpayment | Adjusted",
+                                "Clawback"
+                            };
+
+                            accountingBalances = accountingBalances
+                               .Where(x => analyticsParamsDto.status.Any(status => x.Status.Trim().ToLower().Contains(status.Trim().ToLower())))
+                               .OrderByDescending(m => m.LocationCode == null)
+                               .ToList();
+
+                            return accountingBalances;
+
+                        }
+                        else
+                        {
+                            accountingBalances = accountingBalances
+                               .Where(x => x.Status.Trim().ToLower() == analyticsParamsDto.status[0].Trim().ToLower())
+                               .OrderByDescending(m => m.LocationCode == null)
+                               .ToList();
+
+                            return accountingBalances;
+                        }
+                    }
+                }
+                return accountingBalances;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
     }
 }
