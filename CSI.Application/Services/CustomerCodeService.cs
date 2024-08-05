@@ -337,35 +337,81 @@ namespace CSI.Application.Services
                     {
                         if (pagination.IsAllVisible == false)
                         {
-                            var query = await _dbContext.CategoryCode
-                           .FromSqlRaw($@"SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible]" +
-                               "FROM ( " +
-                                   "SELECT " +
-                                       "   [CategoryId], " +
-                                       "   CASE " +
-                                       "       WHEN COUNT([CustomerCode]) > 1 THEN " +
-                                       "           STUFF((" +
-                                       "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
-                                       "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
-                                       "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
-                                       "                FOR XML PATH(''), TYPE " +
-                                       "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
-                                       "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
-                                       "   END AS [CustomerCodes] " +
-                                   "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
-                                   "WHERE temp1.[DeleteFlag] = 0 " +
-                                   "GROUP BY[CategoryId] " +
-                               ") AS temp3 " +
-                               "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
-
-                            result = query.Select(n => new CustomerCodeDto
+                            if (pagination.FromPage == "generateinvoice")
                             {
-                                CategoryId = n.CategoryId,
-                                CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
-                                CategoryName = n.CategoryName,
-                                IsVisible = Convert.ToBoolean(n.IsVisible)
-                            }).ToList();
-                            return (result);
+                                var query = await _dbContext.CategoryCode
+                                   .FromSqlRaw($@"SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible]
+                                                    FROM ( 
+                                                        SELECT 
+                                                                [CategoryId], 
+                                                                CASE 
+                                                                    WHEN COUNT([CustomerCode]) > 1 THEN 
+                                                                        STUFF((
+                                                                            SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  
+                                                                            FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 
+                                                                            WHERE temp2.[CategoryId] = temp1.[CategoryId] 
+                                                                            FOR XML PATH(''), TYPE 
+                                                                        ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') 
+                                                                    ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) 
+                                                                END AS [CustomerCodes] 
+                                                        FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 
+                                                        WHERE temp1.[DeleteFlag] = 0 
+                                                        GROUP BY[CategoryId] 
+                                                        ) AS temp3 
+                                                        LEFT JOIN [CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = {isVisible.ToString()} AND temp3.CategoryId != 14
+                                                        UNION
+                                                        Select 14, '9999011984', 'UB Pizza Voucher',1
+                                                        UNION
+                                                        Select 14, '9999011984', 'UB Rebate Issuance',1
+                                                        UNION
+                                                        Select 14, '9999011984', 'UB PV Issuance',1
+                                                        UNION
+                                                        Select 14, '9999011984', 'UB Renewal',1"
+                                       
+                                       ).ToListAsync();
+
+                                        result = query.Select(n => new CustomerCodeDto
+                                        {
+                                            CategoryId = n.CategoryId,
+                                            CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                                            CategoryName = n.CategoryName,
+                                            IsVisible = Convert.ToBoolean(n.IsVisible)
+                                        }).ToList();
+                                        return (result);
+                            }
+                            else 
+                            {
+                                var query = await _dbContext.CategoryCode
+                                   .FromSqlRaw($@"SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible]" +
+                                       "FROM ( " +
+                                           "SELECT " +
+                                               "   [CategoryId], " +
+                                               "   CASE " +
+                                               "       WHEN COUNT([CustomerCode]) > 1 THEN " +
+                                               "           STUFF((" +
+                                               "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
+                                               "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                               "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
+                                               "                FOR XML PATH(''), TYPE " +
+                                               "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
+                                               "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
+                                               "   END AS [CustomerCodes] " +
+                                           "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                           "WHERE temp1.[DeleteFlag] = 0 " +
+                                           "GROUP BY[CategoryId] " +
+                                       ") AS temp3 " +
+                                       "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
+
+                                        result = query.Select(n => new CustomerCodeDto
+                                        {
+                                            CategoryId = n.CategoryId,
+                                            CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                                            CategoryName = n.CategoryName,
+                                            IsVisible = Convert.ToBoolean(n.IsVisible)
+                                        }).ToList();
+                                        return (result);
+                            }
+                            
                         }
                         else
                         {

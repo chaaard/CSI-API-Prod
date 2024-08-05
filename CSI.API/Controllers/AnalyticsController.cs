@@ -247,6 +247,17 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+        [HttpPost("SubmitAllAnalytics")]
+        public async Task<IActionResult> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            var result = await _analyticsService.SubmitAllAnalytics(analyticsParamsDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
 
         [HttpPost("GenerateInvoiceAnalytics")]
         public async Task<IActionResult> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto)
@@ -383,6 +394,12 @@ namespace CSI.API.Controllers
         public async Task<IActionResult> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto)
         {
             var result = await _analyticsService.UpdateRemarkInvoice(updateGenerateInvoiceDto);
+            return (Ok(result));
+        }
+        [HttpPut("UpdateAutoChargeDateAnalytics")]
+        public async Task<IActionResult> UpdateAutoChargeDateAnalytics(AnalyticsAutoChargeDateDTO analyticsAutoChargeDateParam)
+        {
+            var result = await _analyticsService.UpdateAutoChargeDateAnalytics(analyticsAutoChargeDateParam);
             return (Ok(result));
         }
         [HttpPut("CreateUpdateAnalyticsRemarks")]

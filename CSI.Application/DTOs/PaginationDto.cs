@@ -18,5 +18,6 @@ namespace CSI.Application.DTOs
         public bool? IsVisible { get; set; }
         public bool ByMerchant { get; set; }
         public bool? IsAllVisible { get; set; }
+        public string? FromPage { get; set; }
     }
 }

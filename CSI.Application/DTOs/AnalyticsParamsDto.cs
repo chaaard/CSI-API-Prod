@@ -26,5 +26,7 @@ namespace CSI.Application.DTOs
         public string fileName { get; set; } = string.Empty;
         public string? remarks { get; set; } = string.Empty;
         public string? selectedItem { get; set; } = string.Empty;
+        public string? AutoChargeDate { get; set; } = string.Empty;
+        public List<string>? merchantDetails { get; set; } = new List<string>();
     }
 }
