@@ -44,6 +44,7 @@ namespace CSI.Infrastructure.Data
             AccountingAnalytics = Set<AccountingAnalytics>();
             VarianceMMS = Set<VarianceMMS>();
             CategoryCode = Set<CategoryCode>();
+            CategoryCodeDecimal = Set<CategoryCodeDecimal>();
             Merchant = Set<Merchant>();
             AccountingAdjustments = Set<AccountingAdjustments>();
             AccountingProofListPayment = Set<AccountingProofListPayment>();
@@ -84,6 +85,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingProoflist> AccountingProoflists { get; set; }
         public DbSet<Logs> Logs { get; set; }
         public DbSet<CategoryCode> CategoryCode { get; set; }
+        public DbSet<CategoryCodeDecimal> CategoryCodeDecimal { get; set; }
         public DbSet<AccountingMatchPayment> AccountingMatchPayment { get; set; }
         public DbSet<AccountingStatus> AccountingStatus { get; set; }
         public DbSet<AccountingAnalytics> AccountingAnalytics { get; set; }
@@ -188,6 +190,9 @@ namespace CSI.Infrastructure.Data
            .HasNoKey();
 
             modelBuilder.Entity<CategoryCode>()
+            .HasNoKey();
+
+            modelBuilder.Entity<CategoryCodeDecimal>()
             .HasNoKey();
 
             modelBuilder.Entity<AccountingAdjustments>()

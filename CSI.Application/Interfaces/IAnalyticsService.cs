@@ -21,6 +21,7 @@ namespace CSI.Application.Interfaces
         Task<int> SaveException(AnalyticsProoflistDto analyticsParam);
         Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto);
+        Task<bool> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<InvoiceDto>, bool)> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<(bool, bool)> IsSubmittedGenerated(AnalyticsParamsDto analyticsParamsDto);
         Task UpdateUploadStatus(AnalyticsParamsDto analyticsParamsDto);
@@ -36,6 +37,7 @@ namespace CSI.Application.Interfaces
         Task ManualReload(RefreshAnalyticsDto analyticsParam);
         Task<bool> RevertAnalytics(UpdateAnalyticsDto updateAnalyticsDto);
         Task<bool> UpdateRemarkInvoice(UpdateGenerateInvoiceDto updateGenerateInvoiceDto);
+        Task<bool> UpdateAutoChargeDateAnalytics(AnalyticsAutoChargeDateDTO analyticsAutoChargeDateParam); 
         Task<bool> CreateUpdateAnalyticsRemarks(UpdateGenerateInvoiceDto updateGenerateInvoiceDto);
         Task<(List<AnalyticsDto>, int)> GetAnalyticsToUndoSubmit(AnalyticsUndoSubmitDto analyticsUndoSubmit);
         Task<bool> UndoSubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);

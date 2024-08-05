@@ -8,12 +8,12 @@ namespace CSI.Domain.Entities
 {
     public class VarianceSubmit
     {
-        public decimal MMS { get; set; }
-        public decimal CSI { get; set; }
-        public decimal Variance { get; set; }
-        public int CategoryId { get; set; }
+        public decimal CategoryId { get; set; }
+        public string CustomerCodes { get; set; } = string.Empty;
         public string CategoryName { get; set; } = string.Empty;
-        public int LocationId { get; set; }
-        public string TransactionDate { get; set; } = string.Empty;
+        public decimal MMS { get; set; }
+        public decimal Variance { get; set; }
+        public decimal CSI { get; set; }
+        public int Status { get; set; }
     }
 }

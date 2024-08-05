@@ -8,8 +8,9 @@ namespace CSI.Application.DTOs
 {
     public class GenerateUBRenewalDto
     {
+        public string? Ids { get; set; } = string.Empty;
         public int? LocationId { get; set; }
-        public string? AutoChargeDate { get; set; } = string.Empty;
+        public DateTime? AutoChargeDate { get; set; }
         public int? Gold { get; set; }
         public decimal? Amount700 { get; set; }
         public int? Business { get; set; }
