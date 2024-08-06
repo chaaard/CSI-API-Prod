@@ -348,25 +348,25 @@ namespace CSI.Application.Services
                                                                     WHEN COUNT([CustomerCode]) > 1 THEN 
                                                                         STUFF((
                                                                             SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  
-                                                                            FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 
+                                                                            FROM [dbo].[tbl_customer] AS temp2 
                                                                             WHERE temp2.[CategoryId] = temp1.[CategoryId] 
                                                                             FOR XML PATH(''), TYPE 
                                                                         ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') 
                                                                     ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) 
                                                                 END AS [CustomerCodes] 
-                                                        FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 
+                                                        FROM [dbo].[tbl_customer] AS temp1 
                                                         WHERE temp1.[DeleteFlag] = 0 
                                                         GROUP BY[CategoryId] 
                                                         ) AS temp3 
-                                                        LEFT JOIN [CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = {isVisible.ToString()} AND temp3.CategoryId != 14
+                                                        LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = {isVisible.ToString()} AND temp3.CategoryId != 13
                                                         UNION
-                                                        Select 14, '9999011984', 'UB Pizza Voucher',1
+                                                        Select 13, '9999011984', 'UB Pizza Voucher',1
                                                         UNION
-                                                        Select 14, '9999011984', 'UB Rebate Issuance',1
+                                                        Select 13, '9999011984', 'UB Rebate Issuance',1
                                                         UNION
-                                                        Select 14, '9999011984', 'UB PV Issuance',1
+                                                        Select 13, '9999011984', 'UB PV Issuance',1
                                                         UNION
-                                                        Select 14, '9999011984', 'UB Renewal',1"
+                                                        Select 13, '9999011984', 'UB Renewal',1"
                                        
                                        ).ToListAsync();
 
@@ -390,17 +390,17 @@ namespace CSI.Application.Services
                                                "       WHEN COUNT([CustomerCode]) > 1 THEN " +
                                                "           STUFF((" +
                                                "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
-                                               "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                               "                FROM [dbo].[tbl_customer] AS temp2 " +
                                                "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
                                                "                FOR XML PATH(''), TYPE " +
                                                "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
                                                "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
                                                "   END AS [CustomerCodes] " +
-                                           "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                           "FROM [dbo].[tbl_customer] AS temp1 " +
                                            "WHERE temp1.[DeleteFlag] = 0 " +
                                            "GROUP BY[CategoryId] " +
                                        ") AS temp3 " +
-                                       "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
+                                       "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
 
                                         result = query.Select(n => new CustomerCodeDto
                                         {
@@ -417,7 +417,7 @@ namespace CSI.Application.Services
                         {
                             var query = await _dbContext.CategoryCode
                                 .FromSqlRaw($@"(Select 0 as [CategoryId], (SELECT STUFF((SELECT ', ' + CustomerCode " +
-                                             "FROM [CSI.Development].[dbo].[tbl_customer] WHERE DeleteFlag = 0" +
+                                             "FROM [dbo].[tbl_customer] WHERE DeleteFlag = 0" +
                                              "FOR XML PATH(''), TYPE " +
                                                 ").value('.', 'NVARCHAR(MAX)'), 1, 2, ''))  AS [CustomerCodes], 'ALL' as [CategoryName], 1 as [IsVisible]) " +
                                                 "UNION " +
@@ -429,17 +429,17 @@ namespace CSI.Application.Services
                                                         "       WHEN COUNT([CustomerCode]) > 1 THEN " +
                                                         "           STUFF((" +
                                                         "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
-                                                        "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                                        "                FROM [dbo].[tbl_customer] AS temp2 " +
                                                         "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
                                                         "                FOR XML PATH(''), TYPE " +
                                                         "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
                                                         "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
                                                         "   END AS [CustomerCodes] " +
-                                                    "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                                    "FROM [dbo].[tbl_customer] AS temp1 " +
                                                     "WHERE temp1.[DeleteFlag] = 0 " +
                                                     "GROUP BY[CategoryId] " +
                                                 ") AS temp3 " +
-                                                "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString())
+                                                "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString())
                                             .ToListAsync();
 
                             result = query.Select(n => new CustomerCodeDto
@@ -464,17 +464,17 @@ namespace CSI.Application.Services
                                         "       WHEN COUNT([CustomerCode]) > 1 THEN " +
                                         "           STUFF((" +
                                         "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
-                                        "                FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 " +
+                                        "                FROM [dbo].[tbl_customer] AS temp2 " +
                                         "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
                                         "                FOR XML PATH(''), TYPE " +
                                         "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
                                         "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
                                         "   END AS [CustomerCodes] " +
-                                    "FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 " +
+                                    "FROM [dbo].[tbl_customer] AS temp1 " +
                                     "WHERE temp1.[DeleteFlag] = 0 " +
                                     "GROUP BY[CategoryId] " +
                                 ") AS temp3 " +
-                                "LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
+                                "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
 
                         result = query.Select(n => new CustomerCodeDto
                         {

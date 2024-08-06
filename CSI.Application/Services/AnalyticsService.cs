@@ -971,7 +971,7 @@ namespace CSI.Application.Services
                                               WHERE CSDATE = {strDate} AND {storeList} AND CSSKU <> 0 AND CSDSTS = 0 AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}')) C 
                                         ON A.CSSTOR = C.CSSTOR AND A.CSDATE = C.CSDATE AND A.CSREG = C.CSREG AND A.CSTRAN = C.CSTRAN
                                         INNER JOIN 
-											(SELECT CustomerCode,CustomerName FROM [CSI.Development].[dbo].[tbl_customer] WHERE DeleteFlag = 0) D
+											(SELECT CustomerCode,CustomerName FROM [dbo].[tbl_customer] WHERE DeleteFlag = 0) D
 										ON B.CSTDOC = D.CustomerCode 
                                         WHERE ({string.Join(" OR ", analyticsParam.memCode.Select(code => $"B.CSTDOC LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})
                                         GROUP BY 
@@ -5952,56 +5952,56 @@ namespace CSI.Application.Services
 													WHEN COUNT([CustomerCode]) > 1 THEN 
 													STUFF((
 													SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  
-													FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 
+													FROM [dbo].[tbl_customer] AS temp2 
 													WHERE temp2.[CategoryId] = temp1.[CategoryId] 
 													FOR XML PATH(''), TYPE 
 													).value('.', 'NVARCHAR(MAX)'), 1, 1, '') 
 													ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) 
 													END AS [CustomerCodes]
-													FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 
-													WHERE temp1.[DeleteFlag] = 0 AND CategoryId IS NOT NULL AND CategoryId NOT IN ('0','14')
+													FROM[dbo].[tbl_customer] AS temp1 
+													WHERE temp1.[DeleteFlag] = 0 AND CategoryId IS NOT NULL AND CategoryId NOT IN ('0','13')
 													GROUP BY[CategoryId] 
 												) AS temp3 
-												LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id]
+												LEFT JOIN[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id]
 												UNION
-												SELECT 14.1, '9999011984-1', 'UB Pizza Voucher'
+												SELECT 13.1, '9999011984-1', 'UB Pizza Voucher'
 												UNION
-												SELECT 14.2, '9999011984-2', 'UB Rebate Issuance'
+												SELECT 13.2, '9999011984-2', 'UB Rebate Issuance'
 												UNION
-												SELECT 14.3, '9999011984-3', 'UB PV Issuance'
+												SELECT 13.3, '9999011984-3', 'UB PV Issuance'
 												UNION
-												SELECT 14.4, '9999011984-4', 'UB Renewal Issuance'
+												SELECT 13.4, '9999011984-4', 'UB Renewal Issuance'
 											) AS Customer
 											LEFT JOIN
 											(
 												SELECT  CSDATE, CSSTOR, CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND 
-												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984''
+												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984'' AND CSDAMT > 0 AND CSTDOC != ''''  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-1' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND 
-												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%''
+												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%'' AND CSDAMT > 0 AND CSTDOC != ''''  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-2' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND 
-												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900
+												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 AND CSTDOC != ''''  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-3' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND 
-												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900
+												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 AND CSTDOC != ''''  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-4' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND 
-												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) 
+												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) AND CSTDOC != ''''   
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 											) AS MMS
 											ON Customer.CustomerCodes LIKE '%' + MMS.CSTDOC + '%'
@@ -6018,25 +6018,25 @@ namespace CSI.Application.Services
 											WHEN COUNT([CustomerCode]) > 1 THEN 
 											STUFF((
 											SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  
-											FROM [CSI.Development].[dbo].[tbl_customer] AS temp2 
+											FROM [dbo].[tbl_customer] AS temp2 
 											WHERE temp2.[CategoryId] = temp1.[CategoryId] 
 											FOR XML PATH(''), TYPE 
 											).value('.', 'NVARCHAR(MAX)'), 1, 1, '') 
 											ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) 
 											END AS [CustomerCodes]
-											FROM[CSI.Development].[dbo].[tbl_customer] AS temp1 
-											WHERE temp1.[DeleteFlag] = 0 AND CategoryId IS NOT NULL AND CategoryId NOT IN ('0','14')
+											FROM[dbo].[tbl_customer] AS temp1 
+											WHERE temp1.[DeleteFlag] = 0 AND CategoryId IS NOT NULL AND CategoryId NOT IN ('0','13')
 											GROUP BY[CategoryId]  
 											) AS temp3 
-											LEFT JOIN[CSI.Development].[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id]
+											LEFT JOIN[dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id]
 											UNION
-											SELECT 14.1, '9999011984-1', 'UB Pizza Voucher'
+											SELECT 13.1, '9999011984-1', 'UB Pizza Voucher'
 											UNION
-											SELECT 14.2, '9999011984-2', 'UB Rebate Issuance'
+											SELECT 13.2, '9999011984-2', 'UB Rebate Issuance'
 											UNION
-											SELECT 14.3, '9999011984-3', 'UB PV Issuance'
+											SELECT 13.3, '9999011984-3', 'UB PV Issuance'
 											UNION
-											SELECT 14.4, '9999011984-4', 'UB Renewal Issuance'
+											SELECT 13.4, '9999011984-4', 'UB Renewal Issuance'
 											) AS Customer
 											LEFT JOIN
 											(
