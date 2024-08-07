@@ -21,7 +21,7 @@ namespace CSI.Application.Interfaces
         Task<int> SaveException(AnalyticsProoflistDto analyticsParam);
         Task<bool> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto);
-        Task<bool> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto);
+        Task<(bool,string)> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<(List<InvoiceDto>, bool)> GenerateInvoiceAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<(bool, bool)> IsSubmittedGenerated(AnalyticsParamsDto analyticsParamsDto);
         Task UpdateUploadStatus(AnalyticsParamsDto analyticsParamsDto);

@@ -679,7 +679,11 @@ namespace CSI.Application.Services
             try { 
                 if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
                 {
-                    foreach (var memCode in analyticsParamsDto.memCode)
+                    var resultCustomerCode = _dbContext.CustomerCodes
+                        .Where(x => x.DeleteFlag == false)
+                        .Select(x => x.CustomerCode)
+                        .ToList();
+                    foreach (var memCode in resultCustomerCode)
                     {
 
 
@@ -2098,7 +2102,7 @@ namespace CSI.Application.Services
         }
 
 
-        public async Task<bool> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        public async Task<(bool,string)> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
             string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
             string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
@@ -2109,6 +2113,8 @@ namespace CSI.Application.Services
             bool hasUBRebateIssuance = false;
             bool hasUBPVIssuance = false;
             bool hasUBRenewal = false;
+            List<string> merchantName = new List<string>();
+            DateTime date;
             try
             {
                 var isPending = true;
@@ -2142,14 +2148,24 @@ namespace CSI.Application.Services
                     }
                 }
 
+
                 var result = await ReturnAnalytics(analyticsParamsDto);
 
                 if (result == null || result.Count() == 0)
                 {
-                    return false;
+                    if (merchantName.Count == 0)
+                    {
+                        return (false, "");
+                    }
+                    else
+                    {
+                        return (false, merchantName.ToString());
+                    }
                 }
 
+
                 var withProofList = new List<string> { "9999011955", "9999011929", "9999011838", "9999011935", "9999011931", "9999011855" };
+
                 if (analyticsParamsDto.memCode != null && analyticsParamsDto.memCode.Any(code => withProofList.Contains(code)))
                 {
                     var CheckIfUpload = result.Where(x => x.IsUpload == true).Any();
@@ -2169,161 +2185,225 @@ namespace CSI.Application.Services
                         _dbContext.Logs.Add(logsMap);
                         await _dbContext.SaveChangesAsync();
 
-                        return false;
+                        if (merchantName.Count == 0)
+                        {
+                            return (false, "");
+                        }
+                        else
+                        {
+                            return (false, merchantName.ToString());
+                        }
                     }
                 }
 
+                if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
+                {
+
+                    var resultExceptions = await _dbContext.AnalyticsExceptions
+                        .FromSqlRaw($@"
+                                    SELECT DISTINCT a.CustomerId,c.CustomerName,b.StatusId 
+	                                    FROM [tbl_analytics] AS a 
+	                                    LEFT JOIN [tbl_analytics_prooflist] AS b 
+                                        ON a.Id = b.AnalyticsId
+	                                    LEFT JOIN [tbl_customer] c
+	                                    ON a.CustomerId = c.CustomerCode 
+	                                    WHERE b.StatusId = 5 AND 
+	                                    CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND 
+	                                    LocationId = {analyticsParamsDto.storeId[0]}    
+                                    ")
+                                        .ToListAsync();
+
+                    var hasExceptions = resultExceptions
+                                 .Where(a => withProofList.Contains(a.CustomerId?.ToString()));
+
+                    bool memCodeContainsProofList = withProofList.Any(proof => analyticsParamsDto.memCode.Contains(proof));
+
+                    if (memCodeContainsProofList)
+                    {
+                        if (hasExceptions.Any())
+                        {
+
+                            foreach (var exception in hasExceptions)
+                            {
+                                analyticsParamsDto.memCode.Remove(exception.CustomerId);
+                                merchantName.Add(exception.CustomerName);
+                            }
+                        }
+
+                    }
 
 
-                var resultNonUB = result
+                    var resultAnalytics = await ReturnAnalytics(analyticsParamsDto);
+
+                    if (resultAnalytics == null || resultAnalytics.Count() == 0)
+                    {
+                        if (merchantName.Count == 0)
+                        {
+                            return (false, "");
+                        }
+                        else
+                        {
+                            return (false, string.Join(", ", merchantName));
+                        }
+                    }
+
+
+                    var resultNonUB = resultAnalytics
                             .Where(a => a.CustomerId?.ToString() != "9999011984")
                             .ToList();
 
-                foreach (var analytics in resultNonUB)
-                {
-                    analytics.StatusId = 3;
-                }
-                var analyticsEntityListNonUB = resultNonUB.Select(analyticsDto =>
-                {
-                    var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                    analyticsEntity.StatusId = 3;
-                    analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                    return analyticsEntity;
-                }).ToList();
+                    foreach (var analytics in resultNonUB)
+                    {
+                        analytics.StatusId = 3;
+                    }
+                    var analyticsEntityListNonUB = resultNonUB.Select(analyticsDto =>
+                    {
+                        var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                        analyticsEntity.StatusId = 3;
+                        analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                        return analyticsEntity;
+                    }).ToList();
 
-                _dbContext.BulkUpdate(analyticsEntityListNonUB);
-                await _dbContext.SaveChangesAsync();
-                analyticsCnt += analyticsEntityListNonUB.Count();
-
-
+                    _dbContext.BulkUpdate(analyticsEntityListNonUB);
+                    await _dbContext.SaveChangesAsync();
+                    analyticsCnt += analyticsEntityListNonUB.Count();
 
 
+                    if (hasUBPizzaVoucher)
+                    {
+                        var resultUBPV = resultAnalytics
+                                    .Where(a => a.CustomerId?.ToString() == "9999011984" && !a.OrderNo.ToUpper().Contains("CSI") && !a.OrderNo.ToUpper().Contains("PV"))
+                                    .ToList();
 
-                if (hasUBPizzaVoucher)
-                {
-                    var resultUBPV = result
-                                .Where(a => a.CustomerId?.ToString() == "9999011984" && !a.OrderNo.ToUpper().Contains("CSI") && !a.OrderNo.ToUpper().Contains("PV"))
+                        if (resultUBPV.Any())
+                        {
+                            foreach (var analytics in resultUBPV)
+                            {
+                                analytics.StatusId = 3;
+                            }
+                            var analyticsEntityListUB = resultUBPV.Select(analyticsDto =>
+                            {
+                                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                                analyticsEntity.StatusId = 3;
+                                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                                return analyticsEntity;
+                            }).ToList();
+
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
+                            analyticsCnt += analyticsEntityListUB.Count();
+                        }
+
+                    }
+
+                    if (hasUBRebateIssuance)
+                    {
+                        var resultUBRI = resultAnalytics
+                                .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("CSI") && a.SubTotal > 900)
                                 .ToList();
 
-                    if (resultUBPV.Any())
-                    {
-                        foreach (var analytics in resultUBPV)
+                        if (resultUBRI.Any())
                         {
-                            analytics.StatusId = 3;
-                        }
-                        var analyticsEntityListUB = resultUBPV.Select(analyticsDto =>
-                        {
-                            var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                            analyticsEntity.StatusId = 3;
-                            analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                            return analyticsEntity;
-                        }).ToList();
+                            foreach (var analytics in resultUBRI)
+                            {
+                                analytics.StatusId = 3;
+                            }
+                            var analyticsEntityListUB = resultUBRI.Select(analyticsDto =>
+                            {
+                                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                                analyticsEntity.StatusId = 3;
+                                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                                return analyticsEntity;
+                            }).ToList();
 
-                        _dbContext.BulkUpdate(analyticsEntityListUB);
-                        await _dbContext.SaveChangesAsync();
-                        analyticsCnt += analyticsEntityListUB.Count();
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
+                            analyticsCnt += analyticsEntityListUB.Count();
+                        }
                     }
 
+                    if (hasUBPVIssuance)
+                    {
+                        var resultUBPVI = resultAnalytics
+                                .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("PV") && a.SubTotal > 900)
+                                .ToList();
+
+                        if (resultUBPVI.Any())
+                        {
+                            foreach (var analytics in resultUBPVI)
+                            {
+                                analytics.StatusId = 3;
+                            }
+                            var analyticsEntityListUB = resultUBPVI.Select(analyticsDto =>
+                            {
+                                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                                analyticsEntity.StatusId = 3;
+                                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                                return analyticsEntity;
+                            }).ToList();
+
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
+                            analyticsCnt += analyticsEntityListUB.Count();
+                        }
+                    }
+
+                    if (hasUBRenewal)
+                    {
+                        var resultUBR = resultAnalytics
+                                .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("CSI") &&
+                                                (a.SubTotal == 700 || a.SubTotal == 400 || a.SubTotal == 900))
+                                .ToList();
+
+                        if (resultUBR.Any())
+                        {
+                            foreach (var analytics in resultUBR)
+                            {
+                                analytics.StatusId = 3;
+                            }
+                            var analyticsEntityListUB = resultUBR.Select(analyticsDto =>
+                            {
+                                var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
+                                analyticsEntity.StatusId = 3;
+                                analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
+                                return analyticsEntity;
+                            }).ToList();
+
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
+                            analyticsCnt += analyticsEntityListUB.Count();
+                        }
+                    }
+
+
+
+
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = analyticsParamsDto.userId,
+                        Date = DateTime.Now,
+                        Action = "Submit Analytics",
+                        Remarks = $"Success",
+                        RowsCountAfter = analyticsCnt,
+                        Club = clubLogs,
+                        CustomerId = merchantLogs
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
                 }
 
-                if (hasUBRebateIssuance)
+
+                if (merchantName.Count == 0)
                 {
-                    var resultUBRI = result
-                            .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("CSI") && a.SubTotal > 900)
-                            .ToList();
-
-                    if (resultUBRI.Any())
-                    {
-                        foreach (var analytics in resultUBRI)
-                        {
-                            analytics.StatusId = 3;
-                        }
-                        var analyticsEntityListUB = resultUBRI.Select(analyticsDto =>
-                        {
-                            var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                            analyticsEntity.StatusId = 3;
-                            analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                            return analyticsEntity;
-                        }).ToList();
-
-                        _dbContext.BulkUpdate(analyticsEntityListUB);
-                        await _dbContext.SaveChangesAsync();
-                        analyticsCnt += analyticsEntityListUB.Count();
-                    }
+                    return (isPending, "");
                 }
-
-                if (hasUBPVIssuance) 
+                else
                 {
-                    var resultUBPVI = result
-                            .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("PV") && a.SubTotal > 900)
-                            .ToList();
-
-                    if (resultUBPVI.Any())
-                    {
-                        foreach (var analytics in resultUBPVI)
-                        {
-                            analytics.StatusId = 3;
-                        }
-                        var analyticsEntityListUB = resultUBPVI.Select(analyticsDto =>
-                        {
-                            var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                            analyticsEntity.StatusId = 3;
-                            analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                            return analyticsEntity;
-                        }).ToList();
-
-                        _dbContext.BulkUpdate(analyticsEntityListUB);
-                        await _dbContext.SaveChangesAsync();
-                        analyticsCnt += analyticsEntityListUB.Count();
-                    }
-                }
-
-                if (hasUBRenewal) 
-                {
-                    var resultUBR = result
-                            .Where(a => a.CustomerId?.ToString() == "9999011984" && a.OrderNo.ToUpper().Contains("CSI") &&
-                                            (a.SubTotal == 700 || a.SubTotal == 400 || a.SubTotal == 900))
-                            .ToList();
-
-                    if (resultUBR.Any())
-                    {
-                        foreach (var analytics in resultUBR)
-                        {
-                            analytics.StatusId = 3;
-                        }
-                        var analyticsEntityListUB = resultUBR.Select(analyticsDto =>
-                        {
-                            var analyticsEntity = _mapper.Map<Analytics>(analyticsDto);
-                            analyticsEntity.StatusId = 3;
-                            analyticsEntity.LocationId = analyticsParamsDto.storeId[0];
-                            return analyticsEntity;
-                        }).ToList();
-
-                        _dbContext.BulkUpdate(analyticsEntityListUB);
-                        await _dbContext.SaveChangesAsync();
-                        analyticsCnt += analyticsEntityListUB.Count();
-                    }
-                }
-
-
                     
-                
-
-                logsDto = new LogsDto
-                {
-                    UserId = analyticsParamsDto.userId,
-                    Date = DateTime.Now,
-                    Action = "Submit Analytics",
-                    Remarks = $"Success",
-                    RowsCountAfter = analyticsCnt,
-                    Club = clubLogs,
-                    CustomerId = merchantLogs
-                };
-                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
-                _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
-
-                return isPending;
+                    return (isPending, string.Join(", ", merchantName));
+                }
             }
             catch (Exception ex)
             {
@@ -5876,7 +5956,7 @@ namespace CSI.Application.Services
                             $"AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTLIN = 720 AND CSREG = 0 AND CSTIL = 0')) AS [A] " +
                             $"CROSS JOIN (SELECT SUM(SubTotal)[CSI] " +
                             $"FROM (SELECT LocationId, FORMAT(CAST(TransactionDate AS DATE),'yyMMdd')[TransactionDate], SUM(SubTotal)[SubTotal] " +
-                            $"FROM tbl_analytics WHERE DeleteFlag = 0 AND CustomerId IN ({merchantLogs}) GROUP BY LocationId, TransactionDate, SubTotal)[Z] " +
+                            $"FROM tbl_analytics WHERE DeleteFlag = 0 AND CustomerId IN (SELECT CustomerCode FROM [tbl_customer] WHERE DeleteFlag = 0) GROUP BY LocationId, TransactionDate, SubTotal)[Z] " +
                             $"WHERE LocationId = {refreshAnalyticsDto.storeId[0]} AND TransactionDate = {formattedDate}) AS [B] GROUP BY A.MMS, B.CSI")
                         .ToListAsync();
 
@@ -5976,32 +6056,37 @@ namespace CSI.Application.Services
 											(
 												SELECT  CSDATE, CSSTOR, CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
-												FROM MMJDALIB.CSHTND 
+												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984'' AND CSDAMT > 0 AND CSTDOC != ''''  
+                                                AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-1' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
-												FROM MMJDALIB.CSHTND 
+												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%'' AND CSDAMT > 0 AND CSTDOC != ''''  
+                                                AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-2' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
-												FROM MMJDALIB.CSHTND 
+												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 AND CSTDOC != ''''  
+                                                AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-3' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
-												FROM MMJDALIB.CSHTND 
+												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 AND CSTDOC != ''''  
+                                                AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSTDOC != ''''  AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-4' AS CSTDOC, CSDTYP, CSDAMT
 												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
-												FROM MMJDALIB.CSHTND 
+												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) AND CSTDOC != ''''   
+                                                AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 											) AS MMS
 											ON Customer.CustomerCodes LIKE '%' + MMS.CSTDOC + '%'

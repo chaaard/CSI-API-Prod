@@ -55,6 +55,7 @@ namespace CSI.Infrastructure.Data
             GenerateUBRenewal = Set<GenerateUBRenewal>();
             AccountingChronology = Set<AccountingChronology>();
             AccountingBalancesDetails = Set<AccountingBalancesDetails>();
+            AnalyticsExceptions = Set<AnalyticsExceptions>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -74,6 +75,7 @@ namespace CSI.Infrastructure.Data
         public DbSet<AccountingMatch> AccountingMatch { get; set; }
         public DbSet<Roles> Roles { get; set; }
         public DbSet<AnalyticsView> AnalyticsView { get; set; }
+        public DbSet<AnalyticsExceptions> AnalyticsExceptions { get; set; }
         public DbSet<Source> Source { get; set; }
         public DbSet<AdjustmentExceptions> AdjustmentExceptions { get; set; }
         public DbSet<GenerateInvoice> GenerateInvoice { get; set; }
@@ -226,7 +228,10 @@ namespace CSI.Infrastructure.Data
             .ToTable("tbl_accounting_chronology");
 
             modelBuilder.Entity<AccountingBalancesDetails>()
-            .HasNoKey();
+            .HasNoKey(); 
+
+            modelBuilder.Entity<AnalyticsExceptions>()
+            .HasNoKey(); 
         }
     }
 }
