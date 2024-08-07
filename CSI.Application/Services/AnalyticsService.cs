@@ -2208,6 +2208,7 @@ namespace CSI.Application.Services
 	                                    LEFT JOIN [tbl_customer] c
 	                                    ON a.CustomerId = c.CustomerCode 
 	                                    WHERE b.StatusId = 5 AND 
+	                                    a.DeleteFlag = 0 AND
 	                                    CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND 
 	                                    LocationId = {analyticsParamsDto.storeId[0]}    
                                     ")
@@ -2228,6 +2229,7 @@ namespace CSI.Application.Services
                                 analyticsParamsDto.memCode.Remove(exception.CustomerId);
                                 merchantName.Add(exception.CustomerName);
                             }
+                            return (false, string.Join(", ", merchantName));
                         }
 
                     }
@@ -2243,7 +2245,7 @@ namespace CSI.Application.Services
                         }
                         else
                         {
-                            return (false, string.Join(", ", merchantName));
+                            
                         }
                     }
 
