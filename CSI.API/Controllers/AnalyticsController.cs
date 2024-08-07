@@ -252,11 +252,13 @@ namespace CSI.API.Controllers
         {
             var result = await _analyticsService.SubmitAllAnalytics(analyticsParamsDto);
 
-            if (result != null)
+            var data = new
             {
-                return (Ok(result));
-            }
-            return (NotFound());
+                IsPending = result.Item1,
+                MerchantNames = result.Item2
+            };
+
+            return (Ok(data));
         }
 
         [HttpPost("GenerateInvoiceAnalytics")]
