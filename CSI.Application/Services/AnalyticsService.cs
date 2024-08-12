@@ -2455,6 +2455,11 @@ namespace CSI.Application.Services
                     return false;
                 }
 
+                if (result == null || result.Count() == 0)
+                {
+                    return false;
+                }
+
                 foreach (var analytics in result)
                 {
                     analytics.StatusId = 3;
