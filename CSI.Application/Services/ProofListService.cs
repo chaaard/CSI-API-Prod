@@ -2297,7 +2297,7 @@ namespace CSI.Application.Services
                                 {
                                     var prooflist = new AccountingProoflist
                                     {
-                                        CustomerId = customerNo,
+                                        CustomerId = "9999011929",
                                         TransactionDate = transactionDate,
                                         OrderNo = orderNo,
                                         NonMembershipFee = (decimal?)0.00,

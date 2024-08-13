@@ -3957,7 +3957,7 @@ namespace CSI.Application.Services
                                         }
                                     }
                                 }
-                                else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB PV ISSUANCE")
+                                else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB RENEWAL")
                                 {
                                     var filteredResultUBAR = filteredResultWithUB
                                    .Where(r => r.OrderNo.ToUpper().ToString().Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900))
@@ -4268,8 +4268,6 @@ namespace CSI.Application.Services
                                         }
                                     }
                                 }
-
-
                             }
                             else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "GCASH")
                             {
@@ -5510,7 +5508,7 @@ namespace CSI.Application.Services
                                     END AS [ProofListAmount],  
                                     p.[OrderNo] AS [ProofListOrderNo], 
                                     p.[TransactionDate] AS [ProofListTransactionDate],  
-                                    l.LocationName AS [ProofListLocation], 
+                                    lo.LocationName AS [ProofListLocation], 
                                     c.[CustomerName] AS [ProofListPartner],
                                     p.AgencyFee AS [ProofListAgencyFee],
                                     ac.[StatusName] AS [Status]
@@ -5521,6 +5519,7 @@ namespace CSI.Application.Services
                                     LEFT JOIN [dbo].[tbl_accounting_status] ac ON ac.Id = am.AccountingStatusId 
                                     LEFT JOIN [dbo].[tbl_accounting_prooflist] p ON p.Id = am.AccountingProoflistId
                                     LEFT JOIN [dbo].[tbl_accounting_adjustments] aa ON aa.Id = am.AccountingAdjustmentId
+                                    LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId 
                                 WHERE ({cstDocCondition}) OR ({cstDocCondition1})")
                    .AsQueryable();
 
