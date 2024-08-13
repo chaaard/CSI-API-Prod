@@ -1389,7 +1389,7 @@ namespace CSI.Application.Services
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT)");
                 // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
 
-                int memCnt = 90;
+                int memCnt = 85;
                 var rem = memCodeLast6Digits.Count() % memCnt;
                 var cnt = memCodeLast6Digits.Count() / memCnt;
                 int itemCnt = cnt + (rem > 0 ? 1 : 0);
@@ -1402,7 +1402,7 @@ namespace CSI.Application.Services
                     }
                     else
                     {
-                        List<string> nextItems = memCodeLast6Digits.Skip(memCnt).Take(90).ToList();
+                        List<string> nextItems = memCodeLast6Digits.Skip(memCnt).Take(memCnt).ToList();
                         cstDocCond = string.Join(" OR ", nextItems.Select(last6Digits => $"(CSDATE BETWEEN {strFrom} AND {strTo}) AND CSTDOC LIKE ''%{last6Digits}%'' AND {storeList}"));
 
                         memCnt += memCnt;
@@ -2163,14 +2163,7 @@ namespace CSI.Application.Services
 
                 if (result == null || result.Count() == 0)
                 {
-                    if (merchantName.Count == 0)
-                    {
-                        return (false, "");
-                    }
-                    else
-                    {
-                        return (false, merchantName.ToString());
-                    }
+                    return (false, "");
                 }
 
 
@@ -2195,67 +2188,12 @@ namespace CSI.Application.Services
                         _dbContext.Logs.Add(logsMap);
                         await _dbContext.SaveChangesAsync();
 
-                        if (merchantName.Count == 0)
-                        {
-                            return (false, "");
-                        }
-                        else
-                        {
-                            return (false, merchantName.ToString());
-                        }
+                        return (false, "");
                     }
                 }
 
                 if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
                 {
-
-                    //var resultExceptions = await _dbContext.AnalyticsExceptions
-                    //    .FromSqlRaw($@"
-                    //                SELECT DISTINCT a.CustomerId,c.CustomerName,b.StatusId 
-	                   //                 FROM [tbl_analytics] AS a 
-	                   //                 LEFT JOIN [tbl_analytics_prooflist] AS b 
-                    //                    ON a.Id = b.AnalyticsId
-	                   //                 LEFT JOIN [tbl_customer] c
-	                   //                 ON a.CustomerId = c.CustomerCode 
-	                   //                 WHERE b.StatusId = 5 AND 
-	                   //                 a.DeleteFlag = 0 AND
-	                   //                 CAST(a.TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND 
-	                   //                 LocationId = {analyticsParamsDto.storeId[0]}    
-                    //                ")
-                    //                    .ToListAsync();
-
-                    //var hasExceptions = resultExceptions
-                    //             .Where(a => withProofList.Contains(a.CustomerId?.ToString()));
-
-                    //bool memCodeContainsProofList = withProofList.Any(proof => analyticsParamsDto.memCode.Contains(proof));
-
-                    //if (memCodeContainsProofList)
-                    //{
-                    //    if (hasExceptions.Any())
-                    //    {
-                    //        foreach (var exception in hasExceptions)
-                    //        {
-                    //            analyticsParamsDto.memCode.Remove(exception.CustomerId);
-                    //            merchantName.Add(exception.CustomerName);
-                    //        }
-                    //        return (false, string.Join(", ", merchantName));
-                    //    }
-                    //}
-
-
-                    //var resultAnalytics = await ReturnAnalytics(analyticsParamsDto);
-                    //if (resultAnalytics == null || resultAnalytics.Count() == 0)
-                    //{
-                    //    if (merchantName.Count == 0)
-                    //    {
-                    //        return (false, "");
-                    //    }
-                    //    else
-                    //    {
-                    //        return (false, string.Join(", ", merchantName));
-                    //    }
-                    //}
-
 
                     var resultNonUB = result
                             .Where(a => a.CustomerId?.ToString() != "9999011984")
@@ -2404,15 +2342,7 @@ namespace CSI.Application.Services
                 }
 
 
-                if (merchantName.Count == 0)
-                {
-                    return (isPending, "");
-                }
-                else
-                {
-                    
-                    return (isPending, string.Join(", ", merchantName));
-                }
+                return (isPending, "");
             }
             catch (Exception ex)
             {
@@ -3743,6 +3673,7 @@ namespace CSI.Application.Services
                                         };
 
                                         var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                        getAnalytics = getAnalytics.Where(r => !r.OrderNo.ToUpper().ToString().Contains("CSI") && !r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
                                         if (getAnalytics.Any())
                                         {
                                             getAnalytics.ForEach(analyticsDto =>
@@ -3875,6 +3806,7 @@ namespace CSI.Application.Services
                                             };
 
                                             var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                            getAnalytics = getAnalytics.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("CSI")).ToList();
                                             if (getAnalytics.Any())
                                             {
                                                 getAnalytics.ForEach(analyticsDto =>
@@ -4009,6 +3941,7 @@ namespace CSI.Application.Services
                                             };
 
                                             var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                            getAnalytics = getAnalytics.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
                                             if (getAnalytics.Any())
                                             {
                                                 getAnalytics.ForEach(analyticsDto =>
@@ -4170,6 +4103,7 @@ namespace CSI.Application.Services
                                             };
 
                                             var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                            getAnalytics = getAnalytics.Where(r => r.OrderNo.ToUpper().ToString().Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900)).ToList();
                                             if (getAnalytics.Any())
                                             {
                                                 getAnalytics.ForEach(analyticsDto =>
@@ -4318,6 +4252,7 @@ namespace CSI.Application.Services
                                             };
 
                                             var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                            getAnalytics = getAnalytics.Where(r => r.CustomerId != "9999011984").ToList();
                                             if (getAnalytics.Any())
                                             {
                                                 getAnalytics.ForEach(analyticsDto =>
