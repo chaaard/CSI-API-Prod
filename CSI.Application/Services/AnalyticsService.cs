@@ -2455,6 +2455,11 @@ namespace CSI.Application.Services
                     return false;
                 }
 
+                if (result == null || result.Count() == 0)
+                {
+                    return false;
+                }
+
                 foreach (var analytics in result)
                 {
                     analytics.StatusId = 3;
@@ -2678,9 +2683,14 @@ namespace CSI.Application.Services
                 if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out dateFrom) &&
                     DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out dateTo))
                 {
+                    var dateF = dateFrom.Date;
+                    var dateT = dateTo.Date;
                     var genInvoice = await _dbContext.GenerateInvoice
-                        .Where(x => x.TransactionDate >= dateFrom.Date && x.TransactionDate <= dateTo.Date && analyticsParamsDto.storeId.Contains(x.Club) && x.CustomerCode.Contains(memCodeLast6Digits[0]))
-                        .ToListAsync();
+                    .Where(x => x.TransactionDate >= dateFrom.Date &&
+                                x.TransactionDate <= dateTo.Date &&
+                                analyticsParamsDto.storeId.Contains(x.Club) &&
+                                analyticsParamsDto.memCode.Contains(x.CustomerCode))
+                    .ToListAsync();
 
                     generatedInvoice.AddRange(genInvoice);
                 }
