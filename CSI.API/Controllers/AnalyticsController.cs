@@ -447,7 +447,7 @@ namespace CSI.API.Controllers
         [HttpPost("ManualReload")]
         public async Task ManualReload(RefreshAnalyticsDto refreshAnalyticsDto)
         {
-            //await _analyticsService.ManualReload(refreshAnalyticsDto);
+            await _analyticsService.ManualReload(refreshAnalyticsDto);
         }
 
         [HttpPost("GetAnalyticsToUndoSubmit")]
