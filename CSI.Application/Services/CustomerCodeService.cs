@@ -413,6 +413,48 @@ namespace CSI.Application.Services
                                 }).ToList();
                                 return (result);
                             }
+                            else if (pagination.FromPage == "exceptionreport")
+                            {
+                                var query = await _dbContext.CategoryCode
+                                   .FromSqlRaw($@"Select 0 as [CategoryId],
+                                                          STUFF((
+                                                              SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  
+                                                               FROM [dbo].[tbl_customer] AS temp2 
+															   WHERE temp2.DeleteFlag = 0
+                                                               FOR XML PATH(''), TYPE 
+                                                           ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') 
+                                                   AS [CustomerCodes] ,'All' as [CategoryName],1 as [IsVisible]
+									   UNION SELECT temp3.[CategoryId], temp3.[CustomerCodes], temp4.[CategoryName], 1 as [IsVisible]" +
+                                       "FROM ( " +
+                                           "SELECT " +
+                                               "   [CategoryId], " +
+                                               "   CASE " +
+                                               "       WHEN COUNT([CustomerCode]) > 1 THEN " +
+                                               "           STUFF((" +
+                                               "               SELECT ',' + CONVERT(VARCHAR(MAX), [CustomerCode])  " +
+                                               "                FROM [dbo].[tbl_customer] AS temp2 " +
+                                               "                WHERE temp2.[CategoryId] = temp1.[CategoryId] " +
+                                               "                FOR XML PATH(''), TYPE " +
+                                               "            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') " +
+                                               "       ELSE   CONVERT(VARCHAR(MAX), MAX([CustomerCode])) " +
+                                               "   END AS [CustomerCodes] " +
+                                           "FROM [dbo].[tbl_customer] AS temp1 " +
+                                           "WHERE temp1.[DeleteFlag] = 0 " +
+                                           "GROUP BY[CategoryId] " +
+                                       ") AS temp3 " +
+                                       "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString() +
+                                       "UNION Select 990,'9999011915','Lazada',1" +
+                                       "UNION Select 991,'9999011914','Shopee',1").ToListAsync();
+
+                                result = query.Select(n => new CustomerCodeDto
+                                {
+                                    CategoryId = n.CategoryId,
+                                    CustomerCodes = ConvertCommaSeparatedStringToList(n.CustomerCodes),
+                                    CategoryName = n.CategoryName,
+                                    IsVisible = Convert.ToBoolean(n.IsVisible)
+                                }).ToList();
+                                return (result);
+                            }
                             else
                             {
                                 var query = await _dbContext.CategoryCode
