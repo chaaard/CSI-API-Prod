@@ -852,6 +852,7 @@ namespace CSI.Application.Services
 														innerTable.LocationId = [tbl_analytics].LocationId
 														AND innerTable.TransactionDate = [tbl_analytics].TransactionDate
 														AND innerTable.OrderNo = [tbl_analytics].OrderNo
+												        AND innerTable.SubTotal = [tbl_analytics].SubTotal
 													FOR XML PATH(''), TYPE
 												).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS [Ids],
 	                                            LocationId,
@@ -865,7 +866,7 @@ namespace CSI.Application.Services
 	                                            TransactionDate as [TransactedDate],
 	                                            AutoChargeDate as [AutoChargeDate] 
                                             FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 700 AND CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId IN {storeList}
-                                            GROUP BY LocationId,TransactionDate,OrderNo,AutoChargeDate
+                                            GROUP BY LocationId,TransactionDate,OrderNo,SubTotal,AutoChargeDate
                                             UNION
                                             SELECT 
 												STUFF((
@@ -875,6 +876,7 @@ namespace CSI.Application.Services
 														innerTable.LocationId = [tbl_analytics].LocationId
 														AND innerTable.TransactionDate = [tbl_analytics].TransactionDate
 														AND innerTable.OrderNo = [tbl_analytics].OrderNo
+												        AND innerTable.SubTotal = [tbl_analytics].SubTotal
 													FOR XML PATH(''), TYPE
 												).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS [Ids],
 	                                            LocationId,
@@ -888,7 +890,7 @@ namespace CSI.Application.Services
 	                                            TransactionDate as [TransactedDate],
 	                                            AutoChargeDate as [AutoChargeDate]  
                                             FROM [dbo].[tbl_analytics] WHERE  CustomerId = '{analyticsParam.memCode[0].ToString()}' AND SubTotal = 900 AND CAST(TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND LocationId IN {storeList}
-                                            GROUP BY LocationId,TransactionDate,OrderNo,AutoChargeDate
+                                            GROUP BY LocationId,TransactionDate,OrderNo,SubTotal,AutoChargeDate
 											Order by TransactedDate
                                     ")
                                     .ToListAsync();
