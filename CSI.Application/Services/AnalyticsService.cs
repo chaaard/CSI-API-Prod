@@ -1993,6 +1993,7 @@ namespace CSI.Application.Services
 
                     var tableNames = new[]
                     {
+                        $"ANALYTICS_CSHTND_AR_{strStamp}",
                         $"ANALYTICS_CSHTND{strStamp}",
                         $"ANALYTICS_CSHHDR{strStamp}",
                         $"ANALYTICS_CONDTX{strStamp}",
