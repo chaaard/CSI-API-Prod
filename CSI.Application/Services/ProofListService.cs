@@ -1787,18 +1787,18 @@ namespace CSI.Application.Services
                         }
 
                         var getProofListId = proofList
-                            .Select(n => n.OrderNo)
+                            .Select(n => n.OrderNo.Trim().ToLower())
                             .ToList();
 
                         var getPreviousProofList = _dbContext.AccountingProoflists
-                            .Where(x => getProofListId.Contains(x.OrderNo))
+                            .Where(x => getProofListId.Contains(x.OrderNo.Trim().ToLower()))
                             .ToList();
 
                         if (getPreviousProofList.Count >= 1)
                         {
                             foreach (var previousProof in getPreviousProofList)
                             {
-                                var newProof = proofList.FirstOrDefault(p => p.OrderNo == previousProof.OrderNo);
+                                var newProof = proofList.FirstOrDefault(p => p.OrderNo.Trim().ToLower() == previousProof.OrderNo.Trim().ToLower());
                                 if (newProof != null)
                                 {
                                     var accountingMatch = await _dbContext.AccountingMatchPayment
@@ -1871,7 +1871,7 @@ namespace CSI.Application.Services
 
                             foreach (var proof in getPreviousProofList)
                             {
-                                var filteredProofList = proofList.Where(p => p.OrderNo == proof.OrderNo).ToList();
+                                var filteredProofList = proofList.Where(p => p.OrderNo.Trim().ToLower() == proof.OrderNo.Trim().ToLower()).ToList();
                                 foreach (var item in filteredProofList)
                                 {
                                     item.StatusId = 7;
@@ -1879,7 +1879,7 @@ namespace CSI.Application.Services
                             }
 
                             var updatedProofList = getPreviousProofList
-                                .Where(p => getProofListId.Contains(p.OrderNo))
+                                .Where(p => getProofListId.Contains(p.OrderNo.Trim().ToLower()))
                                 .ToList();
                         }
                     }
@@ -1897,7 +1897,7 @@ namespace CSI.Application.Services
                         foreach (var proof in savedProofLists)
                         {
                             var matchedAnalytics = _dbContext.AccountingAnalytics
-                                .Where(aa => aa.OrderNo == proof.OrderNo
+                                .Where(aa => aa.OrderNo.Trim().ToLower() == proof.OrderNo.Trim().ToLower()
                                              && aa.TransactionDate == proof.TransactionDate
                                              && aa.LocationId == proof.StoreId)
                                 .FirstOrDefault();
@@ -1908,11 +1908,33 @@ namespace CSI.Application.Services
                                     .Where(am => am.AccountingAnalyticsId == matchedAnalytics.Id)
                                     .FirstOrDefault();
 
-                                int accountingStatusId = (matchedAnalytics.SubTotal == null) ? 4 :
-                                                          (proof.Amount == null) ? 5 :
-                                                          matchedAnalytics.SubTotal == proof.Amount ? 1 :
-                                                          matchedAnalytics.SubTotal > proof.Amount ? 2 :
-                                                          matchedAnalytics.SubTotal < proof.Amount ? 3 : 4;
+                                int accountingStatusId;
+
+                                if (matchedAnalytics.SubTotal == null)
+                                {
+                                    accountingStatusId = 4;
+                                }
+                                else if (proof.Amount == null)
+                                {
+                                    accountingStatusId = 5;
+                                }
+                                else
+                                {
+                                    var subTotal = matchedAnalytics.SubTotal ?? 0;
+                                    var amount = proof.Amount ?? 0;
+                                    var difference = subTotal - amount;
+
+                                    if (difference <= 1.0M && difference >= -1.0M)
+                                    {
+                                        accountingStatusId = 1;
+                                    }
+                                    else
+                                    {
+                                        accountingStatusId = subTotal == amount ? 1 :
+                                                             subTotal > amount ? 2 :
+                                                             subTotal < amount ? 3 : 4;
+                                    }
+                                }
 
                                 if (accountingMatch != null)
                                 {
@@ -1949,7 +1971,7 @@ namespace CSI.Application.Services
                             if (proof.StatusId != 7)
                             {
                                 var matchedAnalytics = _dbContext.AccountingAnalytics
-                               .Where(aa => aa.OrderNo == proof.OrderNo
+                               .Where(aa => aa.OrderNo.Trim().ToLower() == proof.OrderNo.Trim().ToLower()
                                             && aa.TransactionDate == proof.TransactionDate
                                             && aa.LocationId == proof.StoreId)
                                .FirstOrDefault();
@@ -2033,7 +2055,7 @@ namespace CSI.Application.Services
                             foreach (var item in formatProofListAdj)
                             {
                                 var getAdjustment = await _dbContext.AccountingProoflists
-                                    .FirstOrDefaultAsync(x => x.CustomerId == "9999011838" && x.OrderNo == item.OrderNo);
+                                    .FirstOrDefaultAsync(x => x.CustomerId == "9999011838" && x.OrderNo.Trim().ToLower() == item.OrderNo.Trim().ToLower());
 
                                 if (getAdjustment != null)
                                 {
@@ -2094,7 +2116,7 @@ namespace CSI.Application.Services
                             foreach (var item in formatProofListAdj)
                             {
                                 var getAdjustment = await _dbContext.AccountingProoflists
-                                    .FirstOrDefaultAsync(x => x.CustomerId == "9999011935" && x.OrderNo == item.OrderNo || x.CustomerId == "9999011931" && x.OrderNo == item.OrderNo);
+                                    .FirstOrDefaultAsync(x => x.CustomerId == "9999011935" && x.OrderNo.Trim().ToLower() == item.OrderNo.Trim().ToLower() || x.CustomerId == "9999011931" && x.OrderNo == item.OrderNo);
 
                                 if (getAdjustment != null)
                                 {
