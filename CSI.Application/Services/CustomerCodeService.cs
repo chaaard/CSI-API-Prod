@@ -442,9 +442,7 @@ namespace CSI.Application.Services
                                            "WHERE temp1.[DeleteFlag] = 0 " +
                                            "GROUP BY[CategoryId] " +
                                        ") AS temp3 " +
-                                       "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString() +
-                                       "UNION Select 990,'9999011915','Lazada',1" +
-                                       "UNION Select 991,'9999011914','Shopee',1").ToListAsync();
+                                       "LEFT JOIN [dbo].[tbl_category] AS temp4 ON temp3.[CategoryId] = temp4.[Id] WHERE temp4.[IsVisible] = " + isVisible.ToString()).ToListAsync();
 
                                 result = query.Select(n => new CustomerCodeDto
                                 {
