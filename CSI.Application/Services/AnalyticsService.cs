@@ -2176,7 +2176,7 @@ namespace CSI.Application.Services
                 {
                     foreach (string memCode in analyticsParamsDto.memCode)
                     {
-                        if (memCodePL == memCodePL) {
+                        if (memCodePL == memCode) {
                             var CheckIfUpload = result.Where(x => x.IsUpload == true).Any();
 
                             if (!CheckIfUpload)
