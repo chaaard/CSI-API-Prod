@@ -9,6 +9,7 @@ using EFCore.BulkExtensions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualBasic;
 using OfficeOpenXml.Style;
 using System;
@@ -25,20 +26,22 @@ namespace CSI.Application.Services
     public class AnalyticsService : IAnalyticsService
     {
         private readonly AppDBContext _dbContext;
+        private readonly LinkedServerOptions _linkedServerOptions;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly IDbContextFactory<AppDBContext> _contextFactory;
         private readonly IAdjustmentService _adjustmentService;
 
-        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory, IAdjustmentService adjustmentService)
+        public AnalyticsService(IConfiguration configuration, AppDBContext dBContext, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory, IAdjustmentService adjustmentService, IOptions<LinkedServerOptions> linkedServerOptions)
         {
             _configuration = configuration;
             _dbContext = dBContext;
             _mapper = mapper;
             _dbContext.Database.SetCommandTimeout(999);
             _contextFactory = contextFactory;
-            _adjustmentService = 
+            _adjustmentService =
             _adjustmentService = adjustmentService;
+            _linkedServerOptions = linkedServerOptions.Value;
         }
 
         public async Task<string> GetDepartments()
@@ -676,7 +679,7 @@ namespace CSI.Application.Services
         {
             Dictionary<string, decimal?> totalAmounts = new Dictionary<string, decimal?>();
             DateTime date;
-            try { 
+            try {
                 if (DateTime.TryParse(analyticsParamsDto.dates[0], out date))
                 {
                     var resultCustomerCode = _dbContext.CustomerCodes
@@ -795,7 +798,7 @@ namespace CSI.Application.Services
                                         INNER JOIN 
                                         (
                                         SELECT *
-                                        FROM OPENQUERY(SNR, 'SELECT a.CSDATE, a.CSSTOR, a.CSREG, a.CSTRAN, b.cssku,c.idescr, b.csexpr
+                                        FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT a.CSDATE, a.CSSTOR, a.CSREG, a.CSTRAN, b.cssku,c.idescr, b.csexpr
 					                                        FROM 
 						                                        MMJDALIB.CSHTND a
 						                                        INNER JOIN
@@ -958,20 +961,20 @@ namespace CSI.Application.Services
                                             B.CSDAMT as SubTotal 
                                         FROM 
 											(SELECT ROW_NUMBER() OVER (ORDER BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC) AS Id, CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSDAMT, CSTIL 
-											FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSDAMT, CSTIL
+											FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSDAMT, CSTIL
 											FROM MMJDALIB.CSHTND 
 											WHERE (CSDATE = {strDate}) AND CSDTYP IN (''AR'') AND {storeList} AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}
 											GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT')) B  
                                         INNER JOIN 
                                             (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT 
-                                             FROM OPENQUERY(SNR, 
+                                             FROM OPENQUERY([{_linkedServerOptions.MMS}], 
                                              'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT 
                                               FROM MMJDALIB.CSHHDR 
                                               WHERE CSDATE = {strDate} AND {storeList} AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}')) A
                                         ON A.CSSTOR = B.CSSTOR AND A.CSDATE = B.CSDATE AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN 
                                         INNER JOIN 
                                             (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS 
-                                             FROM OPENQUERY(SNR, 
+                                             FROM OPENQUERY([{_linkedServerOptions.MMS}], 
                                              'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS 
                                               FROM MMJDALIB.CONDTX 
                                               WHERE CSDATE = {strDate} AND {storeList} AND CSSKU <> 0 AND CSDSTS = 0 AND CSTRAN = {analyticsParam.transactionNo} AND CSREG = {analyticsParam.regNo}')) C 
@@ -1004,7 +1007,7 @@ namespace CSI.Application.Services
                     }).ToList();
                 }
 
-                    return analytics;
+                return analytics;
             }
             catch (Exception ex)
             {
@@ -1225,7 +1228,7 @@ namespace CSI.Application.Services
 
                 var result = await CreateAnalyticsProofList(param);
 
-                 exceptionParam.AdjustmentId = result.AdjustmentId;
+                exceptionParam.AdjustmentId = result.AdjustmentId;
                 await _adjustmentService.UpdateAnalyticsProofList(exceptionParam);
 
 
@@ -1416,13 +1419,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -1430,13 +1433,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -1444,13 +1447,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -1458,13 +1461,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
                                           $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -1472,13 +1475,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
                                           $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -1491,7 +1494,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT )  " +
                                   $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, A.CSTAMT  " +
-                                  $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                  $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
                                   $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
                                   $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
             }
@@ -1524,7 +1527,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.CONDTX into the newly created table ANALYTICS_CONDTX + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CONDTX{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS )  " +
                                       $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSSKU, A.CSQTY, A.CSEXPR, A.CSEXCS, A.CSDSTS  " +
-                                      $"FROM OPENQUERY(SNR, 'SELECT DISTINCT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                      $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT DISTINCT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE CSDSTS = ''0'' AND (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
                                       $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
                                       $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
             }
@@ -1558,7 +1561,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.INVMST into the newly created table ANALYTICS_INVMST + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_INVMST{strStamp} (IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR) " +
                                           $"SELECT A.IDESCR, A.IDEPT, A.ISDEPT, A.ICLAS, A.ISCLAS, A.INUMBR " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
                                           $"INNER JOIN ANALYTICS_CONDTX{strStamp} B  " +
                                           $"ON A.INUMBR = B.CSSKU");
             }
@@ -1590,7 +1593,7 @@ namespace CSI.Application.Services
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_TBLSTR{strStamp} (STRNUM INT, STRNAM VARCHAR(255))");
                 // Insert data from MMJDALIB.TBLSTR into the newly created table ANALYTICS_TBLSTR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_TBLSTR{strStamp} (STRNUM, STRNAM) " +
-                                        $"SELECT * FROM OPENQUERY(SNR, 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
+                                        $"SELECT * FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
             }
             catch (Exception ex)
             {
@@ -1621,7 +1624,7 @@ namespace CSI.Application.Services
                                   $"FROM ANALYTICS_CSHTND_AR_{strStamp} B " +
                                       $"INNER JOIN ANALYTICS_CSHHDR{strStamp} A ON A.CSSTOR = B.CSSTOR AND A.CSDATE = B.CSDATE AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN  " +
                                       $"INNER JOIN ANALYTICS_CONDTX{strStamp} C ON A.CSSTOR = C.CSSTOR AND A.CSDATE = C.CSDATE AND A.CSREG = C.CSREG AND A.CSTRAN = C.CSTRAN  " +
-                                     // $"INNER JOIN ANALYTICS_INVMST{strStamp} D ON C.CSSKU = D.INUMBR  " +
+                                      // $"INNER JOIN ANALYTICS_INVMST{strStamp} D ON C.CSSKU = D.INUMBR  " +
                                       $"INNER JOIN ANALYTICS_TBLSTR{strStamp} E ON E.STRNUM = C.CSSTOR  " +
                                   $"GROUP BY C.CSSTOR,  C.CSDATE,  B.CSTDOC,  A.CSCUST,  C.CSREG,  C.CSTRAN,  B.CSCARD,  B.CSTIL,  B.CSDAMT   " +
                                   $"ORDER BY C.CSSTOR, C.CSDATE, C.CSREG ");
@@ -1772,7 +1775,7 @@ namespace CSI.Application.Services
                     newContext.Logs.Add(logsMap);
                     newContext.SaveChanges();
                 }
-               
+
                 await DropTables(strStamp);
                 throw;
             }
@@ -2015,7 +2018,7 @@ namespace CSI.Application.Services
                 throw;
             }
         }
-        public async Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto) 
+        public async Task<bool> SubmitAnalyticsWOProoflist(AnalyticsParamsDto analyticsParamsDto)
         {
             string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
             string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
@@ -2115,7 +2118,7 @@ namespace CSI.Application.Services
         }
 
 
-        public async Task<(bool,string)> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        public async Task<(bool, string)> SubmitAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
             string clubLogs = $"{string.Join(", ", analyticsParamsDto.storeId.Select(code => $"{code}"))}";
             string merchantLogs = $"{string.Join(", ", analyticsParamsDto.memCode.Select(code => $"{code}"))}";
@@ -2192,7 +2195,7 @@ namespace CSI.Application.Services
                                 };
                                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                                 _dbContext.Logs.Add(logsMap);
-                                await _dbContext.SaveChangesAsync();
+                                //await _dbContext.SaveChangesAsync();
 
                                 return (false, "");
                             }
@@ -2217,7 +2220,7 @@ namespace CSI.Application.Services
                         };
                         logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                         _dbContext.Logs.Add(logsMap);
-                        await _dbContext.SaveChangesAsync();
+                        //await _dbContext.SaveChangesAsync();
 
                         return (false, "");
                     }
@@ -2242,8 +2245,8 @@ namespace CSI.Application.Services
                         return analyticsEntity;
                     }).ToList();
 
-                    _dbContext.BulkUpdate(analyticsEntityListNonUB);
-                    await _dbContext.SaveChangesAsync();
+                    //_dbContext.BulkUpdate(analyticsEntityListNonUB);
+                    //await _dbContext.SaveChangesAsync();
                     analyticsCnt += analyticsEntityListNonUB.Count();
 
 
@@ -2267,8 +2270,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            _dbContext.BulkUpdate(analyticsEntityListUB);
-                            await _dbContext.SaveChangesAsync();
+                            // _dbContext.BulkUpdate(analyticsEntityListUB);
+                            // await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
 
@@ -2294,8 +2297,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            _dbContext.BulkUpdate(analyticsEntityListUB);
-                            await _dbContext.SaveChangesAsync();
+                            //_dbContext.BulkUpdate(analyticsEntityListUB);
+                            // await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2320,8 +2323,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            _dbContext.BulkUpdate(analyticsEntityListUB);
-                            await _dbContext.SaveChangesAsync();
+                            //_dbContext.BulkUpdate(analyticsEntityListUB);
+                            //await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2347,8 +2350,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            _dbContext.BulkUpdate(analyticsEntityListUB);
-                            await _dbContext.SaveChangesAsync();
+                            // _dbContext.BulkUpdate(analyticsEntityListUB);
+                            // await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2369,7 +2372,7 @@ namespace CSI.Application.Services
                     };
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                     _dbContext.Logs.Add(logsMap);
-                    await _dbContext.SaveChangesAsync();
+                    // await _dbContext.SaveChangesAsync();
                 }
 
 
@@ -2388,7 +2391,7 @@ namespace CSI.Application.Services
                 };
                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
-                await _dbContext.SaveChangesAsync();
+                // await _dbContext.SaveChangesAsync();
                 throw;
             }
         }
@@ -2726,7 +2729,7 @@ namespace CSI.Application.Services
             try
             {
                 var result = false;
-                if (!analyticsAutoChargeDateParam.Ids.Contains(',')) 
+                if (!analyticsAutoChargeDateParam.Ids.Contains(','))
                 {
                     analyticsAutoChargeDateParam.Ids = analyticsAutoChargeDateParam.Ids + ',';
                 }
@@ -2765,7 +2768,7 @@ namespace CSI.Application.Services
                 }
 
 
-                
+
 
                 return result;
             }
@@ -3443,11 +3446,25 @@ namespace CSI.Application.Services
 
                 if (GetAnalytics != null)
                 {
+                    //Update DB Customer Code
+                    var transactionDate = GetAnalytics.TransactionDate?.ToString("yyMMdd");
                     var GetOldCustomerId = GetAnalytics.CustomerId;
                     GetAnalytics.CustomerId = updateAnalyticsDto.CustomerId;
-                    GetAnalytics.IsTransfer = true;
+                    GetAnalytics.IsTransfer = false;
                     await _dbContext.SaveChangesAsync();
                     result = true;
+
+                    //Update MMS Customer Code
+                    await _dbContext.Database.ExecuteSqlRawAsync($@"
+                        EXEC('UPDATE MMJDALIB.CSHTND 
+                                SET CSTDOC = ''{updateAnalyticsDto?.CustomerId}'' 
+                                WHERE CSSTOR = ''{GetAnalytics.LocationId}''
+                                AND CSDATE = ''{transactionDate}''
+                                AND CSREG = ''{GetAnalytics.RegisterNo}'' 
+                                AND CSTRAN = ''{GetAnalytics.TransactionNo}''
+                                AND CSDTYP = ''AR'' 
+                        ') AT [{_linkedServerOptions.MMS}]
+                    ");
 
                     logsDto = new LogsDto
                     {
@@ -3561,8 +3578,8 @@ namespace CSI.Application.Services
 
                         if (result.Count >= 1)
                         {
-                            if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "OTHERS" || 
-                                generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "WALK-IN" || 
+                            if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "OTHERS" ||
+                                generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "WALK-IN" ||
                                 generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "EMPLOYEE" ||
                                 generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UNIONBANK" ||
                                 generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB PIZZA VOUCHER" ||
@@ -4329,7 +4346,7 @@ namespace CSI.Application.Services
                                 }
 
                                 var formattedInvoiceNumber = newInvoiceNumber.ToString("000000000000");
-                                
+
                                 var getShortName = locationList
                                     .Where(x => x.LocationName.Contains(result.FirstOrDefault().LocationName))
                                     .Select(n => new
@@ -4476,7 +4493,7 @@ namespace CSI.Application.Services
                                         n.ShortName,
                                     })
                                     .FirstOrDefault();
-                                    
+
                                 var GetCustomerNo = result
                                         .GroupJoin(
                                             _dbContext.CustomerCodes,
@@ -4612,7 +4629,7 @@ namespace CSI.Application.Services
                                 }
                             }
 
-                            
+
                         }
                     }
                     var content = new StringBuilder();
@@ -4872,13 +4889,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -4886,13 +4903,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -4900,13 +4917,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -4914,13 +4931,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
                                           $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -4928,13 +4945,13 @@ namespace CSI.Application.Services
                     {
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
                                           $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
-                                        $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
+                                        $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
                                         $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
                     }
@@ -4947,7 +4964,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT )  " +
                                   $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, A.CSTAMT  " +
-                                  $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                  $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
                                   $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
                                   $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
             }
@@ -4980,7 +4997,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.CONDTX into the newly created table ANALYTICS_CONDTX + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CONDTX{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS )  " +
                                       $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSSKU, A.CSQTY, A.CSEXPR, A.CSEXCS, A.CSDSTS  " +
-                                      $"FROM OPENQUERY(SNR, 'SELECT DISTINCT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                      $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT DISTINCT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE CSDSTS = ''0'' AND (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
                                       $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
                                       $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
             }
@@ -5014,7 +5031,7 @@ namespace CSI.Application.Services
                 // Insert data from MMJDALIB.INVMST into the newly created table ANALYTICS_INVMST + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_INVMST{strStamp} (IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR) " +
                                           $"SELECT A.IDESCR, A.IDEPT, A.ISDEPT, A.ICLAS, A.ISCLAS, A.INUMBR " +
-                                          $"FROM OPENQUERY(SNR, 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
+                                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
                                           $"INNER JOIN ANALYTICS_CONDTX{strStamp} B  " +
                                           $"ON A.INUMBR = B.CSSKU");
             }
@@ -5046,7 +5063,7 @@ namespace CSI.Application.Services
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_TBLSTR{strStamp} (STRNUM INT, STRNAM VARCHAR(255))");
                 // Insert data from MMJDALIB.TBLSTR into the newly created table ANALYTICS_TBLSTR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_TBLSTR{strStamp} (STRNUM, STRNAM) " +
-                                        $"SELECT * FROM OPENQUERY(SNR, 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
+                                        $"SELECT * FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
             }
             catch (Exception ex)
             {
@@ -5316,7 +5333,7 @@ namespace CSI.Application.Services
             //    // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
             //    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL)  " +
             //                      $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL " +
-            //                      $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCondition} AND CSDTYP IN (''AR'') AND {storeList}  " +
+            //                      $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL FROM MMJDALIB.CSHTND WHERE {cstDocCondition} AND CSDTYP IN (''AR'') AND {storeList}  " +
             //                      $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL ') ");
 
             //    // Create the table ANALYTICS_CSHHDR + strStamp
@@ -5324,7 +5341,7 @@ namespace CSI.Application.Services
             //    // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
             //    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT )  " +
             //                      $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, A.CSTAMT  " +
-            //                      $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+            //                      $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
             //                      $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
             //                      $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
             //}
@@ -5353,7 +5370,7 @@ namespace CSI.Application.Services
             //    // Insert data from MMJDALIB.CONDTX into the newly created table ANALYTICS_CONDTX + strStamp
             //    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CONDTX{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS )  " +
             //                          $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSSKU, A.CSQTY, A.CSEXPR, A.CSEXCS, A.CSDSTS  " +
-            //                          $"FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+            //                          $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
             //                          $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
             //                          $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN WHERE A.CSSKU <> 0 AND A.CSDSTS = '0' ");
             //}
@@ -5382,7 +5399,7 @@ namespace CSI.Application.Services
             //    // Insert data from MMJDALIB.INVMST into the newly created table ANALYTICS_INVMST + strStamp
             //    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_INVMST{strStamp} (IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR) " +
             //                              $"SELECT A.IDESCR, A.IDEPT, A.ISDEPT, A.ICLAS, A.ISCLAS, A.INUMBR " +
-            //                              $"FROM OPENQUERY(SNR, 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
+            //                              $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
             //                              $"INNER JOIN ANALYTICS_CONDTX{strStamp} B  " +
             //                              $"ON A.INUMBR = B.CSSKU");
             //}
@@ -5410,7 +5427,7 @@ namespace CSI.Application.Services
             //    await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_TBLSTR{strStamp} (STRNUM INT, STRNAM VARCHAR(255))");
             //    // Insert data from MMJDALIB.TBLSTR into the newly created table ANALYTICS_TBLSTR + strStamp
             //    await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_TBLSTR{strStamp} (STRNUM, STRNAM) " +
-            //                            $"SELECT * FROM OPENQUERY(SNR, 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
+            //                            $"SELECT * FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
             //}
             //catch (Exception ex)
             //{
@@ -5851,32 +5868,32 @@ namespace CSI.Application.Services
             if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
             {
                 result = await _dbContext.DashboardAccounting
-                 .FromSqlRaw($"SELECT  " +    
-                     $"      l.LocationName,  " +       
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011955' THEN a.StatusId ELSE NULL END) AS GrabMart,   " +     
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011929' THEN a.StatusId ELSE NULL END) AS GrabFood,      " +   
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011931' THEN a.StatusId ELSE NULL END) AS [PickARooMerch],     " +   
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011935' THEN a.StatusId ELSE NULL END) AS [PickARooFS],  " +     
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011838' THEN a.StatusId ELSE NULL END) AS [FoodPanda],  " +     
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011855' THEN a.StatusId ELSE NULL END) AS MetroMart, " +   
-                     $"       loc.LocationCode " +   
-                     $"   FROM ( " +   
-                     $"       SELECT LocationCode " +   
-                     $"       FROM tbl_location " +   
-                     $"       WHERE LocationCode IN ({formatClubs}) " +   
-                     $"   ) loc " +   
-                     $"   LEFT JOIN ( " +   
-                     $"       SELECT DISTINCT LocationId, CustomerId, StatusId, TransactionDate, DeleteFlag " +   
-                     $"       FROM tbl_analytics " +   
-                     $"       WHERE CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' " +   
-                     $"           AND CustomerId IN ('9999011955', '9999011929', '9999011931', '9999011935', '9999011838', '9999011855') " +   
-                     $"           AND DeleteFlag = 0 " +   
-                     $"   ) a ON loc.LocationCode = a.LocationId " +   
-                     $"   LEFT JOIN tbl_location l ON l.LocationCode = loc.LocationCode " +   
-                     $"   GROUP BY  " +   
-                     $"       l.LocationName, loc.LocationCode  " +   
-                     $"   ORDER BY  " +   
-                     $"       loc.LocationCode ASC;") 
+                 .FromSqlRaw($"SELECT  " +
+                     $"      l.LocationName,  " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011955' THEN a.StatusId ELSE NULL END) AS GrabMart,   " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011929' THEN a.StatusId ELSE NULL END) AS GrabFood,      " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011931' THEN a.StatusId ELSE NULL END) AS [PickARooMerch],     " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011935' THEN a.StatusId ELSE NULL END) AS [PickARooFS],  " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011838' THEN a.StatusId ELSE NULL END) AS [FoodPanda],  " +
+                     $"       MAX(CASE WHEN a.CustomerId = '9999011855' THEN a.StatusId ELSE NULL END) AS MetroMart, " +
+                     $"       loc.LocationCode " +
+                     $"   FROM ( " +
+                     $"       SELECT LocationCode " +
+                     $"       FROM tbl_location " +
+                     $"       WHERE LocationCode IN ({formatClubs}) " +
+                     $"   ) loc " +
+                     $"   LEFT JOIN ( " +
+                     $"       SELECT DISTINCT LocationId, CustomerId, StatusId, TransactionDate, DeleteFlag " +
+                     $"       FROM tbl_analytics " +
+                     $"       WHERE CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' " +
+                     $"           AND CustomerId IN ('9999011955', '9999011929', '9999011931', '9999011935', '9999011838', '9999011855') " +
+                     $"           AND DeleteFlag = 0 " +
+                     $"   ) a ON loc.LocationCode = a.LocationId " +
+                     $"   LEFT JOIN tbl_location l ON l.LocationCode = loc.LocationCode " +
+                     $"   GROUP BY  " +
+                     $"       l.LocationName, loc.LocationCode  " +
+                     $"   ORDER BY  " +
+                     $"       loc.LocationCode ASC;")
                  .ToListAsync();
             }
 
@@ -5925,7 +5942,7 @@ namespace CSI.Application.Services
                 })
                 .ToListAsync();
 
-           
+
             return prooflist;
         }
 
@@ -5982,7 +5999,7 @@ namespace CSI.Application.Services
                         && x.c.a.CustomerId == analyticsParamsDto.memCode[0]
                         && x.c.a.InvoiceNo != null
                         && x.c.a.OrderNo.Contains(analyticsParamsDto.orderNo))
-                    .Select(n => new AnalyticsDto 
+                    .Select(n => new AnalyticsDto
                     {
                         Id = n.c.a.Id,
                         CustomerId = n.d.CustomerCode,
@@ -6101,13 +6118,13 @@ namespace CSI.Application.Services
                     {
                         if (analyticsParamsDto.status[0] == "All")
                         {
-                            analyticsParamsDto.status = new List<string> 
-                            { 
+                            analyticsParamsDto.status = new List<string>
+                            {
                                 "Paid",
                                 "Underpayment",
-                                "Overpayment", 
-                                "Not Reported", 
-                                "Unpaid", 
+                                "Overpayment",
+                                "Not Reported",
+                                "Unpaid",
                                 "Adjustments",
                                 "Re-Transact",
                                 "Paid | with AP",
@@ -6196,7 +6213,7 @@ namespace CSI.Application.Services
                 var query = new List<ExceptionReportDto>();
                 if (DateTime.TryParse(refreshAnalyticsDto.dates[0].ToString(), out dateFrom) && DateTime.TryParse(refreshAnalyticsDto.dates[1].ToString(), out dateTo))
                 {
-                    if (refreshAnalyticsDto.memCode.Count >= 1 )
+                    if (refreshAnalyticsDto.memCode.Count >= 1)
                     {
                         string cstDocCondition = string.Join(" OR ", refreshAnalyticsDto.memCode.Select(last6Digits =>
                             $"(CAST(a.TransactionDate AS DATE) >= '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND " +
@@ -6340,7 +6357,7 @@ namespace CSI.Application.Services
 
                     createAnalyticsDto.UserId = null;
                     createAnalyticsDto.DeleteFlag = false;
-                    createAnalyticsDto.IsTransfer = true;
+                    createAnalyticsDto.IsTransfer = false;
                     createAnalyticsDto.IsGenerate = false;
                     createAnalyticsDto.TransactionDate = date.Date;
 
@@ -6350,7 +6367,7 @@ namespace CSI.Application.Services
 
                     createAnalyticsDto.IsUpload = isUpload;
 
-                     analytics = _mapper.Map<AnalyticsAddDto, Analytics>(createAnalyticsDto);
+                    analytics = _mapper.Map<AnalyticsAddDto, Analytics>(createAnalyticsDto);
                     _dbContext.Analytics.Add(analytics);
                     await _dbContext.SaveChangesAsync();
                 }
@@ -6423,7 +6440,7 @@ namespace CSI.Application.Services
                 };
                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
-                _dbContext.SaveChanges(); 
+                _dbContext.SaveChanges();
             }
             catch (Exception)
             {
@@ -6550,35 +6567,35 @@ namespace CSI.Application.Services
 											LEFT JOIN
 											(
 												SELECT  CSDATE, CSSTOR, CSTDOC, CSDTYP, CSDAMT
-												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
+												FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984'' AND CSDAMT > 0 AND CSTDOC != ''''  
                                                 AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC <> ''9999011984'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-1' AS CSTDOC, CSDTYP, CSDAMT
-												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
+												FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%'' AND CSDAMT > 0 AND CSTDOC != ''''  
                                                 AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD NOT LIKE ''%CSI%'' AND CSCARD NOT LIKE ''%PV%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-2' AS CSTDOC, CSDTYP, CSDAMT
-												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
+												FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 AND CSTDOC != ''''  
                                                 AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-3' AS CSTDOC, CSDTYP, CSDAMT
-												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
+												FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 AND CSTDOC != ''''  
                                                 AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%PV%'' AND CSTDOC != ''''  AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  
 												GROUP BY CSDATE, CSSTOR, CSTDOC, CSDTYP')
 												UNION
 												SELECT  CSDATE, CSSTOR, '9999011984-4' AS CSTDOC, CSDTYP, CSDAMT
-												FROM OPENQUERY(SNR, 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
+												FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSTDOC, CSDTYP, SUM(CSDAMT) as CSDAMT
 												FROM MMJDALIB.CSHTND a 
 												WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) AND CSTDOC != ''''   
                                                 AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE = {formattedDate}) AND CSDTYP IN (''AR'') AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTDOC = ''9999011984'' AND CSCARD LIKE ''%CSI%'' AND CSTDOC != '''' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT) 
@@ -6876,7 +6893,7 @@ namespace CSI.Application.Services
                         .Where(x => x.Id == accountingAdjustmentDto.MatchId)
                         .FirstOrDefault();
 
-                    if (getAccountingMatch != null) 
+                    if (getAccountingMatch != null)
                     {
                         if (getAccountingMatch.AccountingProofListId != null)
                         {
@@ -7236,6 +7253,355 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
+                throw;
+            }
+        }
+
+        public async Task<List<AnalyticsDto>> GetFloatingAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            var analyticsList = new List<AnalyticsDto>();
+            DateTime date;
+            DateTime date1;
+            var analytics = new List<AnalyticsDto>();
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date) && DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out date1))
+            {
+                var result = await _dbContext.AnalyticsView
+              .FromSqlRaw($" SELECT  " +
+                          $"     MAX(a.Id) AS Id, " +
+                          $"     MAX(a.CustomerId) AS CustomerId, " +
+                          $"     MAX(a.CustomerName) AS CustomerName, " +
+                          $"     MAX(a.LocationId) AS LocationId, " +
+                          $"     MAX(a.LocationName) AS LocationName, " +
+                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                          $"     MAX(a.CashierNo) AS CashierNo, " +
+                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                          $"     a.OrderNo, " +
+                          $"     MAX(a.Qty) AS Qty, " +
+                          $"     MAX(a.Amount) AS Amount, " +
+                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                          $"     MAX(a.SubTotal) AS SubTotal,  " +
+                          $"     MAX(a.Remarks) AS Remarks  " +
+                          $" FROM ( " +
+                          $"     SELECT   " +
+                          $"         n.Id, " +
+                          $"         n.CustomerId,  " +
+                          $"         c.CustomerName,  " +
+                          $"         n.LocationId,  " +
+                          $"         l.LocationName,  " +
+                          $"         n.TransactionDate,   " +
+                          $"         n.MembershipNo,   " +
+                          $"         n.CashierNo,  " +
+                          $"         n.RegisterNo,  " +
+                          $"         n.TransactionNo,  " +
+                          $"         n.OrderNo,  " +
+                          $"         n.Qty,  " +
+                          $"         n.Amount,  " +
+                          $"         n.SubTotal, " +
+                          $"         n.StatusId, " +
+                          $"         n.DeleteFlag,   " +
+                          $"         n.IsUpload,   " +
+                          $"         n.IsGenerate,   " +
+                          $"         n.IsTransfer,   " +
+                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                          $"         a.Remarks " +
+                          $"     FROM tbl_analytics n " +
+                          $"        LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
+                          $"     WHERE  " +
+                          $"     (CAST(TransactionDate AS DATE) >= '{date.Date.ToString("yyyy-MM-dd")}' AND CAST(TransactionDate AS DATE) <= '{date1.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
+                          $"         AND CustomerId = '' AND TransactionNo  LIKE '%{analyticsParamsDto.SearchQuery}%' ) OR " +
+                          $"     (CAST(TransactionDate AS DATE) >= '{date.Date.ToString("yyyy-MM-dd")}' AND CAST(TransactionDate AS DATE) <= '{date1.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
+                          $"         AND OrderNo = '' AND TransactionNo LIKE '%{analyticsParamsDto.SearchQuery}%' )  " +
+                          $" ) a " +
+                          $" GROUP BY  " +
+                          $"     a.OrderNo,    " +
+                          $"     ABS(a.SubTotal),  " +
+                          $"     a.row_num "
+                          )
+                 .ToListAsync();
+                analytics = result.Select(n => new AnalyticsDto
+                {
+                    Id = n.Id,
+                    CustomerId = n.CustomerId,
+                    CustomerName = n.CustomerName,
+                    LocationName = n.LocationName,
+                    TransactionDate = n.TransactionDate,
+                    MembershipNo = n.MembershipNo,
+                    CashierNo = n.CashierNo,
+                    RegisterNo = n.RegisterNo,
+                    TransactionNo = n.TransactionNo,
+                    OrderNo = n.OrderNo,
+                    Qty = n.Qty,
+                    Amount = n.Amount,
+                    SubTotal = n.SubTotal,
+                    StatusId = n.StatusId,
+                    IsUpload = Convert.ToBoolean(n.IsUpload),
+                    IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                    DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                    Remarks = n.Remarks,
+                }).ToList();
+            }
+
+            return analytics;
+
+        }
+        public async Task<bool> UpdateFloatingAnalytics(FloatingCSIDto floatingCSIDto)
+        {
+            string clubLogs = $"{string.Join(", ", floatingCSIDto.StoreId.Select(code => $"{code}"))}";
+            string merchantLogs = $"{string.Join(", ", floatingCSIDto.CustomerCode.Select(code => $"{code}"))}";
+            var result = false;
+            var oldJO = "";
+            var logsDto = new LogsDto();
+            var logsMap = new Logs();
+            try
+            {
+                if (floatingCSIDto != null)
+                {
+                    if (floatingCSIDto.OrderNo != null || floatingCSIDto.OrderNo != "")
+                    {
+                        var matchRow = await _dbContext.Analytics
+                          .Where(x => x.Id == floatingCSIDto.Id)
+                          .FirstOrDefaultAsync();
+
+                        if (matchRow != null)
+                        {
+                            //Update DB
+                            var transactionDate = matchRow.TransactionDate?.ToString("yyMMdd");
+                            oldJO = matchRow.OrderNo;
+                            matchRow.OrderNo = floatingCSIDto.OrderNo;
+                            await _dbContext.SaveChangesAsync();
+                            result = true;
+
+                            //Update MMS
+                            await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                EXEC('UPDATE MMJDALIB.CSHTND 
+                                      SET CSCARD = ''{floatingCSIDto?.OrderNo}'' 
+                                      WHERE CSSTOR = ''{matchRow.LocationId}''
+                                        AND CSDATE = ''{transactionDate}''
+                                        AND CSREG = ''{matchRow.RegisterNo}'' 
+                                        AND CSTRAN = ''{matchRow.TransactionNo}''
+                                        AND CSDTYP = ''AR'' 
+                                ') AT [{_linkedServerOptions.MMS}]
+                            ");
+                        }
+
+
+                        if (floatingCSIDto.refreshAnalyticsDto != null)
+                        {
+                            var analyticsParams = new RefreshAnalyticsDto
+                            {
+                                dates = new List<DateTime>
+                                {
+                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date,
+                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date
+                                },
+                                memCode = new List<string> { floatingCSIDto.CustomerCode },
+                                userId = floatingCSIDto.UserId,
+                                storeId = new List<int> { Convert.ToInt32(floatingCSIDto.StoreId) }
+                            };
+
+                            var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParams);
+
+                            var GetMatch = MatchDto
+                                .Where(x => x.AnalyticsId != null)
+                                .ToList();
+
+                            var CheckIsNull = GetMatch.Where(x => x.ProofListId == null && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo)).Any();
+
+                            var GetNewException = MatchDto
+                                .Where(x => x.AnalyticsId != null && x.ProofListId != null && x.Variance > 0 && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo))
+                                .ToList();
+
+                            if (GetNewException != null)
+                            {
+                                foreach (var item in GetNewException)
+                                {
+                                    var param = new AnalyticsProoflistDto
+                                    {
+
+                                        Id = 0,
+                                        AnalyticsId = item.AnalyticsId,
+                                        ProoflistId = item.ProofListId,
+                                        ActionId = null,
+                                        StatusId = 5,
+                                        AdjustmentId = 0,
+                                        SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
+                                        DeleteFlag = false,
+                                        AdjustmentAddDto = new AdjustmentAddDto
+                                        {
+                                            Id = 0,
+                                            DisputeReferenceNumber = null,
+                                            DisputeAmount = null,
+                                            DateDisputeFiled = null,
+                                            DescriptionOfDispute = null,
+                                            NewJO = null,
+                                            CustomerId = null,
+                                            AccountsPaymentDate = null,
+                                            AccountsPaymentTransNo = null,
+                                            AccountsPaymentAmount = null,
+                                            ReasonId = null,
+                                            Descriptions = null,
+                                            DeleteFlag = null,
+                                        }
+                                    };
+
+                                    await CreateAnalyticsProofList(param);
+                                }
+                            }
+                        }
+                    }
+
+                    if (floatingCSIDto.CustomerCode != null || floatingCSIDto.CustomerCode.Count() != 0)
+                    {
+                        var matchRow = await _dbContext.Analytics
+                          .Where(x => x.Id == floatingCSIDto.Id)
+                          .FirstOrDefaultAsync();
+                        var oldCustomerId = "";
+                        var isUpload = false;
+                        var isCompleted = false;
+                        DateTime date;
+
+
+                        var check = await _dbContext.Analytics
+                                .Where(a => a.TransactionDate == matchRow.TransactionDate &&
+                                        a.CustomerId == floatingCSIDto.CustomerCode &&
+                                        a.LocationId == Convert.ToInt32(floatingCSIDto.StoreId))
+                                .ToListAsync();
+
+                        isUpload = check.Where(x => x.IsUpload == true).Any();
+                        isCompleted = check.Where(x => x.StatusId == 3).Any();
+
+                        if (matchRow != null)
+                        {
+                            //Update DB Customer Code
+                            var transactionDate = matchRow.TransactionDate?.ToString("yyMMdd");
+                            oldCustomerId = matchRow.CustomerId;
+                            matchRow.IsTransfer = false;
+                            matchRow.IsUpload = isUpload;
+                            matchRow.StatusId = isCompleted ? 3 : 5;
+                            matchRow.CustomerId = floatingCSIDto.CustomerCode;
+                            await _dbContext.SaveChangesAsync();
+                            result = true;
+
+                            //Update MMS Customer Code
+                            await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                EXEC('UPDATE MMJDALIB.CSHTND 
+                                      SET CSTDOC = ''{floatingCSIDto.CustomerCode}'' 
+                                      WHERE CSSTOR = ''{matchRow.LocationId}''
+                                        AND CSDATE = ''{transactionDate}''
+                                        AND CSREG = ''{matchRow.RegisterNo}'' 
+                                        AND CSTRAN = ''{matchRow.TransactionNo}''
+                                        AND CSDTYP = ''AR'' 
+                                ') AT [{_linkedServerOptions.MMS}]
+                            ");
+
+                            if (floatingCSIDto.refreshAnalyticsDto != null)
+                            {
+                                var analyticsParams = new RefreshAnalyticsDto
+                                {
+                                    dates = new List<DateTime>
+                                    {
+                                        matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date,
+                                        matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date
+                                    },
+                                    memCode = new List<string> { floatingCSIDto.CustomerCode },
+                                    userId = floatingCSIDto.UserId,
+                                    storeId = new List<int> { Convert.ToInt32(floatingCSIDto.StoreId) }
+                                };
+
+                                var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParams);
+
+                                var GetMatch = MatchDto
+                                    .Where(x => x.AnalyticsId != null)
+                                    .ToList();
+
+                                var CheckIsNull = GetMatch.Where(x => x.ProofListId == null && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo)).Any();
+
+                                var GetNewException = MatchDto
+                                    .Where(x => x.AnalyticsId != null && x.ProofListId != null && x.Variance > 0 && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo))
+                                    .ToList();
+
+                                if (GetNewException != null)
+                                {
+                                    foreach (var item in GetNewException)
+                                    {
+                                        var param = new AnalyticsProoflistDto
+                                        {
+
+                                            Id = 0,
+                                            AnalyticsId = item.AnalyticsId,
+                                            ProoflistId = item.ProofListId,
+                                            ActionId = null,
+                                            StatusId = 5,
+                                            AdjustmentId = 0,
+                                            SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
+                                            DeleteFlag = false,
+                                            AdjustmentAddDto = new AdjustmentAddDto
+                                            {
+                                                Id = 0,
+                                                DisputeReferenceNumber = null,
+                                                DisputeAmount = null,
+                                                DateDisputeFiled = null,
+                                                DescriptionOfDispute = null,
+                                                NewJO = null,
+                                                CustomerId = null,
+                                                AccountsPaymentDate = null,
+                                                AccountsPaymentTransNo = null,
+                                                AccountsPaymentAmount = null,
+                                                ReasonId = null,
+                                                Descriptions = null,
+                                                DeleteFlag = null,
+                                            }
+                                        };
+
+                                        await CreateAnalyticsProofList(param);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    logsDto = new LogsDto
+                    {
+                        UserId = floatingCSIDto.UserId,
+                        Date = DateTime.Now,
+                        Action = "Update Floating Analytics",
+                        Remarks = result ? $"Successfuly Updated" : $"Failed to Update",
+                        Club = clubLogs,
+                        CustomerId = merchantLogs,
+                    };
+                    logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                    _dbContext.Logs.Add(logsMap);
+                    await _dbContext.SaveChangesAsync();
+
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                logsDto = new LogsDto
+                {
+                    UserId = floatingCSIDto.UserId,
+                    Date = DateTime.Now,
+                    Action = "Update Floating Analytics",
+                    Remarks = $"Error: {ex.Message}",
+                    Club = clubLogs,
+                    CustomerId = merchantLogs,
+                };
+                logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
+                _dbContext.Logs.Add(logsMap);
+                await _dbContext.SaveChangesAsync();
                 throw;
             }
         }

@@ -1,6 +1,7 @@
 using CSI.API.Mapping;
 using CSI.Application.Interfaces;
 using CSI.Application.Services;
+using CSI.Domain.Entities;
 using CSI.Infrastructure.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,8 @@ builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 builder.Services.AddDbContext<AppDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")
     ));
+
+builder.Services.Configure<LinkedServerOptions>(builder.Configuration.GetSection("LinkedServer"));
 
 builder.Services.AddDbContextFactory<AppDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")), ServiceLifetime.Scoped);
