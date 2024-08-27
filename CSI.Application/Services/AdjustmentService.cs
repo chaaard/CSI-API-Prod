@@ -5,6 +5,7 @@ using CSI.Domain.Entities;
 using CSI.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
@@ -19,11 +20,13 @@ namespace CSI.Application.Services
     {
         private readonly AppDBContext _dbContext;
         private readonly IMapper _mapper;
+        private readonly LinkedServerOptions _linkedServerOptions;
 
-        public AdjustmentService(AppDBContext dBContext, IMapper mapper)
+        public AdjustmentService(AppDBContext dBContext, IMapper mapper, IOptions<LinkedServerOptions> linkedServerOptions)
         {
             _dbContext = dBContext;
             _mapper = mapper;
+            _linkedServerOptions = linkedServerOptions.Value;
         }
 
         public async Task<(List<AdjustmentDto>, int totalPages)> GetAdjustmentsAsync(AdjustmentParams adjustmentParams)
@@ -502,13 +505,26 @@ namespace CSI.Application.Services
                        .Where(x => x.Id == adjustmentTypeDto.AnalyticsId)
                        .FirstOrDefaultAsync();
 
-
                     if (matchRow != null)
                     {
+                        //Update DB
+                        var transactionDate = matchRow.TransactionDate?.ToString("yyMMdd");
                         oldJO = matchRow.OrderNo;
                         matchRow.OrderNo = adjustmentTypeDto?.AdjustmentAddDto?.NewJO;
                         await _dbContext.SaveChangesAsync();
                         result = true;
+
+                        //Update MMS
+                        await _dbContext.Database.ExecuteSqlRawAsync($@"
+                            EXEC('UPDATE MMJDALIB.CSHTND 
+                                  SET CSCARD = ''{adjustmentTypeDto?.AdjustmentAddDto?.NewJO}'' 
+                                  WHERE CSSTOR = ''{matchRow.LocationId}''
+                                    AND CSDATE = ''{transactionDate}''
+                                    AND CSREG = ''{matchRow.RegisterNo}'' 
+                                    AND CSTRAN = ''{matchRow.TransactionNo}''
+                                    AND CSDTYP = ''AR'' 
+                            ') AT [{_linkedServerOptions.MMS}]
+                        ");
                     }
 
                     var adjustmentStatus = await _dbContext.AnalyticsProoflist
@@ -822,13 +838,27 @@ namespace CSI.Application.Services
 
                     if (matchRow != null)
                     {
+                        //Update DB Customer Code
+                        var transactionDate = matchRow.TransactionDate?.ToString("yyMMdd");
                         oldCustomerId = matchRow.CustomerId;
-                        matchRow.IsTransfer = true;
+                        matchRow.IsTransfer = false;
                         matchRow.IsUpload = isUpload;
                         matchRow.StatusId = isCompleted ? 3 : 5;
                         matchRow.CustomerId = adjustmentTypeDto?.AdjustmentAddDto?.CustomerId;
                         await _dbContext.SaveChangesAsync();
                         result = true;
+
+                        //Update MMS Customer Code
+                        await _dbContext.Database.ExecuteSqlRawAsync($@"
+                            EXEC('UPDATE MMJDALIB.CSHTND 
+                                  SET CSTDOC = ''{adjustmentTypeDto?.AdjustmentAddDto?.CustomerId}'' 
+                                  WHERE CSSTOR = ''{matchRow.LocationId}''
+                                    AND CSDATE = ''{transactionDate}''
+                                    AND CSREG = ''{matchRow.RegisterNo}'' 
+                                    AND CSTRAN = ''{matchRow.TransactionNo}''
+                                    AND CSDTYP = ''AR'' 
+                            ') AT [{_linkedServerOptions.MMS}]
+                        ");
                     }
 
                     var adjustmentStatus = await _dbContext.AnalyticsProoflist

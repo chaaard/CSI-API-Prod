@@ -59,5 +59,7 @@ namespace CSI.Application.Interfaces
         Task<List<AccountingProoflistAdjustmentsDto>> GetAccountingProoflistAdjustments(PaginationDto paginationDto);
         Task<List<AccountingChronologyDto>> GetHistoryPaymentRecon(int Id);
         Task<List<AccountingBalancesDetailsDto>> GetBalancesDetails(AnalyticsParamsDto analyticsParamsDto);
+        Task<List<AnalyticsDto>> GetFloatingAnalytics(AnalyticsParamsDto analyticsParamsDto);
+        Task<bool> UpdateFloatingAnalytics(FloatingCSIDto floatingCSIDto);
     }
 }

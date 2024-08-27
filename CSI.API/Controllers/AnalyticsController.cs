@@ -722,5 +722,43 @@ namespace CSI.API.Controllers
             }
             return (NotFound());
         }
+
+        [HttpPost("GetFloatingAnalytics")]
+        public async Task<IActionResult> GetFloatingAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            try
+            {
+                var result = await _analyticsService.GetFloatingAnalytics(analyticsParamsDto);
+
+                if (result != null)
+                {
+                    return Ok(result);
+                }
+
+                return NotFound();
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation if needed
+                return StatusCode(499, "Request canceled"); // 499 Client Closed Request is a common status code for cancellation
+            }
+            catch (Exception ex)
+            {
+                // Handle other exceptions
+                return StatusCode(500, $"Internal Server Error: {ex.Message}");
+            }
+        }
+
+        [HttpPut("UpdateFloatingAnalytics")]
+        public async Task<IActionResult> UpdateFloatingAnalytics(FloatingCSIDto floatingCSIDto)
+        {
+            var result = await _analyticsService.UpdateFloatingAnalytics(floatingCSIDto);
+
+            if (result != null)
+            {
+                return (Ok(result));
+            }
+            return (NotFound());
+        }
     }
 }

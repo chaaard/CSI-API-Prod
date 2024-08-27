@@ -18,5 +18,11 @@ namespace CSI.Application.DTOs
         public string? remarks { get; set; } = string.Empty;
         public string? transactionNo { get; set; } = string.Empty;
         public string? regNo { get; set; } = string.Empty;
+        public string? CSREG { get; set; } = string.Empty;
+        public string? CSTRAN { get; set; } = string.Empty;
+        public string? CSDTYP { get; set; } = string.Empty;
+        public string? CSSEQ { get; set; } = string.Empty;
+        public string? CSDATE { get; set; } = string.Empty;
+        public string? CSSTOR { get; set; } = string.Empty;
     }
 }
