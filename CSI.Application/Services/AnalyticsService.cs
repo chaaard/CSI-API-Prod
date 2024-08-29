@@ -1341,7 +1341,7 @@ namespace CSI.Application.Services
                         analyticsCount += analyticsToDelete.Count();
 
                         var portalToDelete = _dbContext.Prooflist
-                         .Where(a => a.TransactionDate == date.Date &&
+                            .Where(a => a.TransactionDate == date.Date &&
                                      a.CustomerId.Contains(memCodeLast6Digits[j]) &&
                                      a.StoreId == analyticsParam.storeId[i]);
 
@@ -1392,7 +1392,6 @@ namespace CSI.Application.Services
             {
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND_AR_{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT, CSDAMT DECIMAL(18,3))");
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT)");
-                // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
 
                 int memCnt = 85;
                 var rem = memCodeLast6Digits.Count() % memCnt;
@@ -1488,10 +1487,7 @@ namespace CSI.Application.Services
 
                 }
 
-
-                // Create the table ANALYTICS_CSHHDR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHHDR{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSCUST VARCHAR(255), CSTAMT DECIMAL(18,3))");
-                // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
                 await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT )  " +
                                   $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, A.CSTAMT  " +
                                   $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
@@ -7262,9 +7258,8 @@ namespace CSI.Application.Services
             List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
             var analyticsList = new List<AnalyticsDto>();
             DateTime date;
-            DateTime date1;
             var analytics = new List<AnalyticsDto>();
-            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date) && DateTime.TryParse(analyticsParamsDto.dates[1].ToString(), out date1))
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
                 var result = await _dbContext.AnalyticsView
               .FromSqlRaw($" SELECT  " +
@@ -7316,15 +7311,17 @@ namespace CSI.Application.Services
                           $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
                           $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
                           $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) >= '{date.Date.ToString("yyyy-MM-dd")}' AND CAST(TransactionDate AS DATE) <= '{date1.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
                           $"         AND CustomerId = '' AND TransactionNo  LIKE '%{analyticsParamsDto.SearchQuery}%' ) OR " +
-                          $"     (CAST(TransactionDate AS DATE) >= '{date.Date.ToString("yyyy-MM-dd")}' AND CAST(TransactionDate AS DATE) <= '{date1.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
+                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
                           $"         AND OrderNo = '' AND TransactionNo LIKE '%{analyticsParamsDto.SearchQuery}%' )  " +
                           $" ) a " +
                           $" GROUP BY  " +
                           $"     a.OrderNo,    " +
+                          $"     a.CustomerId,    " +
                           $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num "
+                          $"     a.row_num " +
+                          $" ORDER BY a.CustomerId, a.OrderNo DESC"
                           )
                  .ToListAsync();
                 analytics = result.Select(n => new AnalyticsDto
@@ -7393,71 +7390,6 @@ namespace CSI.Application.Services
                                 ') AT [{_linkedServerOptions.MMS}]
                             ");
                         }
-
-
-                        if (floatingCSIDto.refreshAnalyticsDto != null)
-                        {
-                            var analyticsParams = new RefreshAnalyticsDto
-                            {
-                                dates = new List<DateTime>
-                                {
-                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date,
-                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date
-                                },
-                                memCode = new List<string> { floatingCSIDto.CustomerCode },
-                                userId = floatingCSIDto.UserId,
-                                storeId = new List<int> { Convert.ToInt32(floatingCSIDto.StoreId) }
-                            };
-
-                            var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParams);
-
-                            var GetMatch = MatchDto
-                                .Where(x => x.AnalyticsId != null)
-                                .ToList();
-
-                            var CheckIsNull = GetMatch.Where(x => x.ProofListId == null && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo)).Any();
-
-                            var GetNewException = MatchDto
-                                .Where(x => x.AnalyticsId != null && x.ProofListId != null && x.Variance > 0 && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo))
-                                .ToList();
-
-                            if (GetNewException != null)
-                            {
-                                foreach (var item in GetNewException)
-                                {
-                                    var param = new AnalyticsProoflistDto
-                                    {
-
-                                        Id = 0,
-                                        AnalyticsId = item.AnalyticsId,
-                                        ProoflistId = item.ProofListId,
-                                        ActionId = null,
-                                        StatusId = 5,
-                                        AdjustmentId = 0,
-                                        SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
-                                        DeleteFlag = false,
-                                        AdjustmentAddDto = new AdjustmentAddDto
-                                        {
-                                            Id = 0,
-                                            DisputeReferenceNumber = null,
-                                            DisputeAmount = null,
-                                            DateDisputeFiled = null,
-                                            DescriptionOfDispute = null,
-                                            NewJO = null,
-                                            CustomerId = null,
-                                            AccountsPaymentDate = null,
-                                            AccountsPaymentTransNo = null,
-                                            AccountsPaymentAmount = null,
-                                            ReasonId = null,
-                                            Descriptions = null,
-                                            DeleteFlag = null,
-                                        }
-                                    };
-
-                                    await CreateAnalyticsProofList(param);
-                                }
-                            }
-                        }
                     }
 
                     if (floatingCSIDto.CustomerCode != null || floatingCSIDto.CustomerCode.Count() != 0)
@@ -7503,68 +7435,62 @@ namespace CSI.Application.Services
                                         AND CSDTYP = ''AR'' 
                                 ') AT [{_linkedServerOptions.MMS}]
                             ");
+                        }
 
-                            if (floatingCSIDto.refreshAnalyticsDto != null)
+                        if (floatingCSIDto.refreshAnalyticsDto != null)
+                        {
+                            var analyticsParams = new RefreshAnalyticsDto
                             {
-                                var analyticsParams = new RefreshAnalyticsDto
+                                dates = new List<DateTime>
                                 {
-                                    dates = new List<DateTime>
-                                    {
-                                        matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date,
-                                        matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date
-                                    },
-                                    memCode = new List<string> { floatingCSIDto.CustomerCode },
-                                    userId = floatingCSIDto.UserId,
-                                    storeId = new List<int> { Convert.ToInt32(floatingCSIDto.StoreId) }
-                                };
+                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date,
+                                    matchRow?.TransactionDate?.Date ?? DateTime.MinValue.Date
+                                },
+                                memCode = new List<string> { floatingCSIDto.CustomerCode },
+                                userId = floatingCSIDto.UserId,
+                                storeId = new List<int> { Convert.ToInt32(floatingCSIDto.StoreId) }
+                            };
 
-                                var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParams);
+                            var MatchDto = await GetMatchAnalyticsAndProofList(analyticsParams);
 
-                                var GetMatch = MatchDto
-                                    .Where(x => x.AnalyticsId != null)
-                                    .ToList();
+                            var isUpload1 = MatchDto
+                                        .Where(x => x.IsUpload == true)
+                                        .Any();
 
-                                var CheckIsNull = GetMatch.Where(x => x.ProofListId == null && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo)).Any();
-
-                                var GetNewException = MatchDto
-                                    .Where(x => x.AnalyticsId != null && x.ProofListId != null && x.Variance > 0 && x.AnalyticsOrderNo.Contains(floatingCSIDto.OrderNo))
-                                    .ToList();
-
-                                if (GetNewException != null)
+                            if (isUpload1)
+                            {
+                                foreach (var item in MatchDto)
                                 {
-                                    foreach (var item in GetNewException)
+                                    var param = new AnalyticsProoflistDto
                                     {
-                                        var param = new AnalyticsProoflistDto
+
+                                        Id = 0,
+                                        AnalyticsId = item.AnalyticsId,
+                                        ProoflistId = item.ProofListId,
+                                        ActionId = null,
+                                        StatusId = 5,
+                                        AdjustmentId = 0,
+                                        SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
+                                        DeleteFlag = false,
+                                        AdjustmentAddDto = new AdjustmentAddDto
                                         {
-
                                             Id = 0,
-                                            AnalyticsId = item.AnalyticsId,
-                                            ProoflistId = item.ProofListId,
-                                            ActionId = null,
-                                            StatusId = 5,
-                                            AdjustmentId = 0,
-                                            SourceId = (item.AnalyticsId != null && item.ProofListId != null ? 1 : item.AnalyticsId != null ? 1 : item.ProofListId != null ? 2 : 0),
-                                            DeleteFlag = false,
-                                            AdjustmentAddDto = new AdjustmentAddDto
-                                            {
-                                                Id = 0,
-                                                DisputeReferenceNumber = null,
-                                                DisputeAmount = null,
-                                                DateDisputeFiled = null,
-                                                DescriptionOfDispute = null,
-                                                NewJO = null,
-                                                CustomerId = null,
-                                                AccountsPaymentDate = null,
-                                                AccountsPaymentTransNo = null,
-                                                AccountsPaymentAmount = null,
-                                                ReasonId = null,
-                                                Descriptions = null,
-                                                DeleteFlag = null,
-                                            }
-                                        };
+                                            DisputeReferenceNumber = null,
+                                            DisputeAmount = null,
+                                            DateDisputeFiled = null,
+                                            DescriptionOfDispute = null,
+                                            NewJO = null,
+                                            CustomerId = null,
+                                            AccountsPaymentDate = null,
+                                            AccountsPaymentTransNo = null,
+                                            AccountsPaymentAmount = null,
+                                            ReasonId = null,
+                                            Descriptions = null,
+                                            DeleteFlag = null,
+                                        }
+                                    };
 
-                                        await CreateAnalyticsProofList(param);
-                                    }
+                                    await CreateAnalyticsProofList(param);
                                 }
                             }
                         }
@@ -7602,6 +7528,178 @@ namespace CSI.Application.Services
                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
+                throw;
+            }
+        }
+        public async Task RefreshFloatingCSI(RefreshAnalyticsDto analyticsParam)
+        {
+            var listResultOne = new List<Analytics>();
+            string strFrom = analyticsParam.dates[0].ToString("yyMMdd");
+            string strTo = analyticsParam.dates[1].ToString("yyMMdd");
+            string strStamp = $"{DateTime.Now.ToString("yyMMdd")}{DateTime.Now.ToString("HHmmss")}{DateTime.Now.Millisecond.ToString()}";
+            string getQuery = string.Empty;
+            var deptCodeList = await GetDepartments();
+            var deptCodes = string.Join(", ", deptCodeList);
+            List<string> memCodeLast6Digits = analyticsParam.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            string cstDocCondition2 = string.Join("AND ", memCodeLast6Digits.Select(last6Digits => $"CSTDOC NOT LIKE ''%{last6Digits}%'' "));
+            string storeList = $"CSSTOR IN ({string.Join(", ", analyticsParam.storeId.Select(code => $"{code}"))})";
+            int analyticsCount = 0;
+
+            foreach (var storeId in analyticsParam.storeId)
+            {
+                foreach (var date in analyticsParam.dates)
+                {
+                    var analyticsToDelete = _dbContext.Analytics
+                        .Where(a => a.TransactionDate == date.Date &&
+                                    a.LocationId == storeId &&
+                                    (string.IsNullOrEmpty(a.CustomerId) || !analyticsParam.memCode.Contains(a.CustomerId)))
+                        .ToList();
+
+                    analyticsCount += analyticsToDelete.Count();
+
+                    var analyticsIdList = analyticsToDelete.Select(n => n.Id).ToList();
+
+                    // Delete Analytics records
+                    _dbContext.Analytics.RemoveRange(analyticsToDelete.Where(x => x.IsTransfer == false));
+                    _dbContext.SaveChanges();
+
+                    // Delete corresponding records in AnalyticsProoflist
+                    var adjustmentAnalyticsToDelete = _dbContext.AnalyticsProoflist
+                        .Where(x => analyticsIdList.Contains(x.AnalyticsId))
+                        .ToList();
+
+                    var adjustmentIdList = adjustmentAnalyticsToDelete.Select(n => n.AdjustmentId).ToList();
+
+                    _dbContext.AnalyticsProoflist.RemoveRange(adjustmentAnalyticsToDelete);
+                    _dbContext.SaveChanges();
+
+                    // Delete corresponding records in Adjustments
+                    var adjustmentToDelete = _dbContext.Adjustments
+                        .Where(x => adjustmentIdList.Contains(x.Id))
+                        .ToList();
+
+                    _dbContext.Adjustments.RemoveRange(adjustmentToDelete);
+                    _dbContext.SaveChanges();
+                }
+            }
+
+            try
+            {
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHTND{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSTDOC VARCHAR(50), CSCARD VARCHAR(50), CSDTYP VARCHAR(50), CSTIL INT, CSDAMT DECIMAL(18,3))");
+                // Insert data from MMJDALIB.CSHTND into the newly created table ANALYTICS_CSHTND + strStamp
+
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT)  " +
+                                  $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT " +
+                                  $"FROM OPENQUERY([SNR-UAT], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT FROM MMJDALIB.CSHTND a WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {cstDocCondition2} AND CSDTYP IN (''AR'') AND {storeList}  " +
+                                  $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
+                                  $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT ') ");
+
+                // Create the table ANALYTICS_CSHHDR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CSHHDR{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSCUST VARCHAR(255), CSDAMT DECIMAL(18,3))");
+                // Insert data from MMJDALIB.CSHHDR and ANALYTICS_CSHTND into the newly created table SALES_ANALYTICS_CSHHDR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHHDR{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSDAMT )  " +
+                                  $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSCUST, B.CSDAMT  " +
+                                  $"FROM OPENQUERY([SNR-UAT], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                  $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
+                                  $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_CONDTX + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_CONDTX{strStamp} (CSDATE VARCHAR(255), CSSTOR INT, CSREG INT, CSTRAN INT, CSSKU INT, CSQTY DECIMAL(18,3),  CSEXPR DECIMAL(18,3), CSEXCS DECIMAL(18,4), CSDSTS INT)");
+                // Insert data from MMJDALIB.CONDTX into the newly created table ANALYTICS_CONDTX + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CONDTX{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS )  " +
+                                      $"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSTRAN, A.CSSKU, A.CSQTY, A.CSEXPR, A.CSEXCS, A.CSDSTS  " +
+                                      $"FROM OPENQUERY([SNR-UAT], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSSKU, CSQTY, CSEXPR, CSEXCS, CSDSTS FROM MMJDALIB.CONDTX WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND {storeList} ') A  " +
+                                      $"INNER JOIN ANALYTICS_CSHTND{strStamp} B  " +
+                                      $"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN WHERE A.CSSKU <> 0 AND A.CSDSTS = '0' ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_INVMST + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_INVMST{strStamp} (IDESCR VARCHAR(255), IDEPT INT, ISDEPT INT, ICLAS INT, ISCLAS INT, INUMBR INT)");
+                // Insert data from MMJDALIB.INVMST into the newly created table ANALYTICS_INVMST + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_INVMST{strStamp} (IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR) " +
+                                          $"SELECT A.IDESCR, A.IDEPT, A.ISDEPT, A.ICLAS, A.ISCLAS, A.INUMBR " +
+                                          $"FROM OPENQUERY([SNR-UAT], 'SELECT DISTINCT IDESCR, IDEPT, ISDEPT, ICLAS, ISCLAS, INUMBR FROM MMJDALIB.INVMST WHERE IDEPT IN ({deptCodes})') A " +
+                                          $"INNER JOIN ANALYTICS_CONDTX{strStamp} B  " +
+                                          $"ON A.INUMBR = B.CSSKU");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                // Create the table ANALYTICS_TBLSTR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"CREATE TABLE ANALYTICS_TBLSTR{strStamp} (STRNUM INT, STRNAM VARCHAR(255))");
+                // Insert data from MMJDALIB.TBLSTR into the newly created table ANALYTICS_TBLSTR + strStamp
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_TBLSTR{strStamp} (STRNUM, STRNAM) " +
+                                        $"SELECT * FROM OPENQUERY([SNR-UAT], 'SELECT STRNUM, STRNAM FROM MMJDALIB.TBLSTR') ");
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
+                throw;
+            }
+
+            try
+            {
+                //Insert the data from tbl_analytics
+                await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO [dbo].[tbl_analytics] (LocationId, TransactionDate, CustomerId, MembershipNo, CashierNo, RegisterNo, TransactionNo, OrderNo, Qty, Amount, SubTotal, UserId, DeleteFlag) " +
+                                  $"SELECT C.CSSTOR, C.CSDATE, B.CSTDOC, A.CSCUST,B.CSTIL, C.CSREG, C.CSTRAN, B.CSCARD, SUM(C.CSQTY) AS CSQTY, SUM(C.CSEXPR) AS CSEXPR, B.CSDAMT, NULL AS UserId, 0 AS DeleteFlag   " +
+                                  $"FROM ANALYTICS_CSHHDR{strStamp} A " +
+                                      $"INNER JOIN ANALYTICS_CSHTND{strStamp} B ON A.CSSTOR = B.CSSTOR AND A.CSDATE = B.CSDATE AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN  " +
+                                      $"INNER JOIN ANALYTICS_CONDTX{strStamp} C ON A.CSSTOR = C.CSSTOR AND A.CSDATE = C.CSDATE AND A.CSREG = C.CSREG AND A.CSTRAN = C.CSTRAN  " +
+                                      $"INNER JOIN ANALYTICS_INVMST{strStamp} D ON C.CSSKU = D.INUMBR  " +
+                                      $"INNER JOIN ANALYTICS_TBLSTR{strStamp} E ON E.STRNUM = C.CSSTOR  " +
+                                  $"GROUP BY C.CSSTOR,  C.CSDATE,  B.CSTDOC,  A.CSCUST,  C.CSREG,  C.CSTRAN,  B.CSCARD,  B.CSTIL,  B.CSDAMT   " +
+                                  $"ORDER BY C.CSSTOR, C.CSDATE, C.CSREG ");
+
+                foreach (var store in analyticsParam.storeId)
+                {
+                    foreach (var code in analyticsParam.memCode)
+                    {
+                        string formattedMemCode = code.Substring(Math.Max(0, code.Length - 6));
+                        if (analyticsParam.dates != null && analyticsParam.dates.Any() && analyticsParam.dates[0] != null)
+                        {
+                            var transactionDate = analyticsParam.dates[0].Date;
+
+                            string sqlUpdate = @"
+                                UPDATE tbl_analytics
+                                SET CustomerId = @code
+                                WHERE CustomerId LIKE CONCAT('%', @formattedMemCode, '%')
+                                AND TransactionDate = @transactionDate
+                                AND LocationId = @store";
+
+                            await _dbContext.Database.ExecuteSqlRawAsync(sqlUpdate,
+                                new SqlParameter("@code", code),
+                                new SqlParameter("@formattedMemCode", formattedMemCode),
+                                new SqlParameter("@transactionDate", transactionDate),
+                                new SqlParameter("@store", store));
+                        }
+                    }
+                }
+
+                await DropTables(strStamp);
+            }
+            catch (Exception ex)
+            {
+                await DropTables(strStamp);
                 throw;
             }
         }

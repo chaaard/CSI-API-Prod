@@ -61,5 +61,6 @@ namespace CSI.Application.Interfaces
         Task<List<AccountingBalancesDetailsDto>> GetBalancesDetails(AnalyticsParamsDto analyticsParamsDto);
         Task<List<AnalyticsDto>> GetFloatingAnalytics(AnalyticsParamsDto analyticsParamsDto);
         Task<bool> UpdateFloatingAnalytics(FloatingCSIDto floatingCSIDto);
+        Task RefreshFloatingCSI(RefreshAnalyticsDto analyticsParam);
     }
 }

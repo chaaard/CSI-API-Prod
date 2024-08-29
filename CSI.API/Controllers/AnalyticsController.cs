@@ -222,8 +222,6 @@ namespace CSI.API.Controllers
             await _analyticsService.RefreshAnalytics(refreshAnalyticsDto);
         }
 
-
-
         [HttpPost("SubmitAnalytics")]
         public async Task<IActionResult> SubmitAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
@@ -759,6 +757,12 @@ namespace CSI.API.Controllers
                 return (Ok(result));
             }
             return (NotFound());
+        }
+
+        [HttpPost("RefreshFloatingCSI")]
+        public async Task RefreshFloatingCSI(RefreshAnalyticsDto refreshAnalyticsDto)
+        {
+            await _analyticsService.RefreshFloatingCSI(refreshAnalyticsDto);
         }
     }
 }
