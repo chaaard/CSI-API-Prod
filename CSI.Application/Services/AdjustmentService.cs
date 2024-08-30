@@ -522,6 +522,7 @@ namespace CSI.Application.Services
                                     AND CSDATE = ''{transactionDate}''
                                     AND CSREG = ''{matchRow.RegisterNo}'' 
                                     AND CSTRAN = ''{matchRow.TransactionNo}''
+                                    AND CSSEQ = ''{matchRow.Sequence}''
                                     AND CSDTYP = ''AR'' 
                             ') AT [{_linkedServerOptions.MMS}]
                         ");
@@ -856,6 +857,7 @@ namespace CSI.Application.Services
                                     AND CSDATE = ''{transactionDate}''
                                     AND CSREG = ''{matchRow.RegisterNo}'' 
                                     AND CSTRAN = ''{matchRow.TransactionNo}''
+                                    AND CSSEQ = ''{matchRow.Sequence}''
                                     AND CSDTYP = ''AR'' 
                             ') AT [{_linkedServerOptions.MMS}]
                         ");

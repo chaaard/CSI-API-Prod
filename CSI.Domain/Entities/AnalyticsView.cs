@@ -28,5 +28,6 @@ namespace CSI.Domain.Entities
         public int? IsGenerate { get; set; }
         public int? IsTransfer { get; set; }
         public string? Remarks { get; set; } = string.Empty;
+        public int? Sequence { get; set; }
     }
 }
