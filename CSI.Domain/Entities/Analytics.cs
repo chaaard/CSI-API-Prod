@@ -28,5 +28,6 @@ namespace CSI.Domain.Entities
         public bool? DeleteFlag { get; set; }
         public string? InvoiceNo { get; set; } = string.Empty;
         public DateTime? AutoChargeDate { get; set; }
+        public int? Sequence { get; set; }
     }
 }

@@ -30,6 +30,7 @@ namespace CSI.Application.DTOs
         public string? InvoiceNo { get; set; } = string.Empty;
         public int? TrxCount { get; set; }
         public string? Remarks { get; set; } = string.Empty;
+        public int? Sequence { get; set; }
 
     }
 }
