@@ -515,17 +515,25 @@ namespace CSI.Application.Services
                         result = true;
 
                         //Update MMS
-                        await _dbContext.Database.ExecuteSqlRawAsync($@"
-                            EXEC('UPDATE MMJDALIB.CSHTND 
-                                  SET CSCARD = ''{adjustmentTypeDto?.AdjustmentAddDto?.NewJO}'' 
-                                  WHERE CSSTOR = ''{matchRow.LocationId}''
-                                    AND CSDATE = ''{transactionDate}''
-                                    AND CSREG = ''{matchRow.RegisterNo}'' 
-                                    AND CSTRAN = ''{matchRow.TransactionNo}''
-                                    AND CSSEQ = ''{matchRow.Sequence}''
-                                    AND CSDTYP = ''AR'' 
-                            ') AT [{_linkedServerOptions.MMS}]
-                        ");
+                        if (!string.IsNullOrWhiteSpace(adjustmentTypeDto?.AdjustmentAddDto?.NewJO) &&
+                          matchRow.LocationId.HasValue && matchRow.LocationId.Value != 0 &&
+                          !string.IsNullOrWhiteSpace(transactionDate) &&
+                          !string.IsNullOrWhiteSpace(matchRow.RegisterNo) &&
+                          !string.IsNullOrWhiteSpace(matchRow.TransactionNo) &&
+                          matchRow.Sequence.HasValue && matchRow.Sequence.Value != 0)
+                        {
+                            await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                EXEC('UPDATE MMJDALIB.CSHTND 
+                                      SET CSCARD = ''{adjustmentTypeDto?.AdjustmentAddDto?.NewJO}'' 
+                                      WHERE CSSTOR = ''{matchRow.LocationId}''
+                                        AND CSDATE = ''{transactionDate}''
+                                        AND CSREG = ''{matchRow.RegisterNo}'' 
+                                        AND CSTRAN = ''{matchRow.TransactionNo}''
+                                        AND CSSEQ = ''{matchRow.Sequence}''
+                                        AND CSDTYP = ''AR'' 
+                                ') AT [{_linkedServerOptions.MMS}]
+                            ");
+                        }
                     }
 
                     var adjustmentStatus = await _dbContext.AnalyticsProoflist
@@ -849,18 +857,26 @@ namespace CSI.Application.Services
                         await _dbContext.SaveChangesAsync();
                         result = true;
 
-                        //Update MMS Customer Code
-                        await _dbContext.Database.ExecuteSqlRawAsync($@"
-                            EXEC('UPDATE MMJDALIB.CSHTND 
-                                  SET CSTDOC = ''{adjustmentTypeDto?.AdjustmentAddDto?.CustomerId}'' 
-                                  WHERE CSSTOR = ''{matchRow.LocationId}''
-                                    AND CSDATE = ''{transactionDate}''
-                                    AND CSREG = ''{matchRow.RegisterNo}'' 
-                                    AND CSTRAN = ''{matchRow.TransactionNo}''
-                                    AND CSSEQ = ''{matchRow.Sequence}''
-                                    AND CSDTYP = ''AR'' 
-                            ') AT [{_linkedServerOptions.MMS}]
-                        ");
+                        if (!string.IsNullOrWhiteSpace(adjustmentTypeDto?.AdjustmentAddDto?.CustomerId) &&
+                          matchRow.LocationId.HasValue && matchRow.LocationId.Value != 0 &&
+                          !string.IsNullOrWhiteSpace(transactionDate) &&
+                          !string.IsNullOrWhiteSpace(matchRow.RegisterNo) &&
+                          !string.IsNullOrWhiteSpace(matchRow.TransactionNo) &&
+                          matchRow.Sequence.HasValue && matchRow.Sequence.Value != 0)
+                        {
+                            //Update MMS Customer Code
+                            await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                EXEC('UPDATE MMJDALIB.CSHTND 
+                                      SET CSTDOC = ''{adjustmentTypeDto?.AdjustmentAddDto?.CustomerId}'' 
+                                      WHERE CSSTOR = ''{matchRow.LocationId}''
+                                        AND CSDATE = ''{transactionDate}''
+                                        AND CSREG = ''{matchRow.RegisterNo}'' 
+                                        AND CSTRAN = ''{matchRow.TransactionNo}''
+                                        AND CSSEQ = ''{matchRow.Sequence}''
+                                        AND CSDTYP = ''AR'' 
+                                ') AT [{_linkedServerOptions.MMS}]
+                            ");
+                        }
                     }
 
                     var adjustmentStatus = await _dbContext.AnalyticsProoflist
