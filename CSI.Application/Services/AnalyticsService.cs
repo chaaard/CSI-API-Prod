@@ -3535,18 +3535,25 @@ namespace CSI.Application.Services
                     await _dbContext.SaveChangesAsync();
                     result = true;
 
-                    //Update MMS Customer Code
-                    await _dbContext.Database.ExecuteSqlRawAsync($@"
-                        EXEC('UPDATE MMJDALIB.CSHTND 
-                                SET CSTDOC = ''{updateAnalyticsDto?.CustomerId}'' 
-                                WHERE CSSTOR = ''{GetAnalytics.LocationId}''
+                    if (!string.IsNullOrWhiteSpace(updateAnalyticsDto?.CustomerId) &&
+                        GetAnalytics.LocationId.HasValue && GetAnalytics.LocationId.Value != 0 &&
+                        !string.IsNullOrWhiteSpace(transactionDate) &&
+                        !string.IsNullOrWhiteSpace(GetAnalytics.RegisterNo) &&
+                        !string.IsNullOrWhiteSpace(GetAnalytics.TransactionNo) &&
+                        GetAnalytics.Sequence.HasValue && GetAnalytics.Sequence.Value != 0)
+                    {
+                        await _dbContext.Database.ExecuteSqlRawAsync($@"
+                            EXEC('UPDATE MMJDALIB.CSHTND 
+                                SET CSTDOC = ''{updateAnalyticsDto.CustomerId}'' 
+                                WHERE CSSTOR = {GetAnalytics.LocationId}
                                 AND CSDATE = ''{transactionDate}''
                                 AND CSREG = ''{GetAnalytics.RegisterNo}'' 
                                 AND CSTRAN = ''{GetAnalytics.TransactionNo}''
-                                AND CSSEQ = ''{GetAnalytics.Sequence}''
+                                AND CSSEQ = {GetAnalytics.Sequence}
                                 AND CSDTYP = ''AR'' 
                         ') AT [{_linkedServerOptions.MMS}]
-                    ");
+                        ");
+                    }
 
                     logsDto = new LogsDto
                     {
@@ -7446,6 +7453,7 @@ namespace CSI.Application.Services
         {
             string clubLogs = $"{string.Join(", ", floatingCSIDto.StoreId.Select(code => $"{code}"))}";
             string merchantLogs = $"{string.Join(", ", floatingCSIDto.CustomerCode.Select(code => $"{code}"))}";
+              
             var result = false;
             var oldJO = "";
             var logsDto = new LogsDto();
@@ -7469,18 +7477,26 @@ namespace CSI.Application.Services
                             await _dbContext.SaveChangesAsync();
                             result = true;
 
-                            //Update MMS
-                            await _dbContext.Database.ExecuteSqlRawAsync($@"
-                                EXEC('UPDATE MMJDALIB.CSHTND 
-                                      SET CSCARD = ''{floatingCSIDto?.OrderNo}'' 
-                                      WHERE CSSTOR = ''{matchRow.LocationId}''
-                                        AND CSDATE = ''{transactionDate}''
-                                        AND CSREG = ''{matchRow.RegisterNo}'' 
-                                        AND CSTRAN = ''{matchRow.TransactionNo}''
-                                        AND CSSEQ = ''{matchRow.Sequence}''
-                                        AND CSDTYP = ''AR'' 
-                                ') AT [{_linkedServerOptions.MMS}]
-                            ");
+                            if (!string.IsNullOrWhiteSpace(floatingCSIDto?.OrderNo) &&
+                             matchRow.LocationId.HasValue && matchRow.LocationId.Value != 0 &&
+                             !string.IsNullOrWhiteSpace(transactionDate) &&
+                             !string.IsNullOrWhiteSpace(matchRow.RegisterNo) &&
+                             !string.IsNullOrWhiteSpace(matchRow.TransactionNo) &&
+                             matchRow.Sequence.HasValue && matchRow.Sequence.Value != 0)
+                            {
+                                //Update MMS
+                                await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                    EXEC('UPDATE MMJDALIB.CSHTND 
+                                          SET CSCARD = ''{floatingCSIDto?.OrderNo}'' 
+                                          WHERE CSSTOR = ''{matchRow.LocationId}''
+                                            AND CSDATE = ''{transactionDate}''
+                                            AND CSREG = ''{matchRow.RegisterNo}'' 
+                                            AND CSTRAN = ''{matchRow.TransactionNo}''
+                                            AND CSSEQ = ''{matchRow.Sequence}''
+                                            AND CSDTYP = ''AR'' 
+                                    ') AT [{_linkedServerOptions.MMS}]
+                                ");
+                            }
                         }
                     }
 
@@ -7516,18 +7532,27 @@ namespace CSI.Application.Services
                             await _dbContext.SaveChangesAsync();
                             result = true;
 
-                            //Update MMS Customer Code
-                            await _dbContext.Database.ExecuteSqlRawAsync($@"
-                                EXEC('UPDATE MMJDALIB.CSHTND 
-                                      SET CSTDOC = ''{floatingCSIDto.CustomerCode}'' 
-                                      WHERE CSSTOR = ''{matchRow.LocationId}''
-                                        AND CSDATE = ''{transactionDate}''
-                                        AND CSREG = ''{matchRow.RegisterNo}'' 
-                                        AND CSTRAN = ''{matchRow.TransactionNo}''
-                                        AND CSSEQ = ''{matchRow.Sequence}''
-                                        AND CSDTYP = ''AR'' 
-                                ') AT [{_linkedServerOptions.MMS}]
-                            ");
+
+                            if (!string.IsNullOrWhiteSpace(floatingCSIDto?.CustomerCode) &&
+                             matchRow.LocationId.HasValue && matchRow.LocationId.Value != 0 &&
+                             !string.IsNullOrWhiteSpace(transactionDate) &&
+                             !string.IsNullOrWhiteSpace(matchRow.RegisterNo) &&
+                             !string.IsNullOrWhiteSpace(matchRow.TransactionNo) &&
+                             matchRow.Sequence.HasValue && matchRow.Sequence.Value != 0)
+                            {
+                                //Update MMS Customer Code
+                                await _dbContext.Database.ExecuteSqlRawAsync($@"
+                                    EXEC('UPDATE MMJDALIB.CSHTND 
+                                          SET CSTDOC = ''{floatingCSIDto.CustomerCode}'' 
+                                          WHERE CSSTOR = ''{matchRow.LocationId}''
+                                            AND CSDATE = ''{transactionDate}''
+                                            AND CSREG = ''{matchRow.RegisterNo}'' 
+                                            AND CSTRAN = ''{matchRow.TransactionNo}''
+                                            AND CSSEQ = ''{matchRow.Sequence}''
+                                            AND CSDTYP = ''AR'' 
+                                    ') AT [{_linkedServerOptions.MMS}]
+                                ");
+                            }
                         }
 
                         if (floatingCSIDto.refreshAnalyticsDto != null)
