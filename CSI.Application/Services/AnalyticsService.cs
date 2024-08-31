@@ -2270,7 +2270,7 @@ namespace CSI.Application.Services
                                 };
                                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                                 _dbContext.Logs.Add(logsMap);
-                                //await _dbContext.SaveChangesAsync();
+                                await _dbContext.SaveChangesAsync();
 
                                 return (false, "");
                             }
@@ -2295,7 +2295,7 @@ namespace CSI.Application.Services
                         };
                         logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                         _dbContext.Logs.Add(logsMap);
-                        //await _dbContext.SaveChangesAsync();
+                        await _dbContext.SaveChangesAsync();
 
                         return (false, "");
                     }
@@ -2320,8 +2320,8 @@ namespace CSI.Application.Services
                         return analyticsEntity;
                     }).ToList();
 
-                    //_dbContext.BulkUpdate(analyticsEntityListNonUB);
-                    //await _dbContext.SaveChangesAsync();
+                    _dbContext.BulkUpdate(analyticsEntityListNonUB);
+                    await _dbContext.SaveChangesAsync();
                     analyticsCnt += analyticsEntityListNonUB.Count();
 
 
@@ -2345,8 +2345,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            // _dbContext.BulkUpdate(analyticsEntityListUB);
-                            // await _dbContext.SaveChangesAsync();
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
 
@@ -2372,8 +2372,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            //_dbContext.BulkUpdate(analyticsEntityListUB);
-                            // await _dbContext.SaveChangesAsync();
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2398,8 +2398,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            //_dbContext.BulkUpdate(analyticsEntityListUB);
-                            //await _dbContext.SaveChangesAsync();
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2425,8 +2425,8 @@ namespace CSI.Application.Services
                                 return analyticsEntity;
                             }).ToList();
 
-                            // _dbContext.BulkUpdate(analyticsEntityListUB);
-                            // await _dbContext.SaveChangesAsync();
+                            _dbContext.BulkUpdate(analyticsEntityListUB);
+                            await _dbContext.SaveChangesAsync();
                             analyticsCnt += analyticsEntityListUB.Count();
                         }
                     }
@@ -2447,7 +2447,7 @@ namespace CSI.Application.Services
                     };
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                     _dbContext.Logs.Add(logsMap);
-                    // await _dbContext.SaveChangesAsync();
+                    await _dbContext.SaveChangesAsync();
                 }
 
 
@@ -2466,7 +2466,7 @@ namespace CSI.Application.Services
                 };
                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
-                // await _dbContext.SaveChangesAsync();
+                await _dbContext.SaveChangesAsync();
                 throw;
             }
         }
