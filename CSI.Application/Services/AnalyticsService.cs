@@ -122,130 +122,69 @@ namespace CSI.Application.Services
             var analytics = new List<AnalyticsDto>();
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
-                var teste = $" SELECT  " +
-                          $"     MAX(a.Id) AS Id, " +
-                          $"     MAX(a.CustomerId) AS CustomerId, " +
-                          $"     MAX(a.CustomerName) AS CustomerName, " +
-                          $"     MAX(a.LocationId) AS LocationId, " +
-                          $"     MAX(a.LocationName) AS LocationName, " +
-                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                          $"     MAX(a.CashierNo) AS CashierNo, " +
-                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                          $"     a.OrderNo, " +
-                          $"     MAX(a.Qty) AS Qty, " +
-                          $"     MAX(a.Amount) AS Amount, " +
-                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal,  " +
-                          $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
-                          $" FROM ( " +
-                          $"     SELECT   " +
-                          $"         n.Id, " +
-                          $"         n.CustomerId,  " +
-                          $"         c.CustomerName,  " +
-                          $"         n.LocationId,  " +
-                          $"         l.LocationName,  " +
-                          $"         n.TransactionDate,   " +
-                          $"         n.MembershipNo,   " +
-                          $"         n.CashierNo,  " +
-                          $"         n.RegisterNo,  " +
-                          $"         n.TransactionNo,  " +
-                          $"         n.OrderNo,  " +
-                          $"         n.Qty,  " +
-                          $"         n.Amount,  " +
-                          $"         n.SubTotal, " +
-                          $"         n.StatusId, " +
-                          $"         n.DeleteFlag,   " +
-                          $"         n.IsUpload,   " +
-                          $"         n.IsGenerate,   " +
-                          $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
-                          $"         a.Remarks, " +
-                          $"         n.Sequence " +
-                          $"     FROM tbl_analytics n " +
-                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
-                          $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
-                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
-                          $" ) a " +
-                          $" GROUP BY  " +
-                          $"     a.OrderNo,    " +
-                          $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num " +
-                          $" HAVING " +
-                          $"     COUNT(a.OrderNo) = 1 ";
-
                 var result = await _dbContext.AnalyticsView
-              .FromSqlRaw($" SELECT  " +
-                          $"     MAX(a.Id) AS Id, " +
-                          $"     MAX(a.CustomerId) AS CustomerId, " +
-                          $"     MAX(a.CustomerName) AS CustomerName, " +
-                          $"     MAX(a.LocationId) AS LocationId, " +
-                          $"     MAX(a.LocationName) AS LocationName, " +
-                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                          $"     MAX(a.CashierNo) AS CashierNo, " +
-                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                          $"     a.OrderNo, " +
-                          $"     MAX(a.Qty) AS Qty, " +
-                          $"     MAX(a.Amount) AS Amount, " +
-                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal,  " +
-                          $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
-                          $" FROM ( " +
-                          $"     SELECT   " +
-                          $"         n.Id, " +
-                          $"         n.CustomerId,  " +
-                          $"         c.CustomerName,  " +
-                          $"         n.LocationId,  " +
-                          $"         l.LocationName,  " +
-                          $"         n.TransactionDate,   " +
-                          $"         n.MembershipNo,   " +
-                          $"         n.CashierNo,  " +
-                          $"         n.RegisterNo,  " +
-                          $"         n.TransactionNo,  " +
-                          $"         n.OrderNo,  " +
-                          $"         n.Qty,  " +
-                          $"         n.Amount,  " +
-                          $"         n.SubTotal, " +
-                          $"         n.StatusId, " +
-                          $"         n.DeleteFlag,   " +
-                          $"         n.IsUpload,   " +
-                          $"         n.IsGenerate,   " +
-                          $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
-                          $"         a.Remarks, " +
-                          $"         n.Sequence " +
-                          $"     FROM tbl_analytics n " +
-                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
-                          $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
-                          $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
-                          $" ) a " +
-                          $" GROUP BY  " +
-                          $"     a.OrderNo,    " +
-                          $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num " +
-                          $" HAVING " +
-                          $"     COUNT(a.OrderNo) = 1 "
-                          )
-                 .ToListAsync();
+                  .FromSqlRaw($" SELECT  " +
+                              $"     MAX(a.Id) AS Id, " +
+                              $"     MAX(a.CustomerId) AS CustomerId, " +
+                              $"     MAX(a.CustomerName) AS CustomerName, " +
+                              $"     MAX(a.LocationId) AS LocationId, " +
+                              $"     MAX(a.LocationName) AS LocationName, " +
+                              $"     MAX(a.TransactionDate) AS TransactionDate, " +
+                              $"     MAX(a.MembershipNo) AS MembershipNo, " +
+                              $"     MAX(a.CashierNo) AS CashierNo, " +
+                              $"     MAX(a.RegisterNo) AS RegisterNo, " +
+                              $"     MAX(a.TransactionNo) AS TransactionNo, " +
+                              $"     a.OrderNo, " +
+                              $"     MAX(a.Qty) AS Qty, " +
+                              $"     MAX(a.Amount) AS Amount, " +
+                              $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
+                              $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
+                              $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
+                              $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
+                              $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
+                              $"     MAX(a.SubTotal) AS SubTotal,  " +
+                              $"     MAX(a.Remarks) AS Remarks,  " +
+                              $"     MAX(a.Sequence) AS Sequence  " +
+                              $" FROM ( " +
+                              $"     SELECT   " +
+                              $"         n.Id, " +
+                              $"         n.CustomerId,  " +
+                              $"         c.CustomerName,  " +
+                              $"         n.LocationId,  " +
+                              $"         l.LocationName,  " +
+                              $"         n.TransactionDate,   " +
+                              $"         n.MembershipNo,   " +
+                              $"         n.CashierNo,  " +
+                              $"         n.RegisterNo,  " +
+                              $"         n.TransactionNo,  " +
+                              $"         n.OrderNo,  " +
+                              $"         n.Qty,  " +
+                              $"         n.Amount,  " +
+                              $"         n.SubTotal, " +
+                              $"         n.StatusId, " +
+                              $"         n.DeleteFlag,   " +
+                              $"         n.IsUpload,   " +
+                              $"         n.IsGenerate,   " +
+                              $"         n.IsTransfer,   " +
+                              $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
+                              $"         a.Remarks, " +
+                              $"         n.Sequence " +
+                              $"     FROM tbl_analytics n " +
+                              $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                              $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
+                              $"     WHERE  " +
+                              $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                              $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " +
+                              $" ) a " +
+                              $" GROUP BY  " +
+                              $"     a.OrderNo,    " +
+                              $"     ABS(a.SubTotal),  " +
+                              $"     a.row_num " +
+                              $" HAVING " +
+                              $"     COUNT(a.OrderNo) = 1 "
+                              )
+                     .ToListAsync();
                 analytics = result.Select(n => new AnalyticsDto
                 {
                     Id = n.Id,
@@ -852,45 +791,45 @@ namespace CSI.Application.Services
                     DateTime.TryParse(analyticsParam.dates[1].ToString(), out dateTo))
                 {
                     var result = await _dbContext.GenerateUBVoucher
-                                    .FromSqlRaw($@"
-                                        SELECT CAST(a.Id AS int) AS Id,a.LocationId,a.TransactionDate,a.OrderNo,a.TransactionNo,b.cssku as [SKU],b.idescr as [Description],b.csexpr as [SRP],a.UnionBank,a.KMC
-	                                            FROM (
-                                        SELECT 
-                                            ROW_NUMBER() OVER (ORDER BY a.TransactionDate, a.LocationId, a.RegisterNo, a.TransactionNo) AS Id,
-	                                        a.LocationId,
-	                                        a.TransactionDate,
-	                                        a.RegisterNo,
-	                                        a.OrderNo,
-	                                        a.TransactionNo,
-	                                        a.SubTotal as [UnionBank], 
-	                                        b.SubTotal as [KMC] 
-                                        FROM 
-	                                        (SELECT * FROM[dbo].[tbl_analytics] WHERE CustomerId = '9999011984') as a 
-	                                        INNER JOIN
-	                                        (SELECT * FROM [dbo].[tbl_analytics] WHERE CustomerId = '9999011542') as b 
-	                                        ON a.LocationId = b.LocationId AND a.TransactionDate = b.TransactionDate AND a.OrderNo = b.OrderNo And a.TransactionNo =b.TransactionNo and a.SubTotal != b.SubTotal
-                                        WHERE  
-                                        CAST(a.TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND
-                                        a.LocationId IN {storeList} AND 
-                                        a.OrderNo NOT LIKE '%CSI%' AND 
-                                        a.OrderNo NOT LIKE '%PIZZA GIFT%' ) as a
-                                        INNER JOIN 
-                                        (
-                                        SELECT *
-                                        FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT a.CSDATE, a.CSSTOR, a.CSREG, a.CSTRAN, b.cssku,c.idescr, b.csexpr
-					                                        FROM 
-						                                        MMJDALIB.CSHTND a
-						                                        INNER JOIN
-						                                        mmjdalib.CSHDET b
-							                                        ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN
-						                                        INNER JOIN
-						                                        mmjdalib.invmst c
-							                                        ON b.cssku = c.inumbr
-						                                        WHERE ((a.CSDATE between {dateFrom.Date.ToString("yyMMdd")} and {dateTo.Date.ToString("yyMMdd")}) AND a.CSTDOC LIKE ''%{memCodeLast6Digits[0]}%'' AND a.CSCARD NOT LIKE ''%CSI%'' AND a.CSCARD NOT LIKE ''%GIFT%'' AND a.csstor IN {storeList}) AND a.CSDTYP IN (''AR'') ')
-                                        ) as b ON
-                                        a.LocationId = b.csstor AND FORMAT(a.TransactionDate, 'yyMMdd') = b.csdate AND a.RegisterNo = b.csreg AND a.TransactionNo = b.cstran
-                                    ")
-                                    .ToListAsync();
+                                .FromSqlRaw($@"
+                                    SELECT CAST(a.Id AS int) AS Id,a.LocationId,a.TransactionDate,a.OrderNo,a.TransactionNo,b.cssku as [SKU],b.idescr as [Description],b.csexpr as [SRP],a.UnionBank,a.KMC
+	                                        FROM (
+                                    SELECT 
+                                        ROW_NUMBER() OVER (ORDER BY a.TransactionDate, a.LocationId, a.RegisterNo, a.TransactionNo) AS Id,
+	                                    a.LocationId,
+	                                    a.TransactionDate,
+	                                    a.RegisterNo,
+	                                    a.OrderNo,
+	                                    a.TransactionNo,
+	                                    a.SubTotal as [UnionBank], 
+	                                    b.SubTotal as [KMC] 
+                                    FROM 
+	                                    (SELECT * FROM[dbo].[tbl_analytics] WHERE CustomerId = '9999011984') as a 
+	                                    INNER JOIN
+	                                    (SELECT * FROM [dbo].[tbl_analytics] WHERE CustomerId = '9999011542') as b 
+	                                    ON a.LocationId = b.LocationId AND a.TransactionDate = b.TransactionDate AND a.OrderNo = b.OrderNo And a.TransactionNo =b.TransactionNo and a.SubTotal != b.SubTotal
+                                    WHERE  
+                                    CAST(a.TransactionDate AS DATE) BETWEEN '{dateFrom.Date.ToString("yyyy-MM-dd")}' AND '{dateTo.Date.ToString("yyyy-MM-dd")}' AND
+                                    a.LocationId IN {storeList} AND 
+                                    a.OrderNo NOT LIKE '%CSI%' AND 
+                                    a.OrderNo NOT LIKE '%PIZZA GIFT%' ) as a
+                                    INNER JOIN 
+                                    (
+                                    SELECT *
+                                    FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT a.CSDATE, a.CSSTOR, a.CSREG, a.CSTRAN, b.cssku,c.idescr, b.csexpr
+					                                    FROM 
+						                                    MMJDALIB.CSHTND a
+						                                    INNER JOIN
+						                                    mmjdalib.CSHDET b
+							                                    ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN
+						                                    INNER JOIN
+						                                    mmjdalib.invmst c
+							                                    ON b.cssku = c.inumbr
+						                                    WHERE ((a.CSDATE between {dateFrom.Date.ToString("yyMMdd")} and {dateTo.Date.ToString("yyMMdd")}) AND a.CSTDOC LIKE ''%{memCodeLast6Digits[0]}%'' AND a.CSCARD NOT LIKE ''%CSI%'' AND a.CSCARD NOT LIKE ''%GIFT%'' AND a.csstor IN {storeList}) AND a.CSDTYP IN (''AR'') ')
+                                    ) as b ON
+                                    a.LocationId = b.csstor AND FORMAT(a.TransactionDate, 'yyMMdd') = b.csdate AND a.RegisterNo = b.csreg AND a.TransactionNo = b.cstran
+                                ")
+                                .ToListAsync();
                     analytics = result.Select(n => new GenerateUBVoucherDto
                     {
                         Id = n.Id,
@@ -1498,13 +1437,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancecsi" && containsValue)
@@ -1512,13 +1449,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancepv" && containsValue)
@@ -1526,13 +1461,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrenewal" && containsValue)
@@ -1540,13 +1473,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                           $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
-                                          $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else
@@ -1554,13 +1485,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                           $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                          $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL , CSSEQ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
 
@@ -4979,13 +4908,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD NOT LIKE ''%CSI%'' " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD NOT LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancecsi" && containsValue)
@@ -4993,13 +4920,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrebateissuancepv" && containsValue)
@@ -5007,13 +4932,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%PV%'' AND CSDAMT > 900 " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%PV%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else if (analyticsParam.remarks.ToString().ToLower() == "ubrenewal" && containsValue)
@@ -5021,13 +4944,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                           $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
-                                          $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  AND CSCARD LIKE ''%CSI%'' AND (CSDAMT = 400 OR CSDAMT = 700 OR CSDAMT = 900) " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND CSCARD LIKE ''%CSI%'' AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
                     else
@@ -5035,13 +4956,11 @@ namespace CSI.Application.Services
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ)  " +
                                           $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                                           $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                          $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                           $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ') ");
 
                         await _dbContext.Database.ExecuteSqlRawAsync($"INSERT INTO ANALYTICS_CSHTND_AR_{strStamp} (CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ)  " +
                                         $"SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ " +
                                         $"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ FROM MMJDALIB.CSHTND a WHERE {cstDocCond} AND CSDTYP IN (''AR'')  " +
-                                        $"AND NOT EXISTS (SELECT 1 FROM MMJDALIB.CSHTND b WHERE (CSDATE BETWEEN {strFrom} AND {strTo}) AND CSDTYP IN (''AR'') AND {storeList} AND a.CSDATE = b.CSDATE AND a.CSSTOR = b.CSSTOR AND a.CSREG = b.CSREG AND a.CSTDOC = b.CSTDOC AND a.CSCARD = b.CSCARD AND a.CSDAMT = -b.CSDAMT)  " +
                                         $"GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSDAMT, CSSEQ ') ");
                     }
 
@@ -5957,35 +5876,53 @@ namespace CSI.Application.Services
             if (DateTime.TryParse(generateA0FileDto.analyticsParamsDto.dates[0].ToString(), out date))
             {
                 result = await _dbContext.DashboardAccounting
-                 .FromSqlRaw($"SELECT  " +
-                     $"      l.LocationName,  " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011955' THEN a.StatusId ELSE NULL END) AS GrabMart,   " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011929' THEN a.StatusId ELSE NULL END) AS GrabFood,      " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011931' THEN a.StatusId ELSE NULL END) AS [PickARooMerch],     " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011935' THEN a.StatusId ELSE NULL END) AS [PickARooFS],  " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011838' THEN a.StatusId ELSE NULL END) AS [FoodPanda],  " +
-                     $"       MAX(CASE WHEN a.CustomerId = '9999011855' THEN a.StatusId ELSE NULL END) AS MetroMart, " +
-                     $"       loc.LocationCode " +
-                     $"   FROM ( " +
-                     $"       SELECT LocationCode " +
-                     $"       FROM tbl_location " +
-                     $"       WHERE LocationCode IN ({formatClubs}) " +
-                     $"   ) loc " +
-                     $"   LEFT JOIN ( " +
-                     $"       SELECT DISTINCT LocationId, CustomerId, StatusId, TransactionDate, DeleteFlag " +
-                     $"       FROM tbl_analytics " +
-                     $"       WHERE CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' " +
-                     $"           AND CustomerId IN ('9999011955', '9999011929', '9999011931', '9999011935', '9999011838', '9999011855') " +
-                     $"           AND DeleteFlag = 0 " +
-                     $"   ) a ON loc.LocationCode = a.LocationId " +
-                     $"   LEFT JOIN tbl_location l ON l.LocationCode = loc.LocationCode " +
-                     $"   GROUP BY  " +
-                     $"       l.LocationName, loc.LocationCode  " +
-                     $"   ORDER BY  " +
-                     $"       loc.LocationCode ASC;")
-                 .ToListAsync();
+                    .FromSqlRaw($@"
+                        SELECT  
+                            l.LocationName,  
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011955' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011955' THEN a.StatusId ELSE NULL END)
+                            END AS GrabMart,
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011929' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011929' THEN a.StatusId ELSE NULL END)
+                            END AS GrabFood,
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011931' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011931' THEN a.StatusId ELSE NULL END)
+                            END AS [PickARooMerch],
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011935' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011935' THEN a.StatusId ELSE NULL END)
+                            END AS [PickARooFS],
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011838' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011838' THEN a.StatusId ELSE NULL END)
+                            END AS [FoodPanda],
+                            CASE 
+                                WHEN MAX(CASE WHEN a.CustomerId = '9999011855' AND a.StatusId = 3 THEN 1 ELSE 0 END) = 1 THEN 3
+                                ELSE MAX(CASE WHEN a.CustomerId = '9999011855' THEN a.StatusId ELSE NULL END)
+                            END AS MetroMart,
+                            loc.LocationCode
+                        FROM (
+                            SELECT LocationCode 
+                            FROM tbl_location 
+                            WHERE LocationCode IN ({formatClubs})
+                        ) loc 
+                        LEFT JOIN (
+                            SELECT DISTINCT LocationId, CustomerId, StatusId, TransactionDate, DeleteFlag 
+                            FROM tbl_analytics 
+                            WHERE CAST(TransactionDate AS DATE) = '{date.Date:yyyy-MM-dd}'
+                                AND CustomerId IN ('9999011955', '9999011929', '9999011931', '9999011935', '9999011838', '9999011855')
+                                AND DeleteFlag = 0
+                        ) a ON loc.LocationCode = a.LocationId 
+                        LEFT JOIN tbl_location l ON l.LocationCode = loc.LocationCode 
+                        GROUP BY  
+                            l.LocationName, loc.LocationCode  
+                        ORDER BY  
+                            loc.LocationCode ASC;")
+                    .ToListAsync();
             }
-
             return result;
         }
 
@@ -7348,79 +7285,95 @@ namespace CSI.Application.Services
 
         public async Task<List<AnalyticsDto>> GetFloatingAnalytics(AnalyticsParamsDto analyticsParamsDto)
         {
-            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            List<string> memCodeLast6Digits = analyticsParamsDto.memCode
+            .Select(code => code.Substring(Math.Max(0, code.Length - 6)))
+            .ToList();
+
+            string cstDocCondition2 = string.Join(" AND ", memCodeLast6Digits
+                .Select(last6Digits => $"CustomerCode NOT LIKE '%{last6Digits}%'"));
+
             var analyticsList = new List<AnalyticsDto>();
             DateTime date;
             var analytics = new List<AnalyticsDto>();
+
             if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
             {
                 var result = await _dbContext.AnalyticsView
-              .FromSqlRaw($" SELECT  " +
-                          $"     MAX(a.Id) AS Id, " +
-                          $"     MAX(a.CustomerId) AS CustomerId, " +
-                          $"     MAX(a.CustomerName) AS CustomerName, " +
-                          $"     MAX(a.LocationId) AS LocationId, " +
-                          $"     MAX(a.LocationName) AS LocationName, " +
-                          $"     MAX(a.TransactionDate) AS TransactionDate, " +
-                          $"     MAX(a.MembershipNo) AS MembershipNo, " +
-                          $"     MAX(a.CashierNo) AS CashierNo, " +
-                          $"     MAX(a.RegisterNo) AS RegisterNo, " +
-                          $"     MAX(a.TransactionNo) AS TransactionNo, " +
-                          $"     a.OrderNo, " +
-                          $"     MAX(a.Qty) AS Qty, " +
-                          $"     MAX(a.Amount) AS Amount, " +
-                          $"     MAX(CAST(a.StatusId AS INT)) AS StatusId,  " +
-                          $"     MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, " +
-                          $"     MAX(CAST(a.IsUpload AS INT)) AS IsUpload, " +
-                          $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
-                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
-                          $"     MAX(a.SubTotal) AS SubTotal,  " +
-                          $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
-                          $" FROM ( " +
-                          $"     SELECT   " +
-                          $"         n.Id, " +
-                          $"         n.CustomerId,  " +
-                          $"         c.CustomerName,  " +
-                          $"         n.LocationId,  " +
-                          $"         l.LocationName,  " +
-                          $"         n.TransactionDate,   " +
-                          $"         n.MembershipNo,   " +
-                          $"         n.CashierNo,  " +
-                          $"         n.RegisterNo,  " +
-                          $"         n.TransactionNo,  " +
-                          $"         n.OrderNo,  " +
-                          $"         n.Qty,  " +
-                          $"         n.Amount,  " +
-                          $"         n.SubTotal, " +
-                          $"         n.StatusId, " +
-                          $"         n.DeleteFlag,   " +
-                          $"         n.IsUpload,   " +
-                          $"         n.IsGenerate,   " +
-                          $"         n.IsTransfer,   " +
-                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
-                          $"         a.Remarks, " +
-                          $"         n.Sequence " +
-                          $"     FROM tbl_analytics n " +
-                          $"        LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
-                          $"        LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
-                          $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
-                          $"     WHERE  " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
-                          $"         AND CustomerId = '' AND TransactionNo  LIKE '%{analyticsParamsDto.SearchQuery}%' ) OR " +
-                          $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0 " +
-                          $"         AND OrderNo = '' AND TransactionNo LIKE '%{analyticsParamsDto.SearchQuery}%' )  " +
-                          $" ) a " +
-                          $" GROUP BY  " +
-                          $"     a.OrderNo,    " +
-                          $"     a.CustomerId,    " +
-                          $"     ABS(a.SubTotal),  " +
-                          $"     a.row_num " +
-                          $" HAVING " +
-                          $"     COUNT(a.OrderNo) = 1 " +
-                          $" ORDER BY a.CustomerId, a.OrderNo DESC"
-                          )     
-                 .ToListAsync();
+                        .FromSqlRaw($@"
+                            SELECT 
+                                MAX(a.Id) AS Id, 
+                                MAX(a.CustomerId) AS CustomerId, 
+                                MAX(a.CustomerName) AS CustomerName, 
+                                MAX(a.LocationId) AS LocationId, 
+                                MAX(a.LocationName) AS LocationName, 
+                                MAX(a.TransactionDate) AS TransactionDate, 
+                                MAX(a.MembershipNo) AS MembershipNo, 
+                                MAX(a.CashierNo) AS CashierNo, 
+                                MAX(a.RegisterNo) AS RegisterNo, 
+                                MAX(a.TransactionNo) AS TransactionNo, 
+                                a.OrderNo, 
+                                MAX(a.Qty) AS Qty, 
+                                MAX(a.Amount) AS Amount, 
+                                MAX(CAST(a.StatusId AS INT)) AS StatusId, 
+                                MAX(CAST(a.DeleteFlag AS INT)) AS DeleteFlag, 
+                                MAX(CAST(a.IsUpload AS INT)) AS IsUpload, 
+                                MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, 
+                                MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, 
+                                MAX(a.SubTotal) AS SubTotal, 
+                                MAX(a.Remarks) AS Remarks, 
+                                MAX(a.Sequence) AS Sequence 
+                            FROM (
+                                SELECT 
+                                    n.Id, 
+                                    n.CustomerId, 
+                                    c.CustomerName, 
+                                    n.LocationId, 
+                                    l.LocationName, 
+                                    n.TransactionDate, 
+                                    n.MembershipNo, 
+                                    n.CashierNo, 
+                                    n.RegisterNo, 
+                                    n.TransactionNo, 
+                                    n.OrderNo, 
+                                    n.Qty, 
+                                    n.Amount, 
+                                    n.SubTotal, 
+                                    n.StatusId, 
+                                    n.DeleteFlag, 
+                                    n.IsUpload, 
+                                    n.IsGenerate, 
+                                    n.IsTransfer, 
+                                    ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, 
+                                    a.Remarks, 
+                                    n.Sequence 
+                                FROM tbl_analytics n 
+                                    LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
+                                    LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
+                                    LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId 
+                                WHERE 
+                                    CAST(TransactionDate AS DATE) = '{date:yyyy-MM-dd}' 
+                                    AND LocationId = {analyticsParamsDto.storeId[0]} 
+                                    AND n.DeleteFlag = 0 
+                                    AND (
+                                        CustomerId = '' 
+                                        OR (
+                                            TransactionNo LIKE '%{analyticsParamsDto.SearchQuery}%' 
+                                            AND {cstDocCondition2}
+                                        )
+                                    )
+                            ) a 
+                            GROUP BY 
+                                a.OrderNo, 
+                                a.CustomerId, 
+                                ABS(a.SubTotal), 
+                                a.row_num 
+                            HAVING 
+                                COUNT(a.OrderNo) = 1 
+                            ORDER BY 
+                                a.CustomerId, a.OrderNo DESC"
+                                    )
+                    .ToListAsync();
+
                 analytics = result.Select(n => new AnalyticsDto
                 {
                     Id = n.Id,
