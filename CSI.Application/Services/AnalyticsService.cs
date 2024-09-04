@@ -529,7 +529,7 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal,  " +
-                          $"     MAX(a.Remarks) AS Remarks  " +
+                          $"     MAX(a.Remarks) AS Remarks,  " +
                           $"     MAX(a.Sequence) AS Sequence  " +
                           $" FROM ( " +
                           $"     SELECT   " +
@@ -553,7 +553,7 @@ namespace CSI.Application.Services
                           $"         n.IsGenerate,   " +
                           $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
-                          $"         a.Remarks " +
+                          $"         a.Remarks, " +
                           $"         n.Sequence " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
@@ -2979,7 +2979,8 @@ namespace CSI.Application.Services
                             $"     MAX(CAST(a.IsGenerate AS INT)) AS IsGenerate, " +
                             $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                             $"     MAX(a.SubTotal) AS SubTotal,  " +
-                            $"     MAX(a.Remarks) AS Remarks  " +
+                            $"     MAX(a.Remarks) AS Remarks,  " +
+                            $"     MAX(a.Sequence) AS Sequence  " +
                             $" FROM ( " +
                             $"     SELECT   " +
                             $"         n.Id, " +
@@ -3002,7 +3003,8 @@ namespace CSI.Application.Services
                             $"         n.IsGenerate,   " +
                             $"         n.IsTransfer,   " +
                             $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
-                            $"         a.Remarks " +
+                            $"         a.Remarks, " +
+                            $"         n.Sequence " +
                             $"     FROM tbl_analytics n " +
                             $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                             $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
