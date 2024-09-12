@@ -52,7 +52,7 @@ namespace CSI.Application.Services
                             $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
                             $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = a.LocationId " +
                             $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                            $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND ({string.Join(" OR ", adjustmentParams.memCode.Select(code => $"a.CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})  AND a.DeleteFlag = 0 " +
+                            $"WHERE a.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND a.LocationId = {adjustmentParams.storeId[0]} AND ({string.Join(" OR ", adjustmentParams.memCode.Select(code => $"a.CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))})  AND ap.DeleteFlag = 0 AND a.DeleteFlag = 0 " +
                             $"UNION ALL " +
                             $"SELECT ap.Id, c.CustomerName, p.OrderNo, p.TransactionDate, p.Amount, act.Action,  " +
                             $"	so.SourceType, st.StatusName, ap.AdjustmentId, lo.LocationName, ap.AnalyticsId, ap.ProoflistId, " +
@@ -69,7 +69,7 @@ namespace CSI.Application.Services
                             $"	LEFT JOIN [dbo].[tbl_source] so ON so.Id = ap.SourceId " +
                             $"	LEFT JOIN [dbo].[tbl_location] lo ON lo.LocationCode = p.StoreId " +
                             $"  LEFT JOIN [dbo].[tbl_reason] re ON re.Id = adj.ReasonId " +
-                            $"WHERE p.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND p.StoreId = {adjustmentParams.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND so.SourceType = 'Portal'AND p.DeleteFlag = 0 " +
+                            $"WHERE p.TransactionDate = '{adjustmentParams.dates[0].ToString()}' AND p.StoreId = {adjustmentParams.storeId[0]} AND p.CustomerId LIKE '%{memCodeLast6Digits[0]}%' AND so.SourceType = 'Portal'AND ap.DeleteFlag = 0 AND a.DeleteFlag = 0 " +
                             $" ORDER BY so.SourceType, a.SubTotal ASC ")
                    .ToListAsync();
 
@@ -1055,7 +1055,7 @@ namespace CSI.Application.Services
                         .GroupJoin(_dbContext.Source, x => x.ap.StatusId, so => so.Id, (x, so) => new { x.ap, x.a, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
                         .SelectMany(x => x.Source.DefaultIfEmpty(), (x, so) => new { x.ap, x.a, x.Customer, x.Adjustment, x.Action, x.Status, Source = so })
                         .Join(_dbContext.Locations, x => x.a.LocationId, l => l.LocationCode, (x, l) => new { x, l })
-                        .Where(x => x.x.a.TransactionDate == date && x.x.a.LocationId == adjustmentParams.storeId[0] && x.x.a.CustomerId == adjustmentParams.memCode[0] && x.x.a.DeleteFlag == false)
+                        .Where(x => x.x.a.TransactionDate == date && x.x.a.LocationId == adjustmentParams.storeId[0] && x.x.a.CustomerId == adjustmentParams.memCode[0] && x.x.ap.DeleteFlag == false && x.x.a.DeleteFlag == false)
                         .Select(x => new ExceptionDto
                         {
                             Id = x.x.ap.Id,

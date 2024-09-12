@@ -3554,6 +3554,12 @@ namespace CSI.Application.Services
                 var isPending = false;
                 DateTime currentDate = DateTime.Now;
                 Random random = new Random();
+                var generateInvoiceList = new List<GenerateInvoiceDto>();
+                var filteredResultWithUB = new List<AnalyticsDto>();
+                var filteredResultWithoutUB = new List<AnalyticsDto>();
+                var filteredResultUB = new List<AnalyticsDto>();
+                var filteredResultCSI = new List<AnalyticsDto>();
+                var filteredResultUBAR = new List<AnalyticsDto>();
                 var getGeneratedInvoice = await AccountingGenerateInvoice(generateA0FileDto);
                 if (getGeneratedInvoice.Count() >= 1)
                 {
@@ -3607,11 +3613,11 @@ namespace CSI.Application.Services
                                 generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB PV ISSUANCE" ||
                                 generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB RENEWAL")
                             {
-                                var filteredResultWithUB = result.Where(r => r.CustomerId == "9999011984").ToList();
+                                filteredResultWithUB = result.Where(r => r.CustomerId == "9999011984").ToList();
 
                                 if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB PIZZA VOUCHER")
                                 {
-                                    var filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.ToUpper().ToString().Contains("CSI") && !r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
+                                    filteredResultUB = filteredResultWithUB.Where(r => !r.OrderNo.ToUpper().ToString().Contains("CSI") && !r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
                                     if (filteredResultUB.Count > 0)
                                     {
                                         var total = filteredResultUB.Sum(x => x.SubTotal);
@@ -3757,7 +3763,7 @@ namespace CSI.Application.Services
                                 }
                                 else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB REBATE ISSUANCE")
                                 {
-                                    var filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("CSI")).ToList();
+                                    filteredResultCSI = filteredResultWithUB?.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("CSI")).ToList();
                                     if (filteredResultCSI.Count > 0)
                                     {
                                         foreach (var resultItem in filteredResultCSI)
@@ -3892,7 +3898,7 @@ namespace CSI.Application.Services
                                 }
                                 else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB PV ISSUANCE")
                                 {
-                                    var filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
+                                    filteredResultCSI = filteredResultWithUB.Where(r => r.SubTotal > 900 && r.OrderNo.ToUpper().ToString().Contains("PV")).ToList();
                                     if (filteredResultCSI.Count > 0)
                                     {
                                         foreach (var resultItem in filteredResultCSI)
@@ -4027,7 +4033,7 @@ namespace CSI.Application.Services
                                 }
                                 else if (generateA0FileDto.analyticsParamsDto.selectedItem.ToUpper() == "UB RENEWAL")
                                 {
-                                    var filteredResultUBAR = filteredResultWithUB
+                                    filteredResultUBAR = filteredResultWithUB
                                    .Where(r => r.OrderNo.ToUpper().ToString().Contains("CSI") && (r.SubTotal == 700 || r.SubTotal == 400 || r.SubTotal == 900))
                                    .GroupBy(r => r.OrderNo)
                                    .Select(g => new AnalyticsDto
@@ -4189,7 +4195,7 @@ namespace CSI.Application.Services
                                 }
                                 else
                                 {
-                                    var filteredResultWithoutUB = result.Where(r => r.CustomerId != "9999011984").ToList();
+                                    filteredResultWithoutUB = result.Where(r => r.CustomerId != "9999011984").ToList();
                                     if (filteredResultWithoutUB.Count > 0)
                                     {
                                         foreach (var resultItem in filteredResultWithoutUB)
@@ -4302,6 +4308,8 @@ namespace CSI.Application.Services
                                                 FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
                                                 Remarks = GetRemarks?.Remarks ?? "",
                                             };
+
+                                            //generateInvoiceList.Add(generateInvoice);
 
                                             var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
                                             _dbContext.GenerateInvoice.Add(genInvoice);
