@@ -29,5 +29,6 @@ namespace CSI.Domain.Entities
         public int? IsTransfer { get; set; }
         public string? Remarks { get; set; } = string.Empty;
         public int? Sequence { get; set; }
+        public string? InvoiceNo { get; set; } = string.Empty;
     }
 }
