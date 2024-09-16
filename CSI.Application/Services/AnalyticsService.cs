@@ -3628,7 +3628,7 @@ namespace CSI.Application.Services
                         };
 
                         var getresult = await ReturnAnalytics(param);
-                        var result = getresult.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo != string.Empty).ToList();
+                        var result = getresult.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == string.Empty).ToList();
                         var merchRef = new Dictionary<string, string>();
 
                         if (result.Count >= 1)
