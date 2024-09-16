@@ -427,19 +427,14 @@ namespace CSI.API.Controllers
         public async Task<IActionResult> GenerateA0File(GenerateA0FileDto generateA0FileDto)
         {
             var result = await _analyticsService.GenerateA0File(generateA0FileDto);
-
-            if (result.Item1 != null)
+            var data = new
             {
-                var data = new
-                {
-                    Message = result.Item1,
-                    FileName = result.Item2,
-                    Content = result.Item3,
-                };
+                Message = result.Item1,
+                FileName = result.Item2,
+                Content = result.Item3,
+            };
 
-                return (Ok(data));
-            }
-            return (NotFound());
+            return (Ok(data));
         }
 
         [HttpPost("ManualReload")]

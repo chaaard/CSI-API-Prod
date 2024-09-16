@@ -144,7 +144,8 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                               $"     MAX(a.SubTotal) AS SubTotal,  " +
                               $"     MAX(a.Remarks) AS Remarks,  " +
-                              $"     MAX(a.Sequence) AS Sequence  " +
+                              $"     MAX(a.Sequence) AS Sequence,  " +
+                              $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                               $" FROM ( " +
                               $"     SELECT   " +
                               $"         n.Id, " +
@@ -168,7 +169,8 @@ namespace CSI.Application.Services
                               $"         n.IsTransfer,   " +
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                               $"         a.Remarks, " +
-                              $"         n.Sequence " +
+                              $"         n.Sequence, " +
+                              $"         n.InvoiceNo " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -206,7 +208,8 @@ namespace CSI.Application.Services
                     IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                     Remarks = n.Remarks,
-                    Sequence = n.Sequence
+                    Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).ToList();
             }
 
@@ -244,7 +247,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal,  " +
                           $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
+                          $"     MAX(a.Sequence) AS Sequence,  " +
+                          $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -268,7 +272,8 @@ namespace CSI.Application.Services
                           $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                           $"         a.Remarks, " +
-                          $"         n.Sequence " +
+                          $"         n.Sequence, " +
+                          $"         n.InvoiceNo " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -310,7 +315,8 @@ namespace CSI.Application.Services
                            IsTransfer = Convert.ToBoolean(n.IsTransfer),
                            DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                            Remarks = n.Remarks,
-                           Sequence = n.Sequence
+                           Sequence = n.Sequence,
+                           InvoiceNo = n.InvoiceNo,
                        }).ToList();
                 }
                 else if (analyticsParamsDto.remarks == "ubrebateissuancecsi")
@@ -338,7 +344,8 @@ namespace CSI.Application.Services
                            IsTransfer = Convert.ToBoolean(n.IsTransfer),
                            DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                            Remarks = n.Remarks,
-                           Sequence = n.Sequence
+                           Sequence = n.Sequence,
+                           InvoiceNo = n.InvoiceNo,
                        }).ToList();
                 }
                 else if (analyticsParamsDto.remarks == "ubrebateissuancepv")
@@ -366,7 +373,8 @@ namespace CSI.Application.Services
                            IsTransfer = Convert.ToBoolean(n.IsTransfer),
                            DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                            Remarks = n.Remarks,
-                           Sequence = n.Sequence
+                           Sequence = n.Sequence,
+                           InvoiceNo = n.InvoiceNo,
                        }).ToList();
                 }
                 else if (analyticsParamsDto.remarks == "ubrenewal")
@@ -394,7 +402,8 @@ namespace CSI.Application.Services
                            IsTransfer = Convert.ToBoolean(n.IsTransfer),
                            DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                            Remarks = n.Remarks,
-                           Sequence = n.Sequence
+                           Sequence = n.Sequence,
+                           InvoiceNo = n.InvoiceNo,
                        }).ToList();
                 }
             }
@@ -432,7 +441,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal,  " +
                           $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
+                          $"     MAX(a.Sequence) AS Sequence,  " +
+                          $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -456,7 +466,8 @@ namespace CSI.Application.Services
                           $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                           $"         a.Remarks, " +
-                          $"         n.Sequence " +
+                          $"         n.Sequence, " +
+                          $"         n.InvoiceNo " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -493,7 +504,8 @@ namespace CSI.Application.Services
                     IsGenerate = Convert.ToBoolean(n.IsGenerate),
                     IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
-                    Sequence = n.Sequence
+                    Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).ToList();
             }
 
@@ -530,7 +542,8 @@ namespace CSI.Application.Services
                           $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                           $"     MAX(a.SubTotal) AS SubTotal,  " +
                           $"     MAX(a.Remarks) AS Remarks,  " +
-                          $"     MAX(a.Sequence) AS Sequence  " +
+                          $"     MAX(a.Sequence) AS Sequence,  " +
+                          $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                           $" FROM ( " +
                           $"     SELECT   " +
                           $"         n.Id, " +
@@ -554,7 +567,8 @@ namespace CSI.Application.Services
                           $"         n.IsTransfer,   " +
                           $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                           $"         a.Remarks, " +
-                          $"         n.Sequence " +
+                          $"         n.Sequence, " +
+                          $"         n.InvoiceNo " +
                           $"     FROM tbl_analytics n " +
                           $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                           $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -591,6 +605,7 @@ namespace CSI.Application.Services
                     IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                     Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).ToList();
             }
 
@@ -627,7 +642,8 @@ namespace CSI.Application.Services
                          $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                          $"     MAX(a.SubTotal) AS SubTotal,  " +
                          $"     MAX(a.Remarks) AS Remarks,  " +
-                         $"     MAX(a.Sequence) AS Sequence  " +
+                         $"     MAX(a.Sequence) AS Sequence,  " +
+                         $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                          $" FROM ( " +
                          $"     SELECT   " +
                          $"         n.Id, " +
@@ -651,7 +667,8 @@ namespace CSI.Application.Services
                          $"         n.IsTransfer,   " +
                          $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                          $"         a.Remarks, " +
-                         $"         n.Sequence " +
+                         $"         n.Sequence, " +
+                         $"         n.InvoiceNo " +
                          $"     FROM tbl_analytics n " +
                          $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                          $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -687,6 +704,7 @@ namespace CSI.Application.Services
                     IsTransfer = Convert.ToBoolean(n.IsTransfer),
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                     Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).ToList();
             }
 
@@ -2980,7 +2998,8 @@ namespace CSI.Application.Services
                             $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                             $"     MAX(a.SubTotal) AS SubTotal,  " +
                             $"     MAX(a.Remarks) AS Remarks,  " +
-                            $"     MAX(a.Sequence) AS Sequence  " +
+                            $"     MAX(a.Sequence) AS Sequence,  " +
+                            $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                             $" FROM ( " +
                             $"     SELECT   " +
                             $"         n.Id, " +
@@ -3004,7 +3023,8 @@ namespace CSI.Application.Services
                             $"         n.IsTransfer,   " +
                             $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                             $"         a.Remarks, " +
-                            $"         n.Sequence " +
+                            $"         n.Sequence, " +
+                            $"         n.InvoiceNo " +
                             $"     FROM tbl_analytics n " +
                             $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                             $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -3138,7 +3158,8 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                               $"     MAX(a.SubTotal) AS SubTotal,  " +
                               $"     MAX(a.Remarks) AS Remarks,  " +
-                              $"     MAX(a.Sequence) AS Sequence  " +
+                              $"     MAX(a.Sequence) AS Sequence,  " +
+                              $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                               $" FROM ( " +
                               $"     SELECT   " +
                               $"         n.Id, " +
@@ -3162,7 +3183,8 @@ namespace CSI.Application.Services
                               $"         n.IsTransfer,   " +
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                               $"         a.Remarks, " +
-                              $"         n.Sequence " +
+                              $"         n.Sequence, " +
+                              $"         n.InvoiceNo " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -3195,6 +3217,7 @@ namespace CSI.Application.Services
                     SubTotal = n.SubTotal,
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                     Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).AsQueryable();
 
                 var totalItemCount = analytics.Count();
@@ -3242,7 +3265,8 @@ namespace CSI.Application.Services
                               $"     MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, " +
                               $"     MAX(a.SubTotal) AS SubTotal,  " +
                               $"     MAX(a.Remarks) AS Remarks,  " +
-                              $"     MAX(a.Sequence) AS Sequence  " +
+                              $"     MAX(a.Sequence) AS Sequence,  " +
+                              $"     MAX(a.InvoiceNo) AS InvoiceNo  " +
                               $" FROM ( " +
                               $"     SELECT   " +
                               $"         n.Id, " +
@@ -3266,7 +3290,8 @@ namespace CSI.Application.Services
                               $"         n.IsTransfer,   " +
                               $"         ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, " +
                               $"         a.Remarks, " +
-                              $"         n.Sequence " +
+                              $"         n.Sequence, " +
+                              $"         n.InvoiceNo " +
                               $"     FROM tbl_analytics n " +
                               $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
                               $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
@@ -3298,7 +3323,8 @@ namespace CSI.Application.Services
                     Amount = n.Amount,
                     SubTotal = n.SubTotal,
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
-                    Sequence = n.Sequence
+                    Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).AsQueryable();
 
                 var totalItemCount = analytics.Count();
@@ -3544,10 +3570,11 @@ namespace CSI.Application.Services
             string merchantLogs = $"{string.Join(", ", generateA0FileDto.analyticsParamsDto.memCode.Select(code => $"{code}"))}";
             var logsDto = new LogsDto();
             var logsMap = new Logs();
+            var content = new StringBuilder();
+            var fileName = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
             try
             {
                 //var result = false;
-                var fileName = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
                 var formattedList = new List<string>();
                 var invoiceNo = "";
                 var invoiceAnalytics = new List<InvoiceDto>();
@@ -3560,6 +3587,7 @@ namespace CSI.Application.Services
                 var filteredResultUB = new List<AnalyticsDto>();
                 var filteredResultCSI = new List<AnalyticsDto>();
                 var filteredResultUBAR = new List<AnalyticsDto>();
+                var filePath = "";
                 var getGeneratedInvoice = await AccountingGenerateInvoice(generateA0FileDto);
                 if (getGeneratedInvoice.Count() >= 1)
                 {
@@ -3599,7 +3627,8 @@ namespace CSI.Application.Services
                             storeId = new List<int> { item.LocationId ?? 0 },
                         };
 
-                        var result = await ReturnAnalytics(param);
+                        var getresult = await ReturnAnalytics(param);
+                        var result = getresult.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo != string.Empty).ToList();
                         var merchRef = new Dictionary<string, string>();
 
                         if (result.Count >= 1)
@@ -3703,6 +3732,38 @@ namespace CSI.Application.Services
                                         };
 
                                         invoiceAnalytics.Add(invoice);
+
+                                        var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                        var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                        var format = new
+                                        {
+                                            HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                            HDR_TRX_DATE = formattedTRXDate,
+                                            HDR_PAYMENT_TYPE = "HS",
+                                            HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                            HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                            HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                            HDR_PAYMENT_TERM = "0",
+                                            HDR_BUSINESS_LINE = "1",
+                                            HDR_BATCH_SOURCE_NAME = "POS",
+                                            HDR_GL_DATE = formattedGLDate,
+                                            HDR_SOURCE_REFERENCE = "HS",
+                                            DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
+                                            DTL_QUANTITY = 1,
+                                            DTL_AMOUNT = total,
+                                            DTL_VAT_CODE = "",
+                                            DTL_CURRENCY = "PHP",
+                                            INVOICE_APPLIED = "0",
+                                            FILENAME = fileName,
+                                        };
+
+                                        invoiceNo = format.HDR_TRX_NUMBER;
+
+                                        string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                        content.AppendLine(line);
+                                        filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                        await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
 
                                         var formattedResult = filteredResultUB.FirstOrDefault();
 
@@ -3835,6 +3896,38 @@ namespace CSI.Application.Services
                                             };
 
                                             invoiceAnalytics.Add(invoice);
+
+                                            var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                            var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                            var format = new
+                                            {
+                                                HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                                HDR_TRX_DATE = formattedTRXDate,
+                                                HDR_PAYMENT_TYPE = "HS",
+                                                HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                                HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                                HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                                HDR_PAYMENT_TERM = "0",
+                                                HDR_BUSINESS_LINE = "1",
+                                                HDR_BATCH_SOURCE_NAME = "POS",
+                                                HDR_GL_DATE = formattedGLDate,
+                                                HDR_SOURCE_REFERENCE = "HS",
+                                                DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                                DTL_QUANTITY = 1,
+                                                DTL_AMOUNT = resultItem.SubTotal,
+                                                DTL_VAT_CODE = "",
+                                                DTL_CURRENCY = "PHP",
+                                                INVOICE_APPLIED = "0",
+                                                FILENAME = fileName,
+                                            };
+
+                                            invoiceNo = format.HDR_TRX_NUMBER;
+
+                                            string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                            content.AppendLine(line);
+                                            filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                            await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
 
                                             var formattedResult = resultItem.CustomerId;
 
@@ -3970,6 +4063,38 @@ namespace CSI.Application.Services
                                             };
 
                                             invoiceAnalytics.Add(invoice);
+
+                                            var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                            var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                            var format = new
+                                            {
+                                                HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                                HDR_TRX_DATE = formattedTRXDate,
+                                                HDR_PAYMENT_TYPE = "HS",
+                                                HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                                HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                                HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                                HDR_PAYMENT_TERM = "0",
+                                                HDR_BUSINESS_LINE = "1",
+                                                HDR_BATCH_SOURCE_NAME = "POS",
+                                                HDR_GL_DATE = formattedGLDate,
+                                                HDR_SOURCE_REFERENCE = "HS",
+                                                DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                                DTL_QUANTITY = 1,
+                                                DTL_AMOUNT = resultItem.SubTotal,
+                                                DTL_VAT_CODE = "",
+                                                DTL_CURRENCY = "PHP",
+                                                INVOICE_APPLIED = "0",
+                                                FILENAME = fileName,
+                                            };
+
+                                            invoiceNo = format.HDR_TRX_NUMBER;
+
+                                            string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                            content.AppendLine(line);
+                                            filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                            await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
 
                                             var formattedResult = resultItem.CustomerId;
 
@@ -4133,6 +4258,38 @@ namespace CSI.Application.Services
 
                                             invoiceAnalytics.Add(invoice);
 
+                                            var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                            var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                            var format = new
+                                            {
+                                                HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                                HDR_TRX_DATE = formattedTRXDate,
+                                                HDR_PAYMENT_TYPE = "HS",
+                                                HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                                HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                                HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                                HDR_PAYMENT_TERM = "0",
+                                                HDR_BUSINESS_LINE = "1",
+                                                HDR_BATCH_SOURCE_NAME = "POS",
+                                                HDR_GL_DATE = formattedGLDate,
+                                                HDR_SOURCE_REFERENCE = "HS",
+                                                DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                                DTL_QUANTITY = 1,
+                                                DTL_AMOUNT = resultItem.SubTotal,
+                                                DTL_VAT_CODE = "",
+                                                DTL_CURRENCY = "PHP",
+                                                INVOICE_APPLIED = "0",
+                                                FILENAME = fileName,
+                                            };
+
+                                            invoiceNo = format.HDR_TRX_NUMBER;
+
+                                            string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                            content.AppendLine(line);
+                                            filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                            await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+
                                             var formattedResult = resultItem.CustomerId;
 
                                             var customerName = string.Empty;
@@ -4282,6 +4439,38 @@ namespace CSI.Application.Services
 
                                             invoiceAnalytics.Add(invoice);
 
+                                            var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                            var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                            var format = new
+                                            {
+                                                HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                                HDR_TRX_DATE = formattedTRXDate,
+                                                HDR_PAYMENT_TYPE = "HS",
+                                                HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                                HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                                HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                                HDR_PAYMENT_TERM = "0",
+                                                HDR_BUSINESS_LINE = "1",
+                                                HDR_BATCH_SOURCE_NAME = "POS",
+                                                HDR_GL_DATE = formattedGLDate,
+                                                HDR_SOURCE_REFERENCE = "HS",
+                                                DTL_LINE_DESC = resultItem.OrderNo.Replace("-", ""),
+                                                DTL_QUANTITY = 1,
+                                                DTL_AMOUNT = resultItem.SubTotal,
+                                                DTL_VAT_CODE = "",
+                                                DTL_CURRENCY = "PHP",
+                                                INVOICE_APPLIED = "0",
+                                                FILENAME = fileName,
+                                            };
+
+                                            invoiceNo = format.HDR_TRX_NUMBER;
+
+                                            string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                            content.AppendLine(line);
+                                            filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                            await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+
                                             var formattedResult = resultItem.CustomerId;
 
                                             var customerName = string.Empty;
@@ -4309,7 +4498,7 @@ namespace CSI.Application.Services
                                                 Remarks = GetRemarks?.Remarks ?? "",
                                             };
 
-                                            //generateInvoiceList.Add(generateInvoice);
+                                            generateInvoiceList.Add(generateInvoice);
 
                                             var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
                                             _dbContext.GenerateInvoice.Add(genInvoice);
@@ -4429,6 +4618,38 @@ namespace CSI.Application.Services
                                 };
 
                                 invoiceAnalytics.Add(invoice);
+
+                                var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                var format = new
+                                {
+                                    HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                    HDR_TRX_DATE = formattedTRXDate,
+                                    HDR_PAYMENT_TYPE = "HS",
+                                    HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                    HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                    HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                    HDR_PAYMENT_TERM = "0",
+                                    HDR_BUSINESS_LINE = "1",
+                                    HDR_BATCH_SOURCE_NAME = "POS",
+                                    HDR_GL_DATE = formattedGLDate,
+                                    HDR_SOURCE_REFERENCE = "HS",
+                                    DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
+                                    DTL_QUANTITY = 1,
+                                    DTL_AMOUNT = total,
+                                    DTL_VAT_CODE = "",
+                                    DTL_CURRENCY = "PHP",
+                                    INVOICE_APPLIED = "0",
+                                    FILENAME = fileName
+                                };
+
+                                invoiceNo = format.HDR_TRX_NUMBER;
+
+                                string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                content.AppendLine(line);
+                                filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
 
                                 var formattedResult = result.FirstOrDefault();
 
@@ -4569,6 +4790,38 @@ namespace CSI.Application.Services
 
                                 invoiceAnalytics.Add(invoice);
 
+                                var formattedTRXDate = FormatDate(result.FirstOrDefault().TransactionDate);
+                                var formattedGLDate = FormatDate(result.FirstOrDefault().TransactionDate);
+
+                                var format = new
+                                {
+                                    HDR_TRX_NUMBER = formattedInvoiceNumber,
+                                    HDR_TRX_DATE = formattedTRXDate,
+                                    HDR_PAYMENT_TYPE = "HS",
+                                    HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                                    HDR_CUSTOMER_NUMBER = GetCustomerNo,
+                                    HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                                    HDR_PAYMENT_TERM = "0",
+                                    HDR_BUSINESS_LINE = "1",
+                                    HDR_BATCH_SOURCE_NAME = "POS",
+                                    HDR_GL_DATE = formattedGLDate,
+                                    HDR_SOURCE_REFERENCE = "HS",
+                                    DTL_LINE_DESC = getReference.MerchReference + club + dateFormat + "-" + trxCount,
+                                    DTL_QUANTITY = 1,
+                                    DTL_AMOUNT = total,
+                                    DTL_VAT_CODE = "",
+                                    DTL_CURRENCY = "PHP",
+                                    INVOICE_APPLIED = "0",
+                                    FILENAME = fileName
+                                };
+
+                                invoiceNo = format.HDR_TRX_NUMBER;
+
+                                string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
+                                content.AppendLine(line);
+                                filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+
                                 var formattedResult = result.FirstOrDefault();
 
                                 var customerName = string.Empty;
@@ -4656,46 +4909,9 @@ namespace CSI.Application.Services
 
                                 }
                             }
-
-
                         }
                     }
-                    var content = new StringBuilder();
-
-                    foreach (var item in invoiceAnalytics)
-                    {
-                        var formattedTRXDate = FormatDate(item.HDR_TRX_DATE);
-                        var formattedGLDate = FormatDate(item.HDR_GL_DATE);
-
-                        var format = new
-                        {
-                            HDR_TRX_NUMBER = item.HDR_TRX_NUMBER,
-                            HDR_TRX_DATE = formattedTRXDate,
-                            HDR_PAYMENT_TYPE = item.HDR_PAYMENT_TYPE,
-                            HDR_BRANCH_CODE = item.HDR_BRANCH_CODE,
-                            HDR_CUSTOMER_NUMBER = item.HDR_CUSTOMER_NUMBER,
-                            HDR_CUSTOMER_SITE = item.HDR_CUSTOMER_SITE,
-                            HDR_PAYMENT_TERM = item.HDR_PAYMENT_TERM,
-                            HDR_BUSINESS_LINE = item.HDR_BUSINESS_LINE,
-                            HDR_BATCH_SOURCE_NAME = item.HDR_BATCH_SOURCE_NAME,
-                            HDR_GL_DATE = formattedGLDate,
-                            HDR_SOURCE_REFERENCE = item.HDR_SOURCE_REFERENCE,
-                            DTL_LINE_DESC = item.DTL_LINE_DESC,
-                            DTL_QUANTITY = item.DTL_QUANTITY,
-                            DTL_AMOUNT = item.DTL_AMOUNT,
-                            DTL_VAT_CODE = item.DTL_VAT_CODE,
-                            DTL_CURRENCY = item.DTL_CURRENCY,
-                            INVOICE_APPLIED = item.INVOICE_APPLIED,
-                            FILENAME = item.FILENAME
-                        };
-
-                        invoiceNo = format.HDR_TRX_NUMBER;
-                        content.AppendLine($"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|");
-                    }
-
-                    string filePath = Path.Combine(generateA0FileDto.Path, fileName);
-                    await File.WriteAllTextAsync(filePath, content.ToString());
-
+     
                     logsDto = new LogsDto
                     {
                         UserId = generateA0FileDto.analyticsParamsDto.userId,
@@ -4727,7 +4943,7 @@ namespace CSI.Application.Services
                     logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                     _dbContext.Logs.Add(logsMap);
                     await _dbContext.SaveChangesAsync();
-                    return ("Error generating invoice. Please check and try again.", fileName, "");
+                    return ("Error generating invoice. Please check and try again.", fileName, content.ToString());
                 }
             }
             catch (Exception ex)
@@ -4744,7 +4960,7 @@ namespace CSI.Application.Services
                 logsMap = _mapper.Map<LogsDto, Logs>(logsDto);
                 _dbContext.Logs.Add(logsMap);
                 await _dbContext.SaveChangesAsync();
-                throw;
+                return ("Error generating invoice. Please check and try again.", fileName, content.ToString());
             }
         }
 
@@ -7331,7 +7547,8 @@ namespace CSI.Application.Services
                                 MAX(CAST(a.IsTransfer AS INT)) AS IsTransfer, 
                                 MAX(a.SubTotal) AS SubTotal, 
                                 MAX(a.Remarks) AS Remarks, 
-                                MAX(a.Sequence) AS Sequence 
+                                MAX(a.Sequence) AS Sequence,
+                                MAX(a.InvoiceNo) AS InvoiceNo 
                             FROM (
                                 SELECT 
                                     n.Id, 
@@ -7355,7 +7572,8 @@ namespace CSI.Application.Services
                                     n.IsTransfer, 
                                     ROW_NUMBER() OVER (PARTITION BY n.OrderNo, n.SubTotal ORDER BY n.SubTotal DESC) AS row_num, 
                                     a.Remarks, 
-                                    n.Sequence 
+                                    n.Sequence,
+                                    n.InvoiceNo
                                 FROM tbl_analytics n 
                                     LEFT JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId 
                                     LEFT JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId 
@@ -7406,6 +7624,7 @@ namespace CSI.Application.Services
                     DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
                     Remarks = n.Remarks,
                     Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
                 }).ToList();
             }
 
