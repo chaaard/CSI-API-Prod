@@ -56,6 +56,10 @@ namespace CSI.Infrastructure.Data
             AccountingChronology = Set<AccountingChronology>();
             AccountingBalancesDetails = Set<AccountingBalancesDetails>();
             AnalyticsExceptions = Set<AnalyticsExceptions>();
+            CMTransaction = Set<CMTransaction>();
+            VW_CMTransactions = Set<VW_CMTransactions>();
+            TempDto = Set<TempDto>();
+            TempVwMMSDto = Set<TempVwMMSDto>();
         }
 
         public DbSet<User> Users { get; set; }
@@ -101,6 +105,10 @@ namespace CSI.Infrastructure.Data
         public DbSet<AnalyticsRemarks> AnalyticsRemarks { get; set; }
         public DbSet<AccountingChronology> AccountingChronology { get; set; }
         public DbSet<AccountingBalancesDetails> AccountingBalancesDetails { get; set; }
+        public DbSet<CMTransaction> CMTransaction { get; set; }
+        public DbSet<VW_CMTransactions>VW_CMTransactions { get; set; }
+        public DbSet<TempDto> TempDto { get; set; }
+        public DbSet<TempVwMMSDto> TempVwMMSDto { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -231,7 +239,12 @@ namespace CSI.Infrastructure.Data
             .HasNoKey(); 
 
             modelBuilder.Entity<AnalyticsExceptions>()
-            .HasNoKey(); 
+            .HasNoKey();
+
+            modelBuilder.Entity<CMTransaction>().ToTable("tbl_cm_transaction");
+            modelBuilder.Entity<VW_CMTransactions>().ToView("VW_CreditMemoCustomerInfo");
+            modelBuilder.Entity<TempDto>().HasNoKey();
+            modelBuilder.Entity<TempVwMMSDto>().HasNoKey();
         }
     }
 }
