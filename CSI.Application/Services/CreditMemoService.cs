@@ -142,9 +142,9 @@ namespace CSI.Application.Services
                     var formattedDate = DateTime.ParseExact(i.TransactionDate.ToString(), "yyMMdd", CultureInfo.InvariantCulture);
                     var getShortName = storeList.Where(x => x.LocationCode == i.Location).Select(n => new { n.ShortName }).FirstOrDefault();
                     var getCustomerNo = custCodeList.Where(x => x.CustomerCode == i.CustomerCode).Select(c => new { c.CustomerNo }).FirstOrDefault();
-                    var formatCustomerNo = getCustomerNo.CustomerNo.Replace("P", "").Trim();
+                    var formatCustomerNo = getCustomerNo?.CustomerNo.Replace("P", "").Trim();
                     var getReference = await _dbContext.Reference.Where(x => x.CustomerNo == formatCustomerNo).Select(n => new { n.MerchReference }).FirstOrDefaultAsync();
-                    var referenceNo = getReference.MerchReference + i.Location + formattedDate.ToString("MMddyy") + "-" + cmCustPerBranchList.Count();
+                    var referenceNo = string.IsNullOrEmpty(getReference?.MerchReference) ? i.JobOrderNo :getReference.MerchReference + i.Location + formattedDate.ToString("MMddyy") + "-" + cmCustPerBranchList.Count();
                     var updateCMInvTblRef = _dbContext.CMTransaction.Where(x => x.CustomerCode == i.CustomerCode && x.TransactionDate == i.TransactionDate).ToList();
                     foreach (var cust in updateCMInvTblRef)
                     {
