@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -54,65 +55,197 @@ namespace CSI.Application.Services
                 locateId.ModifiedBy = custDto?.ModifiedBy;
                 locateId.ModifiedDate = DateTime.Now;
 
-                await _dbContext.SaveChangesAsync();
-                result = true;
+                //Updates the MMS
+                var updateResult = await UpdateCreditMemoMMS(custDto);
+                if (updateResult)
+                {
+                    result = true;
+                    await _dbContext.SaveChangesAsync();
+                }
             }
-
-            //Updates the MMS
-            UpdateCreditMemoMMS(custDto);
-
             return result;
         }
-        public bool UpdateCreditMemoStatus(CreditMemoDto custTranList) //Submit all
+        public async Task<bool> UpdateCreditMemoStatus(CreditMemoDto custTranList) //Submit all
         {
             var result = false;
-            var results = new List<AccntGenerateInvoiceDto>();
-            var logsDto = new LogsDto();
-            var logsMap = new Logs();
-            var filename = "CM" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
+            var invoiceAnalytics = new List<InvoiceDto>();
+            var invoiceNo = string.Empty;
+            var content = new StringBuilder();
+            var filename = "SN" + DateTime.Now.ToString("MMddyy_hhmmss") + ".A01";
+            var analyticsList = _dbContext.Analytics.Where(x => x.TransactionDate == DateTime.Parse(custTranList.SelectedDate)).ToList();
+            var storeList = await _analyticsService.GetLocations();
+            var custCodeList = await _dbContext.CustomerCodes.ToListAsync();
+
             //loop
             foreach (var item in custTranList.CMTranList)
             {
+                var origInvoice = _dbContext.GenerateInvoice.Where(x => x.CustomerCode == item.CustomerCode && x.Club == item.Club && x.TransactionDate == DateTime.Parse(custTranList.SelectedDate))
+                        .Select(x => new { x.InvoiceNo, x.ReferenceNo}).FirstOrDefault();
+                var lastCmInvoice = _dbContext.CMTransaction.OrderByDescending(i => i.Id).Select(x => new { x.CMInvoiceNo }).FirstOrDefault();
+
+                //cmInvoice length = 12;
+                var newInvoiceNo = string.IsNullOrEmpty(lastCmInvoice.CMInvoiceNo) ? 00000000001 : int.Parse(lastCmInvoice.CMInvoiceNo.Substring(2,lastCmInvoice.CMInvoiceNo.Length)) + 1;
                 var custId = _dbContext.CMTransaction.Where(x => x.Id == item.Id).FirstOrDefault();
                 if (custId != null)
                 {
-
-                    results.Add(GenerateCMInvoice(item,custTranList.SelectedDate));
-                    var action = "Refresh Generate Invoice";
-                    var remarks = "Successfully Refreshed";
-                    Logger(custTranList.Id, action, remarks, item.Club.ToString(), custId.CustomerCode);
-                    //custId.Status = (int)StatusEnums.SUBMITTED;
-                    //_dbContext.SaveChanges();
-                    //result = true;
+                    var formattedCmInvoice = newInvoiceNo.ToString().Length < 2 ? newInvoiceNo.ToString($"D10") : newInvoiceNo.ToString();
+                    custId.CMInvoiceNo = "CM" + formattedCmInvoice;
+                    custId.FileName = filename;
+                    custId.OrigInvoice = origInvoice?.InvoiceNo;
+                    custId.GeneratedDate = DateTime.Now;
+                    custId.GeneratedBy = custTranList.Id;
+                    custId.Status = (int)StatusEnums.SUBMITTED;
+                    _dbContext.SaveChanges();
                 }
             }
-            if (results.Count() >= 1)
-            {
-                var submittedInvoice = results.Where(x => x.SubmitStatus == (int)StatusEnums.PENDING 
-                && x.IsGenerated == false).ToList();
 
-                if (submittedInvoice.Count() == 0)
-                {
-                    var action = "Generate A01 Credit Memo Invoice";
-                    var remarks = "Error: Error generating credit memo invoice. Please check and try again.";
-                    Logger(custTranList.Id, action, remarks);
-                }
-                else
-                {
-                    //actual generation.
-                    foreach (var i in submittedInvoice)
-                    {
-                        var cmInvoiceList = new List<InvoiceDto>();
-                        GenerateA0FilePerMerchant(i);
-                        //var total = analyticsResult?.Result.Sum(x => x.SubTotal);
-                    }
-                }
-            }
-            else
+            //file generation
+            DateTime.TryParse(custTranList.SelectedDate, out DateTime selectedDate);
+            var formattedSelectedDate = selectedDate.ToString("yyMMdd");
+            var cmCustPerBranchList = _dbContext.CMTransaction.Where(c => c.TransactionDate.ToString() == formattedSelectedDate).GroupBy(g => new
             {
-                var action = "Generate A01 Credit Memo Invoice";
-                var remarks = "Error: Error generating credit memo invoice. Please check and try again.";
-                Logger(custTranList.Id, action, remarks);
+                g.CustomerCode,
+                g.JobOrderNo,
+                g.CMInvoiceNo,
+                g.OrigInvoice,
+                g.Location,
+                g.TransactionDate,
+            }).Select(x=> new 
+            {
+                CustomerCode = x.Key.CustomerCode,
+                JobOrderNo = x.Key.JobOrderNo,
+                CMInvoice = x.Key.CMInvoiceNo,
+                OrigInvoice = x.Key.OrigInvoice,
+                Location = x.Key.Location,
+                TransactionDate = x.Key.TransactionDate,
+                TotalAmount = x.Sum(c => c.Amount)
+            }).ToList();
+            foreach(var i in cmCustPerBranchList)
+            {
+                var formattedDate = DateTime.ParseExact(i.TransactionDate.ToString(),"yyMMdd", CultureInfo.InvariantCulture);
+                var getShortName = storeList.Where(x => x.LocationCode == i.Location).Select(n => new { n.ShortName }).FirstOrDefault();
+                var getCustomerNo = custCodeList.Where(x => x.CustomerCode == i.CustomerCode).Select(c => new { c.CustomerNo }).FirstOrDefault();
+                var formatCustomerNo = getCustomerNo.CustomerNo.Replace("P", "").Trim();
+                var getReference = await _dbContext.Reference.Where(x => x.CustomerNo == formatCustomerNo).Select(n => new { n.MerchReference }).FirstOrDefaultAsync();
+                var referenceNo = getReference.MerchReference + i.Location + formattedDate.ToString("MMddyy") + "-" + cmCustPerBranchList.Count();
+                var updateCMInvTblRef = _dbContext.CMTransaction.Where(x => x.CustomerCode == i.CustomerCode && x.TransactionDate == i.TransactionDate).ToList();
+                foreach (var cust in updateCMInvTblRef)
+                {
+                    cust.ReferenceNo = referenceNo;
+                    _dbContext.SaveChanges();
+                }
+                var invoice = new InvoiceDto
+                {
+                    HDR_TRX_NUMBER = i.CMInvoice,
+                    HDR_TRX_DATE = formattedDate,
+                    HDR_PAYMENT_TYPE = "CM",
+                    HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                    HDR_CUSTOMER_NUMBER = getCustomerNo.CustomerNo,
+                    HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                    HDR_PAYMENT_TERM = "0",
+                    HDR_BUSINESS_LINE = "1",
+                    HDR_BATCH_SOURCE_NAME = "POS",
+                    HDR_GL_DATE = formattedDate,
+                    HDR_SOURCE_REFERENCE = "CM",
+                    DTL_LINE_DESC = referenceNo,
+                    DTL_QUANTITY = 1,
+                    DTL_AMOUNT = i.TotalAmount,
+                    DTL_VAT_CODE = "",
+                    DTL_CURRENCY = "PHP",
+                    INVOICE_APPLIED = i.OrigInvoice,
+                    FILENAME = filename,
+                    REMARKS = "CREDIT MEMO INVOICE",
+                };
+
+                var format = new
+                {
+                    HDR_TRX_NUMBER = i.CMInvoice,
+                    HDR_TRX_DATE = formattedDate.ToString("dd-MMM-yyyy"),
+                    HDR_PAYMENT_TYPE = "CM",
+                    HDR_BRANCH_CODE = getShortName.ShortName ?? "",
+                    HDR_CUSTOMER_NUMBER = getCustomerNo.CustomerNo,
+                    HDR_CUSTOMER_SITE = getShortName.ShortName ?? "",
+                    HDR_PAYMENT_TERM = "0",
+                    HDR_BUSINESS_LINE = "1",
+                    HDR_BATCH_SOURCE_NAME = "POS",
+                    HDR_GL_DATE = formattedDate.ToString("dd-MMM-yyyy"),
+                    HDR_SOURCE_REFERENCE = "CM",
+                    DTL_LINE_DESC = referenceNo,
+                    DTL_QUANTITY = 1,
+                    DTL_AMOUNT = i.TotalAmount,
+                    DTL_VAT_CODE = "",
+                    DTL_CURRENCY = "PHP",
+                    INVOICE_APPLIED = i.OrigInvoice,
+                    FILENAME = filename,
+                };
+                invoiceAnalytics.Add(invoice);
+                invoiceNo = format.HDR_TRX_NUMBER;
+                string line = 
+                    $"{format.HDR_TRX_NUMBER}|" +
+                    $"{format.HDR_TRX_DATE}|" +
+                    $"{format.HDR_PAYMENT_TYPE}|" +
+                    $"{format.HDR_BRANCH_CODE}|" +
+                    $"{format.HDR_CUSTOMER_NUMBER}|" +
+                    $"{format.HDR_CUSTOMER_SITE}|" +
+                    $"{format.HDR_PAYMENT_TERM}|" +
+                    $"{format.HDR_BUSINESS_LINE}|" +
+                    $"{format.HDR_BATCH_SOURCE_NAME}|" +
+                    $"{format.HDR_GL_DATE}|" +
+                    $"{format.HDR_SOURCE_REFERENCE}|" +
+                    $"{format.DTL_LINE_DESC}|" +
+                    $"{format.DTL_QUANTITY}|" +
+                    $"{format.DTL_AMOUNT}|" +
+                    $"{format.DTL_VAT_CODE}|" +
+                    $"{format.DTL_CURRENCY}|" +
+                    $"{format.INVOICE_APPLIED}|" +
+                    $"{filename}|";
+                content.AppendLine(line);
+                var filePath = Path.Combine(custTranList.FilePath, filename);
+                await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+
+                var formattedResult = i.CustomerCode;
+                var customerName = string.Empty;
+                if (formattedResult != null)
+                {
+                    customerName = custCodeList
+                        .Where(cc => cc.CustomerCode == formattedResult)
+                        .Select(cc => cc.CustomerName)
+                        .FirstOrDefault();
+                }
+
+                var generateInvoice = new GenerateInvoiceDto
+                {
+                    Club = i.Location,
+                    CustomerCode = i.CustomerCode,
+                    CustomerNo = getCustomerNo.CustomerNo,
+                    CustomerName = customerName,
+                    InvoiceNo = i.CMInvoice,
+                    InvoiceDate = DateTime.Parse(custTranList.SelectedDate),
+                    TransactionDate = DateTime.Parse(custTranList.SelectedDate),
+                    Location = getShortName.ShortName,
+                    ReferenceNo = i.JobOrderNo.Replace("-", ""),
+                    InvoiceAmount = i.TotalAmount,
+                    FileName = invoiceAnalytics.FirstOrDefault().FILENAME,
+                    Remarks = "CREDIT MEMO INVOICE",
+                };
+
+                var genInvoice = _mapper.Map<GenerateInvoiceDto, GenerateInvoice>(generateInvoice);
+                _dbContext.GenerateInvoice.Add(genInvoice);
+                await _dbContext.SaveChangesAsync();
+
+                //var param1 = new GenerateA0FileDto
+                //{
+                //    Path = "",
+                //    analyticsParamsDto = new AnalyticsParamsDto
+                //    {
+                //        dates = new List<string> { custTranList.SelectedDate.ToString() },
+                //        memCode = new List<string> { i.CustomerCode.ToString() },
+                //        storeId = new List<int> { i.Location },
+                //        orderNo = i.JobOrderNo.ToString(),
+                //    }
+                //};
+
+                result = true;
             }
             return result;
         }
@@ -123,7 +256,7 @@ namespace CSI.Application.Services
             var results = new List<CMTranDto>();
             var formattedDate = decimal.Parse(!string.IsNullOrEmpty(variance.CurrentDate) ? variance.CurrentDate : "0");
 
-            var result = await _dbContext.TempDto.FromSqlRaw($@"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSCUST, A.CSTAMT,B.CSTDOC,B.CSTRAN,B.CSCARD,B.CSDTYP,B.CSTIL,B.CSSEQ " +
+            var result = await _dbContext.TempViewCMMMS.FromSqlRaw($@"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSCUST, A.CSTAMT,B.CSTDOC,B.CSTRAN,B.CSCARD,B.CSDTYP,B.CSTIL,B.CSSEQ " +
                 $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE CSDATE = ''{formattedDate}''') A " +
                 $@"INNER JOIN (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
                 $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND WHERE CSDATE = {formattedDate} " +
@@ -162,11 +295,12 @@ namespace CSI.Application.Services
                     Location = (int)item.CSSTOR,
                     TransactionDate = item.CSDATE,
                     MembershipNo = item.CSCUST.ToString(),
-                    CashierNo = string.Empty,
+                    CashierNo = item.CSTIL.ToString(),
+                    RegisterNo = item.CSREG.ToString(),
                     TrxNo = item.CSTRAN.ToString(),
                     JobOrderNo = string.IsNullOrEmpty(item.CSCARD) ? string.Empty : item.CSCARD,
                     Amount = item.CSTAMT,
-                    Status = string.IsNullOrEmpty(item.CSTDOC) && string.IsNullOrEmpty(item.CSCARD) ? (int)StatusEnums.EXCEPTION : (int)StatusEnums.PENDING,
+                    Status = string.IsNullOrEmpty(item.CSTDOC) || string.IsNullOrEmpty(item.CSCARD) ? (int)StatusEnums.EXCEPTION : (int)StatusEnums.PENDING,
                     ModifiedDate = DateTime.Now,
                     ModifiedBy = "System",
                     IsDeleted = false,
@@ -180,46 +314,60 @@ namespace CSI.Application.Services
             return await RetriveCreditMemo(variance);
         }
 
-        public async Task<CreditMemoTranDto> SearchCreditMemoItem(CMSearchParams searchParams)
+        public async Task<List<GenerateInvoice>> GetCreditMemoInvoice(CreditMemoInvoiceDto req)
         {
-            var result = new CreditMemoTranDto();
-            var dateFrom = DateTime.Now.AddDays(-1);
-            var formattedDate = dateFrom.ToString("yyMMdd");
-            var vwcm = await _dbContext.VW_CMTransactions.Where(x => x.TransactionDate == decimal.Parse(formattedDate) && x.Location == searchParams.LocationId &&
-                x.CustomerCode == searchParams.CustomerCode || x.JobOrderNo == searchParams.JobOrderNo).ToListAsync();
-            var custTranDto = new List<CustomerTransactionDto>();
-            var varData = new VarianceMMS
+            var dates = new List<string>();
+            var stores = new List<int>();
+            var merchants = new List<string>();
+            stores.AddRange(req.StoreId);
+            merchants.AddRange(req.MerchantCode);
+            foreach (var date in req.Dates)
             {
-                MMS = searchParams.Variance.MMS,
-                CSI = searchParams.Variance.CSI,
-                Variance = searchParams.Variance.Variance
-            };
-            foreach (var i in vwcm)
-            {
-                var custDto = new CustomerTransactionDto();
-                custDto.Id = (int?)i.Id;
-                custDto.CustomerCode = i.CustomerCode;
-                custDto.CustomerName = i.CustomerName;
-                custDto.TransactionDate = i.TransactionDate.ToString();
-                custDto.MembershipNo = i.MembershipNo;
-                custDto.CashierNo = i.CashierNo;
-                custDto.RegisterNo = i.RegisterNo;
-                custDto.TransactionNo = i.TransactionNo;
-                custDto.JobOrderNo = i.JobOrderNo;
-                custDto.Amount = i.Amount;
-                custDto.Status = i.Status;
-                custDto.IsDeleted = i.IsDeleted;
-                custDto.Seq = i.Seq;
-                custTranDto.Add(custDto);
+                DateTime.TryParse(date, out DateTime selectedDate);
+                dates.Add(selectedDate.ToString("yyMMdd"));
             }
-            return result;
+            var generateInvList = new List<GenerateInvoice>();
+            var getCMTranDateRange = await _dbContext.VW_CMTransactions.Where(x => (x.TransactionDate == decimal.Parse(dates[0]) || x.TransactionDate == decimal.Parse(dates[1]))
+                && stores.Contains(x.Location) && merchants.Contains(x.CustomerCode)).Distinct().ToListAsync();
+            foreach (var item in getCMTranDateRange)
+            {
+                var getCustNo = await _dbContext.CustomerCodes.Where(x => x.CustomerCode == item.CustomerCode).Select(x => x.CustomerNo).FirstOrDefaultAsync();
+                DateTime.TryParseExact(item.TransactionDate.ToString("0"), "yyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime transactionDate);
+                var genInvItem = new GenerateInvoice();
+                genInvItem.Id = (int)item.Id;
+                genInvItem.Club = item.Location;
+                genInvItem.CustomerNo = item.CustomerCode;
+                genInvItem.CustomerCode = item.CustomerCode;
+                genInvItem.CustomerName = item.CustomerName;
+                genInvItem.InvoiceNo = item.CMInvoiceNo;
+                genInvItem.InvoiceDate = transactionDate;
+                genInvItem.TransactionDate = transactionDate;
+                genInvItem.Location = item.Location.ToString();
+                genInvItem.ReferenceNo = item.ReferenceNo;
+                genInvItem.InvoiceAmount = item.Amount;
+                genInvItem.FileName = item.FileName;
+                generateInvList.Add(genInvItem);
+            }
+            return generateInvList;
         }
 
-        private void UpdateCreditMemoMMS(CustomerTransactionDto request)
+        private async Task<bool> UpdateCreditMemoMMS(CustomerTransactionDto request)
         {
-            _dbContext.Database.ExecuteSqlRawAsync($@"EXEC('UPDATE MMJDALIB.CSHTND SET CSCARD = ''{request?.JobOrderNo}'', CSTDOC = ''{request?.CustomerCode}''" +
-                $"WHERE CSSTOR = ''{request?.Club}'' AND CSDATE = ''{request?.TransactionDate}'' AND CSREG = ''{request?.RegisterNo}'' AND CSTRAN = ''{request?.TransactionNo}'' " +
+            var result = false;
+            try
+            {
+                await _dbContext.Database.ExecuteSqlRawAsync($@"EXEC('UPDATE MMJDALIB.CSHTND SET CSCARD = ''{request?.JobOrderNo}'', CSTDOC = ''{request?.CustomerCode}''" +
+                $"WHERE CSSTOR = {request?.Club} AND CSDATE = ''{request?.TransactionDate}'' AND CSREG = ''{request?.RegisterNo}'' AND CSTRAN = ''{request?.TransactionNo}'' " +
                 $"AND CSDTYP = ''CM'' AND CSSEQ = {request?.Seq}') AT [{_linkedServerOptions.MMS}]");
+                result = true;
+            }
+            catch(Exception ex)
+            {
+                //Log errors
+                var message = ex.Message;
+                throw;
+            }
+            return result;
         }
 
         private async Task<CreditMemoTranDto> RetriveCreditMemo(VarianceParams variance)
@@ -275,7 +423,7 @@ namespace CSI.Application.Services
                     else
                     {
                         var vw_CmTran = await _dbContext.VW_CMTransactions.Where(x => x.TransactionDate == formattedDate && x.Location == variance.Store &&
-                        (x.CustomerName == variance.searchQuery || x.JobOrderNo == variance.searchQuery)).ToListAsync();
+                        (x.CustomerName.Contains(variance.searchQuery) || x.JobOrderNo == variance.searchQuery || x.CustomerCode == variance.searchQuery)).ToListAsync();
                         foreach (var a in vw_CmTran)
                         {
                             var custDto = new CustomerTransactionDto();
@@ -315,93 +463,9 @@ namespace CSI.Application.Services
                 throw;
             }
         }
-        private AccntGenerateInvoiceDto GenerateCMInvoice(CustomerTransactionDto request,string selectedDate)
+        public bool CheckFileDirectory(string path)
         {
-            var logsDto = new LogsDto();
-            var logsMap = new Logs();
-            var result = new AccntGenerateInvoiceDto();
-            try
-            {
-                //string[] orderNoList = { "CSI", "PV" };
-                //var locateStore = _dbContext.Locations.Where(loc => loc.LocationCode == request.Club).FirstOrDefault();
-                //var locateAnalytics = _dbContext.Analytics.Where(x => x.TransactionDate.ToString() == selectedDate &&
-                //       x.DeleteFlag == false && x.CustomerId == request.CustomerCode && x.OrderNo == request.JobOrderNo && x.TransactionNo == request.TransactionNo).FirstOrDefault();
-                //if (locateAnalytics != null)
-                //{
-                //    result.Id = locateAnalytics.Id;
-                //    result.CustomerId = locateAnalytics.CustomerId;
-                //    result.Date = DateTime.Parse(selectedDate);
-                //    result.Location = locateStore.LocationName;
-                //    result.LocationId = locateStore.LocationCode;
-                //    result.SubmitStatus = locateAnalytics != null ? locateAnalytics.StatusId : 0;
-                //    result.IsGenerated = locateAnalytics.IsGenerate;
-                //}
-                var getCMtransaction = _dbContext.CMTransaction.Where(x => x.Id == request.Id).FirstOrDefault();
-                if (getCMtransaction != null)
-                {
-                    result.Id = (int)getCMtransaction.Id;
-                    result.CustomerId = getCMtransaction.CustomerCode;
-                    result.Date = DateTime.Parse(selectedDate);
-                    result.Location = getCMtransaction.Location.ToString();
-                    result.SubmitStatus = getCMtransaction.Status;
-                    result.IsGenerated = getCMtransaction.Status == (int)StatusEnums.PENDING ? true : false;
-                }
-            }
-            catch (Exception ex) 
-            {
-                throw ex;
-            }
-            return result;
-        }
-        private void Logger(string userId,string action,string remarks, string? club = null,string? customerId = null)
-        {
-            var logDto = new LogsDto();
-            var logsMap = new Logs();
-            logDto.UserId = userId;
-            logDto.Date = DateTime.Now;
-            logDto.Action = action;
-            logDto.Remarks = remarks;
-            logDto.Club = string.IsNullOrEmpty(club) ? "0":club;
-            logDto.CustomerId = string.IsNullOrEmpty(customerId) ? string.Empty:customerId;
-            logsMap = _mapper.Map<LogsDto, Logs>(logDto);
-            _dbContext.Logs.Add(logsMap);
-            _dbContext.SaveChanges();
-        }
-
-        private async void GenerateA0FilePerMerchant(AccntGenerateInvoiceDto accInv)
-        {
-            DateTime givenDt = (DateTime)(accInv.Date);
-            var formattedDate = givenDt.ToString("MMddyy");
-            var locationList = await _analyticsService.GetLocations();
-            var locateCm = _dbContext.CMTransaction.Where(c => c.TransactionDate == decimal.Parse(formattedDate)
-                && c.CustomerCode == accInv.CustomerId && c.Location == accInv.LocationId).ToList();
-            var total = locateCm.Sum(s => s.Amount);
-            var trxCnt = locateCm.Count();
-
-            var lastCmInvoice = await _dbContext.CMTransaction.OrderByDescending(i => i.Id).FirstOrDefaultAsync();
-            long startingCmInvoiceNo = 000000000001;
-            if (lastCmInvoice.CMInvoiceNo != null)
-                startingCmInvoiceNo = startingCmInvoiceNo + 1;
-            long newCmInvoiceNo = startingCmInvoiceNo;
-
-            while(await _dbContext.CMTransaction.AnyAsync(i => i.CMInvoiceNo.Substring(2,i.CMInvoiceNo.Length) == newCmInvoiceNo.ToString("000000000000")))
-            {
-                newCmInvoiceNo++;
-            }
-            var formattedCmInvNo = newCmInvoiceNo.ToString("000000000000");
-            var convLocation = int.Parse(accInv.Location);
-            var getShortName = locationList.Where(x => x.LocationCode == convLocation).Select(a => new
-            {
-                a.ShortName,
-            }).FirstOrDefault();
-            var getCustomerNo = locateCm.GroupJoin(_dbContext.CustomerCodes, x => x.CustomerCode, y =>
-                y.CustomerCode, (x, y) => new { x, y }).SelectMany(group => group.y, (group, y) => y.CustomerNo).FirstOrDefault();
-            var formatCustomerNo = getCustomerNo.Replace("P", "").Trim();
-            var getReference = await _dbContext.Reference.Where(x => x.CustomerNo == formatCustomerNo).Select(n => new
-            {
-                n.MerchReference
-            }).FirstOrDefaultAsync();
-
+            return _analyticsService.CheckFolderPath(path);
         }
     }
 }

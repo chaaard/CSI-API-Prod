@@ -55,9 +55,9 @@ namespace CSI.API.Controllers
         }
 
         [HttpPut("UpdateCreditMemoStatus")]
-        public IActionResult UpdateCreditMemoStatus(CreditMemoDto req)
+        public async Task<IActionResult> UpdateCreditMemoStatus(CreditMemoDto req)
         {
-            var result = _creditMemoService.UpdateCreditMemoStatus(req);
+            var result = await _creditMemoService.UpdateCreditMemoStatus(req);
             if (result)
             {
                 return (Ok(result));
@@ -89,12 +89,12 @@ namespace CSI.API.Controllers
                 return StatusCode(500, $"Internal Server Error: {ex.Message}");
             }
         }
-        [HttpPost("SearchCreditMemoItem")]
-        public async Task<IActionResult> SearchCreditMemoItem(CMSearchParams searchParams)
+        [HttpPost("GetCreditMemoInvoice")]
+        public async Task<IActionResult> GetCreditMemoInvoice(CreditMemoInvoiceDto req)
         {
             try
             {
-                var result = await _creditMemoService.SearchCreditMemoItem(searchParams);
+                var result = await _creditMemoService.GetCreditMemoInvoice(req);
 
                 if (result != null)
                 {
@@ -114,5 +114,6 @@ namespace CSI.API.Controllers
                 return StatusCode(500, $"Internal Server Error: {ex.Message}");
             }
         }
+
     }
 }

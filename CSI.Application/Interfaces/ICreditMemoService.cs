@@ -7,8 +7,9 @@ namespace CSI.Application.Interfaces
     {
         Task<CreditMemoTranDto> GetCMVariance(VarianceParams variance);
         Task<CreditMemoTranDto> RetrieveUpdateCreditMemoData(VarianceParams variance);
-        Task<CreditMemoTranDto> SearchCreditMemoItem(CMSearchParams searchParams);
-        bool UpdateCreditMemoStatus(CreditMemoDto custTranList);
+        //Task<CreditMemoTranDto> SearchCreditMemoItem(CMSearchParams searchParams);
+        Task<bool> UpdateCreditMemoStatus(CreditMemoDto custTranList);
         Task<bool> UpdateCustCreditMemo(CustomerTransactionDto custDto);
+        Task<List<GenerateInvoice>> GetCreditMemoInvoice(CreditMemoInvoiceDto req);
     }
 }

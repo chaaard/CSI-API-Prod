@@ -46,6 +46,10 @@ namespace CSI.Domain.Entities
         public string JobOrderNo { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public int Status { get; set; }
+        public string? CMInvoiceNo { get; set; } = string.Empty;
+        public string? OrigInvoice { get; set; } = string.Empty;
+        public string? ReferenceNo { get; set; } = string.Empty;
+        public string? FileName { get; set; } = string.Empty;
         public bool IsDeleted { get; set; }
     }
 }

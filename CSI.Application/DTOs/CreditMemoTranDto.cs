@@ -18,5 +18,14 @@ namespace CSI.Application.DTOs
         public List<CustomerTransactionDto>? CMTranList { get; set; }
         public string? SelectedDate { get; set; }
         public int Club { get; set; }
+        public string? FilePath { get; set; }
+    }
+    public class CreditMemoInvoiceDto
+    {
+        public string? UserId;
+        public List<string>? Dates;
+        public List<string>? MerchantCode;
+        public List<int>? StoreId;
+        public string? Action;
     }
 }

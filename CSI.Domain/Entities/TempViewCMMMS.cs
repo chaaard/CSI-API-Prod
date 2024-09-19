@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace CSI.Application.DTOs
 {
-    public class TempDto
+    public class TempViewCMMMS
     {
         public decimal CSDATE { get; set; }
         public decimal CSSTOR { get; set; }
