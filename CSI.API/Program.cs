@@ -25,6 +25,7 @@ builder.Services.AddHostedService<AnalyticsSchedulerService>();
 builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMerchantService, MerchantService>();
+builder.Services.AddScoped<ICreditMemoService, CreditMemoService>();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 // Db Connection.
 builder.Services.AddDbContext<AppDBContext>(options =>

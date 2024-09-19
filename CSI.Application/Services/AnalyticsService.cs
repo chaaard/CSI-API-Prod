@@ -4351,7 +4351,7 @@ namespace CSI.Application.Services
                                         }
                                     }
                                 }
-                                else
+                                else   //DO Others,Unionbank,Walk-In,Employee
                                 {
                                     filteredResultWithoutUB = result.Where(r => r.CustomerId != "9999011984").ToList();
                                     if (filteredResultWithoutUB.Count > 0)
@@ -4706,7 +4706,7 @@ namespace CSI.Application.Services
                                     await _dbContext.SaveChangesAsync();
                                 }
                             }
-                            else
+                            else //Grabmart,Grabfood,foodpanda,pick-aroo-fs,pick-a-roo-merch,metromart
                             {
                                 var total = result.Sum(x => x.SubTotal);
                                 var locationList = await GetLocations();
