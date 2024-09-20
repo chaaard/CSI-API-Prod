@@ -131,28 +131,28 @@ namespace CSI.Application.Services
             {
                 CustomerCode = x.Key.CustomerCode,
                 JobOrderNo = x.Key.JobOrderNo,
-                    CMInvoice = string.IsNullOrEmpty(x.Key.CMInvoiceNo) ? string.Empty : x.Key.CMInvoiceNo,
+                CMInvoice = string.IsNullOrEmpty(x.Key.CMInvoiceNo) ? string.Empty : x.Key.CMInvoiceNo,
                 OrigInvoice = x.Key.OrigInvoice,
                 Location = x.Key.Location,
                 TransactionDate = x.Key.TransactionDate,
                 TotalAmount = x.Sum(c => c.Amount)
             }).ToList();
-                foreach (var i in cmCustPerBranchList)
+            foreach (var i in cmCustPerBranchList)
             {
-                    var formattedDate = DateTime.ParseExact(i.TransactionDate.ToString(), "yyMMdd", CultureInfo.InvariantCulture);
+                var formattedDate = DateTime.ParseExact(i.TransactionDate.ToString(), "yyMMdd", CultureInfo.InvariantCulture);
                 var getShortName = storeList.Where(x => x.LocationCode == i.Location).Select(n => new { n.ShortName }).FirstOrDefault();
                 var getCustomerNo = custCodeList.Where(x => x.CustomerCode == i.CustomerCode).Select(c => new { c.CustomerNo }).FirstOrDefault();
-                    var formatCustomerNo = getCustomerNo?.CustomerNo.Replace("P", "").Trim();
+                var formatCustomerNo = getCustomerNo?.CustomerNo.Replace("P", "").Trim();
                 var getReference = await _dbContext.Reference.Where(x => x.CustomerNo == formatCustomerNo).Select(n => new { n.MerchReference }).FirstOrDefaultAsync();
-                    var referenceNo = string.IsNullOrEmpty(getReference?.MerchReference) ? i.JobOrderNo :getReference.MerchReference + i.Location + formattedDate.ToString("MMddyy") + "-" + cmCustPerBranchList.Count();
+                var referenceNo = string.IsNullOrEmpty(getReference?.MerchReference) ? i.JobOrderNo :getReference.MerchReference + i.Location + formattedDate.ToString("MMddyy") + "-" + cmCustPerBranchList.Count();
                 var updateCMInvTblRef = _dbContext.CMTransaction.Where(x => x.CustomerCode == i.CustomerCode && x.TransactionDate == i.TransactionDate).ToList();
                 foreach (var cust in updateCMInvTblRef)
                 {
                     cust.ReferenceNo = referenceNo;
                     _dbContext.SaveChanges();
                 }
-                    var invoice = _documentHelper.InvoiceMapper(i.CMInvoice,formattedDate,"CM",formattedDate,referenceNo,i.TotalAmount,i.OrigInvoice, 
-                        getShortName?.ShortName,getCustomerNo.CustomerNo,getShortName?.ShortName,filename, "CREDIT MEMO INVOICE");
+                var invoice = _documentHelper.InvoiceMapper(i.CMInvoice,formattedDate,"CM",formattedDate,referenceNo,i.TotalAmount,i.OrigInvoice,
+                    getShortName?.ShortName,getCustomerNo.CustomerNo,getShortName?.ShortName,filename, "CREDIT MEMO INVOICE");
                 var format = new
                 {
                     HDR_TRX_NUMBER = i.CMInvoice,
@@ -282,7 +282,7 @@ namespace CSI.Application.Services
                 CSTDOC = n.CSTDOC,
                 CSCARD = n.CSCARD,
                 CSDTYP = n.CSDTYP,
-                    CSTIL = n.CSTIL,
+                CSTIL = n.CSTIL,
                 CSSEQ = n.CSSEQ
             }).AsQueryable();
 
@@ -403,7 +403,7 @@ namespace CSI.Application.Services
                     $"'select * from mmjdalib.cshrep where csstor = {variance.Store} " +
                     $"and csdate = {formattedDate} and cstlin = 723 and csreg > 0 and cstil = 0 order by csrpam')").FirstOrDefault();
 
-                if (mms == null || csi == null)
+                if (mms == null || csi == 0)
                 {
                     result = new CreditMemoTranDto
                     {
