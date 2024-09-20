@@ -1,4 +1,5 @@
 using CSI.API.Mapping;
+using CSI.Application.Helper;
 using CSI.Application.Interfaces;
 using CSI.Application.Services;
 using CSI.Domain.Entities;
@@ -26,6 +27,7 @@ builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMerchantService, MerchantService>();
 builder.Services.AddScoped<ICreditMemoService, CreditMemoService>();
+builder.Services.AddScoped<DocumentHelper>();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 // Db Connection.
 builder.Services.AddDbContext<AppDBContext>(options =>
