@@ -56,6 +56,7 @@ namespace CSI.Application.Services
                         await db.Con.OpenAsync();
                     }
 
+
                     var cmd = new SqlCommand();
                     cmd.Connection = db.Con;
                     cmd.CommandType = CommandType.Text;
@@ -186,6 +187,76 @@ namespace CSI.Application.Services
                               $" HAVING " +
                               $"     COUNT(a.OrderNo) = 1 "
                               )
+                     .ToListAsync();
+                analytics = result.Select(n => new AnalyticsDto
+                {
+                    Id = n.Id,
+                    CustomerId = n.CustomerId,
+                    CustomerName = n.CustomerName,
+                    LocationName = n.LocationName,
+                    TransactionDate = n.TransactionDate,
+                    MembershipNo = n.MembershipNo,
+                    CashierNo = n.CashierNo,
+                    RegisterNo = n.RegisterNo,
+                    TransactionNo = n.TransactionNo,
+                    OrderNo = n.OrderNo,
+                    Qty = n.Qty,
+                    Amount = n.Amount,
+                    SubTotal = n.SubTotal,
+                    StatusId = n.StatusId,
+                    IsUpload = Convert.ToBoolean(n.IsUpload),
+                    IsGenerate = Convert.ToBoolean(n.IsGenerate),
+                    IsTransfer = Convert.ToBoolean(n.IsTransfer),
+                    DeleteFlag = Convert.ToBoolean(n.DeleteFlag),
+                    Remarks = n.Remarks,
+                    Sequence = n.Sequence,
+                    InvoiceNo = n.InvoiceNo,
+                }).ToList();
+            }
+
+            return analytics;
+
+        }
+
+        private async Task<List<AnalyticsDto>> ReturnAllAnalytics(AnalyticsParamsDto analyticsParamsDto)
+        {
+            List<string> memCodeLast6Digits = analyticsParamsDto.memCode.Select(code => code.Substring(Math.Max(0, code.Length - 6))).ToList();
+            var analyticsList = new List<AnalyticsDto>();
+            DateTime date;
+            var analytics = new List<AnalyticsDto>();
+            if (DateTime.TryParse(analyticsParamsDto.dates[0].ToString(), out date))
+            {
+                var result = await _dbContext.AnalyticsView
+                  .FromSqlRaw($" SELECT   " +
+                              $"         n.Id, " +
+                              $"         n.CustomerId,  " +
+                              $"         c.CustomerName,  " +
+                              $"         n.LocationId,  " +
+                              $"         l.LocationName,  " +
+                              $"         n.TransactionDate,   " +
+                              $"         n.MembershipNo,   " +
+                              $"         n.CashierNo,  " +
+                              $"         n.RegisterNo,  " +
+                              $"         n.TransactionNo,  " +
+                              $"         n.OrderNo,  " +
+                              $"         n.Qty,  " +
+                              $"         n.Amount,  " +
+                              $"         CAST(n.StatusId AS INT) AS StatusId,  " +
+                              $"         CAST(n.DeleteFlag AS INT) AS DeleteFlag, " +
+                              $"         CAST(n.IsUpload AS INT) AS IsUpload, " +
+                              $"         CAST(n.IsGenerate AS INT) AS IsGenerate, " +
+                              $"         CAST(n.IsTransfer AS INT) AS IsTransfer, " +
+                              $"         n.SubTotal, " +
+                              $"         a.Remarks, " +
+                              $"         n.Sequence, " +
+                              $"         n.InvoiceNo " +
+                              $"     FROM tbl_analytics n " +
+                              $"        INNER JOIN [dbo].[tbl_location] l ON l.LocationCode = n.LocationId " +
+                              $"        INNER JOIN [dbo].[tbl_customer] c ON c.CustomerCode = n.CustomerId " +
+                              $"        LEFT JOIN [dbo].[tbl_analytics_remarks] a ON n.Id = a.AnalyticsId " +
+                              $"     WHERE  " +
+                              $"     (CAST(TransactionDate AS DATE) = '{date.Date.ToString("yyyy-MM-dd")}' AND LocationId = {analyticsParamsDto.storeId[0]} AND n.DeleteFlag = 0) " +
+                              $"         AND ({string.Join(" OR ", analyticsParamsDto.memCode.Select(code => $"CustomerId LIKE '%{code.Substring(Math.Max(0, code.Length - 6))}%'"))}) " )
                      .ToListAsync();
                 analytics = result.Select(n => new AnalyticsDto
                 {
@@ -2186,14 +2257,34 @@ namespace CSI.Application.Services
                     }
                 }
 
-
                 var result = await ReturnAnalytics(analyticsParamsDto);
+                var resultAllAnalytics = await ReturnAllAnalytics(analyticsParamsDto);
 
                 if (result == null || result.Count() == 0)
                 {
                     return (false, "");
                 }
 
+                if (resultAllAnalytics != null && resultAllAnalytics.Count() != 0)
+                {
+                    var remainingAnalytics = resultAllAnalytics
+                      .Where(allAnalyticsItem => !result.Any(r => r.Id == allAnalyticsItem.Id))
+                      .ToList();
+
+                    if (remainingAnalytics != null && remainingAnalytics.Count() != 0)
+                    {
+                        foreach (var item in remainingAnalytics)
+                        {
+                            var analyticsEntity = await _dbContext.Analytics.FindAsync(item.Id);
+
+                            if (analyticsEntity != null)
+                            {
+                                analyticsEntity.DeleteFlag = true;
+                            }
+                        }
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
 
                 var withProofList = new List<string> { "9999011955", "9999011929", "9999011838", "9999011935", "9999011931", "9999011855" };
 
@@ -3588,6 +3679,7 @@ namespace CSI.Application.Services
                 var filteredResultCSI = new List<AnalyticsDto>();
                 var filteredResultUBAR = new List<AnalyticsDto>();
                 var filePath = "";
+                var filePath_Backup = "";
                 var getGeneratedInvoice = await AccountingGenerateInvoice(generateA0FileDto);
                 if (getGeneratedInvoice.Count() >= 1)
                 {
@@ -4470,7 +4562,9 @@ namespace CSI.Application.Services
                                             string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
                                             content.AppendLine(line);
                                             filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                            filePath_Backup = Path.Combine(generateA0FileDto.Path_BackUp, fileName);
                                             await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+                                            await File.AppendAllTextAsync(filePath_Backup, line + Environment.NewLine);
 
                                             var formattedResult = resultItem.CustomerId;
 
@@ -4517,8 +4611,9 @@ namespace CSI.Application.Services
                                                 }
                                             };
 
-                                            var getAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
-                                            getAnalytics = getAnalytics.Where(r => r.CustomerId != "9999011984").ToList();
+                                            var getRawAnalytics = await GetRawAnalyticsPerItem(param1.analyticsParamsDto);
+                                            var getAnalytics = getRawAnalytics.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == string.Empty && x.CustomerId != "9999011984"
+                                            || x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == null && x.CustomerId != "9999011984").ToList();
                                             if (getAnalytics.Any())
                                             {
                                                 getAnalytics.ForEach(analyticsDto =>
@@ -4650,7 +4745,9 @@ namespace CSI.Application.Services
                                 string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
                                 content.AppendLine(line);
                                 filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                filePath_Backup = Path.Combine(generateA0FileDto.Path_BackUp, fileName);
                                 await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+                                await File.AppendAllTextAsync(filePath_Backup, line + Environment.NewLine);
 
                                 var formattedResult = result.FirstOrDefault();
 
@@ -4693,7 +4790,10 @@ namespace CSI.Application.Services
                                     }
                                 };
 
-                                var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                var getRawAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                var getAnalytics = getRawAnalytics.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == string.Empty
+                                || x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == null).ToList();
+
                                 if (getAnalytics.Any())
                                 {
                                     getAnalytics.ForEach(analyticsDto =>
@@ -4821,7 +4921,9 @@ namespace CSI.Application.Services
                                 string line = $"{format.HDR_TRX_NUMBER}|{format.HDR_TRX_DATE}|{format.HDR_PAYMENT_TYPE}|{format.HDR_BRANCH_CODE}|{format.HDR_CUSTOMER_NUMBER}|{format.HDR_CUSTOMER_SITE}|{format.HDR_PAYMENT_TERM}|{format.HDR_BUSINESS_LINE}|{format.HDR_BATCH_SOURCE_NAME}|{format.HDR_GL_DATE}|{format.HDR_SOURCE_REFERENCE}|{format.DTL_LINE_DESC}|{format.DTL_QUANTITY}|{format.DTL_AMOUNT}|{format.DTL_VAT_CODE}|{format.DTL_CURRENCY}|{format.INVOICE_APPLIED}|{fileName}|";
                                 content.AppendLine(line);
                                 filePath = Path.Combine(generateA0FileDto.Path, fileName);
+                                filePath_Backup = Path.Combine(generateA0FileDto.Path_BackUp, fileName);
                                 await File.AppendAllTextAsync(filePath, line + Environment.NewLine);
+                                await File.AppendAllTextAsync(filePath_Backup, line + Environment.NewLine);
 
                                 var formattedResult = result.FirstOrDefault();
 
@@ -4864,7 +4966,10 @@ namespace CSI.Application.Services
                                     }
                                 };
 
-                                var getAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                var getRawAnalytics = await GetRawAnalytics(param1.analyticsParamsDto);
+                                var getAnalytics = getRawAnalytics.Where(x => x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == string.Empty
+                                || x.IsGenerate == false && x.DeleteFlag == false && x.StatusId == 3 && x.InvoiceNo == null).ToList();
+
                                 if (getAnalytics.Any())
                                 {
                                     getAnalytics.ForEach(analyticsDto =>
