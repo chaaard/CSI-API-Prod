@@ -53,6 +53,7 @@ namespace CSI.Application.Services
         {
             bool result = false;
             var locateId = await _dbContext.CMTransaction.Where(x => x.Id == custDto.Id).FirstOrDefaultAsync();
+            //string[] custCodesIgnore = {"9999011914", "9999012041", "9999011915", "9999012040"};
             try
             {
             if (locateId != null)
@@ -61,6 +62,7 @@ namespace CSI.Application.Services
                 locateId.JobOrderNo = custDto?.JobOrderNo ?? string.Empty;
                 locateId.Status = (int)StatusEnums.PENDING;
                 locateId.ModifiedBy = custDto?.ModifiedBy;
+                locateId.OrigTranDate = custDto?.TranDate;
                 locateId.ModifiedDate = DateTime.Now;
 
                 //Updates the MMS
@@ -434,6 +436,7 @@ namespace CSI.Application.Services
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
                             custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
                             custDto.IsDeleted = a.IsDeleted;
@@ -458,6 +461,7 @@ namespace CSI.Application.Services
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
                             custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
                             custDto.IsDeleted = a.IsDeleted;
