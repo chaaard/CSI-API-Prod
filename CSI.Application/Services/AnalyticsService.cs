@@ -56,6 +56,7 @@ namespace CSI.Application.Services
                         await db.Con.OpenAsync();
                     }
 
+
                     var cmd = new SqlCommand();
                     cmd.Connection = db.Con;
                     cmd.CommandType = CommandType.Text;
