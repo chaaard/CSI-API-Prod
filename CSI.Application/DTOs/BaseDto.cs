@@ -15,5 +15,7 @@ namespace CSI.Domain.Entities
         public string? ModifiedBy { get; set; }
         public int? Club { get; set; }
         public long? Seq { get; set; }
+        public DateTime? TranDate { get; set; }
+        public string? Username { get; set; }
     }
 }

@@ -27,10 +27,11 @@ namespace CSI.Application.Services
         private readonly IAnalyticsService _analyticsService;
         private readonly LinkedServerOptions _linkedServerOptions;
         private readonly DocumentHelper _documentHelper;
+        private readonly LoggerHelper _loggerHelper;
 
 
         public CreditMemoService(AppDBContext dbContext, IConfiguration configuration, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory,
-             IOptions<LinkedServerOptions> linkedServerOptions, IAnalyticsService analyticsService, DocumentHelper documentHelper)
+             IOptions<LinkedServerOptions> linkedServerOptions, IAnalyticsService analyticsService, DocumentHelper documentHelper, LoggerHelper loggerHelper)
         {
             _dbContext = dbContext;
             _configuration = configuration;
@@ -39,6 +40,7 @@ namespace CSI.Application.Services
             _linkedServerOptions = linkedServerOptions.Value;
             _analyticsService = analyticsService;
             _documentHelper = documentHelper;
+            _loggerHelper = loggerHelper;
         }
 
         #region Getting CM Variance and Records
@@ -53,6 +55,7 @@ namespace CSI.Application.Services
         {
             bool result = false;
             var locateId = await _dbContext.CMTransaction.Where(x => x.Id == custDto.Id).FirstOrDefaultAsync();
+            //string[] custCodesIgnore = {"9999011914", "9999012041", "9999011915", "9999012040"};
             try
             {
             if (locateId != null)
@@ -61,6 +64,7 @@ namespace CSI.Application.Services
                 locateId.JobOrderNo = custDto?.JobOrderNo ?? string.Empty;
                 locateId.Status = (int)StatusEnums.PENDING;
                 locateId.ModifiedBy = custDto?.ModifiedBy;
+                locateId.OrigTranDate = custDto?.TranDate;
                 locateId.ModifiedDate = DateTime.Now;
 
                 //Updates the MMS
@@ -72,9 +76,10 @@ namespace CSI.Application.Services
                 }
             }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                throw;
+                _loggerHelper.Logger(custDto.Id.ToString(), "Exception", ex.Message, custDto.Username, custDto.Club.ToString());
+                throw ex;
             }
             return result;
         }
@@ -246,7 +251,8 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                throw;
+                _loggerHelper.Logger(custTranList.Id, "Exception", ex.Message, custTranList.Username, custTranList.Club.ToString());
+                throw ex;
             }
 
             return result;
@@ -319,7 +325,8 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                throw;
+                _loggerHelper.Logger(variance.Id, "Exception", ex.Message, variance.UserName, variance.Store.ToString());
+                throw ex;
             }
             return await RetriveCreditMemo(variance);
         }
@@ -331,42 +338,43 @@ namespace CSI.Application.Services
             var generateInvList = new List<GenerateInvoice>();
             try
             {
-            var dates = new List<string>();
-            var stores = new List<int>();
-            var merchants = new List<string>();
-            stores.AddRange(req.StoreId);
-            merchants.AddRange(req.MerchantCode);
-            foreach (var date in req.Dates)
-            {
-                DateTime.TryParse(date, out DateTime selectedDate);
-                dates.Add(selectedDate.ToString("yyMMdd"));
-            }
+                var dates = new List<string>();
+                var stores = new List<int>();
+                var merchants = new List<string>();
+                stores.AddRange(req.StoreId);
+                merchants.AddRange(req.MerchantCode);
+                foreach (var date in req.Dates)
+                {
+                    DateTime.TryParse(date, out DateTime selectedDate);
+                    dates.Add(selectedDate.ToString("yyMMdd"));
+                }
 
-            var getCMTranDateRange = await _dbContext.VW_CMTransactions.Where(x => (x.TransactionDate == decimal.Parse(dates[0]) || x.TransactionDate == decimal.Parse(dates[1]))
-                && stores.Contains(x.Location) && merchants.Contains(x.CustomerCode)).Distinct().ToListAsync();
-            foreach (var item in getCMTranDateRange)
-            {
-                var getCustNo = await _dbContext.CustomerCodes.Where(x => x.CustomerCode == item.CustomerCode).Select(x => x.CustomerNo).FirstOrDefaultAsync();
-                DateTime.TryParseExact(item.TransactionDate.ToString("0"), "yyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime transactionDate);
-                var genInvItem = new GenerateInvoice();
-                genInvItem.Id = (int)item.Id;
-                genInvItem.Club = item.Location;
-                genInvItem.CustomerNo = item.CustomerCode;
-                genInvItem.CustomerCode = item.CustomerCode;
-                genInvItem.CustomerName = item.CustomerName;
-                genInvItem.InvoiceNo = item.CMInvoiceNo;
-                genInvItem.InvoiceDate = transactionDate;
-                genInvItem.TransactionDate = transactionDate;
-                genInvItem.Location = item.Location.ToString();
-                genInvItem.ReferenceNo = item.ReferenceNo;
-                genInvItem.InvoiceAmount = item.Amount;
-                genInvItem.FileName = item.FileName;
-                generateInvList.Add(genInvItem);
-            }
+                var getCMTranDateRange = await _dbContext.VW_CMTransactions.Where(x => (x.TransactionDate == decimal.Parse(dates[0]) || x.TransactionDate == decimal.Parse(dates[1]))
+                    && stores.Contains(x.Location) && merchants.Contains(x.CustomerCode)).Distinct().ToListAsync();
+                foreach (var item in getCMTranDateRange)
+                {
+                    var getCustNo = await _dbContext.CustomerCodes.Where(x => x.CustomerCode == item.CustomerCode).Select(x => x.CustomerNo).FirstOrDefaultAsync();
+                    DateTime.TryParseExact(item.TransactionDate.ToString("0"), "yyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime transactionDate);
+                    var genInvItem = new GenerateInvoice();
+                    genInvItem.Id = (int)item.Id;
+                    genInvItem.Club = item.Location;
+                    genInvItem.CustomerNo = item.CustomerCode;
+                    genInvItem.CustomerCode = item.CustomerCode;
+                    genInvItem.CustomerName = item.CustomerName;
+                    genInvItem.InvoiceNo = item.CMInvoiceNo;
+                    genInvItem.InvoiceDate = transactionDate;
+                    genInvItem.TransactionDate = transactionDate;
+                    genInvItem.Location = item.Location.ToString();
+                    genInvItem.ReferenceNo = item.ReferenceNo;
+                    genInvItem.InvoiceAmount = item.Amount;
+                    genInvItem.FileName = item.FileName;
+                    generateInvList.Add(genInvItem);
+                }
             }
             catch (Exception ex)
             {
-                throw;
+                _loggerHelper.Logger(req.UserId, "Exception", ex.Message, req.Username, req.StoreId.ToString());
+                throw ex;
             }
             return generateInvList;
         }
@@ -386,8 +394,8 @@ namespace CSI.Application.Services
             catch (Exception ex)
             {
                 //Log errors
-                var message = ex.Message;
-                throw;
+                _loggerHelper.Logger(request.Id.ToString(), "Exception", ex.Message, request.Username, request.Club.ToString());
+                throw ex;
             }
             return result;
         }
@@ -434,6 +442,7 @@ namespace CSI.Application.Services
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
                             custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
                             custDto.IsDeleted = a.IsDeleted;
@@ -458,6 +467,7 @@ namespace CSI.Application.Services
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
                             custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
                             custDto.IsDeleted = a.IsDeleted;
@@ -482,7 +492,8 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                throw;
+                _loggerHelper.Logger(variance.Id, "Exception", ex.Message, variance.UserName, variance.Store.ToString());
+                throw ex;
             }
         }
         public bool CheckFileDirectory(string path)

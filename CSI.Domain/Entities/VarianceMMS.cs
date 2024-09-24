@@ -15,9 +15,11 @@ namespace CSI.Domain.Entities
 
     public class VarianceParams
     {
+        public string? Id { get; set; }
         public string? CurrentDate { get; set; }
         public int Store { get; set; }
         public string? TranType { get; set; }
         public string? searchQuery { get; set; }
+        public string? UserName { get; set;}
     }
 }

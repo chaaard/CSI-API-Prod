@@ -18,6 +18,7 @@ namespace CSI.Domain.Entities
         public string CashierNo {  get; set; } = string.Empty;
         public string TrxNo { get; set; } = string.Empty;
         public string JobOrderNo { get; set; } = string.Empty;
+        public DateTime? OrigTranDate { get; set; }
         public decimal Amount { get; set; }
         public int Status { get; set; }
         public DateTime ModifiedDate { get; set; }
@@ -44,6 +45,7 @@ namespace CSI.Domain.Entities
         public string RegisterNo { get; set; } = string.Empty;
         public string TransactionNo { get; set; } = string.Empty;
         public string JobOrderNo { get; set; } = string.Empty;
+        public DateTime? OrigTranDate { get; set; }
         public decimal Amount { get; set; }
         public int Status { get; set; }
         public string? CMInvoiceNo { get; set; } = string.Empty;
