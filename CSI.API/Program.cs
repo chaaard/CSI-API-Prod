@@ -35,10 +35,17 @@ builder.Services.AddDbContext<AppDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")
     ));
 
+builder.Services.AddDbContext<AppOmsDBContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DB_OMS")
+    ));
+
 builder.Services.Configure<LinkedServerOptions>(builder.Configuration.GetSection("LinkedServer"));
 
 builder.Services.AddDbContextFactory<AppDBContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DatabaseConnection")), ServiceLifetime.Scoped);
+
+builder.Services.AddDbContextFactory<AppOmsDBContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DB_OMS")), ServiceLifetime.Scoped);
 
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options => options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore)

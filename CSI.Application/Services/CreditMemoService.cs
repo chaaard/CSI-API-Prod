@@ -21,26 +21,24 @@ namespace CSI.Application.Services
     public class CreditMemoService : ICreditMemoService
     {
         private readonly AppDBContext _dbContext;
-        private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
-        private readonly IDbContextFactory<AppDBContext> _contextFactory;
         private readonly IAnalyticsService _analyticsService;
         private readonly LinkedServerOptions _linkedServerOptions;
         private readonly DocumentHelper _documentHelper;
         private readonly LoggerHelper _loggerHelper;
+        private readonly AppOmsDBContext _dbOmsContext;
 
 
-        public CreditMemoService(AppDBContext dbContext, IConfiguration configuration, IMapper mapper, IDbContextFactory<AppDBContext> contextFactory,
-             IOptions<LinkedServerOptions> linkedServerOptions, IAnalyticsService analyticsService, DocumentHelper documentHelper, LoggerHelper loggerHelper)
+        public CreditMemoService(AppDBContext dbContext, IMapper mapper,IOptions<LinkedServerOptions> linkedServerOptions, 
+            IAnalyticsService analyticsService, DocumentHelper documentHelper, LoggerHelper loggerHelper, AppOmsDBContext dbOmsContext)
         {
             _dbContext = dbContext;
-            _configuration = configuration;
             _mapper = mapper;
-            _contextFactory = contextFactory;
             _linkedServerOptions = linkedServerOptions.Value;
             _analyticsService = analyticsService;
             _documentHelper = documentHelper;
             _loggerHelper = loggerHelper;
+            _dbOmsContext = dbOmsContext;
         }
 
         #region Getting CM Variance and Records
@@ -55,30 +53,46 @@ namespace CSI.Application.Services
         {
             bool result = false;
             var locateId = await _dbContext.CMTransaction.Where(x => x.Id == custDto.Id).FirstOrDefaultAsync();
-            //string[] custCodesIgnore = {"9999011914", "9999012041", "9999011915", "9999012040"};
+            string[] custCodesIgnore = {"9999011914", "9999012041", "9999011915", "9999012040"};
             try
             {
-            if (locateId != null)
-            {
-                locateId.CustomerCode = custDto.CustomerCode ?? string.Empty;
-                locateId.JobOrderNo = custDto?.JobOrderNo ?? string.Empty;
-                locateId.Status = (int)StatusEnums.PENDING;
-                locateId.ModifiedBy = custDto?.ModifiedBy;
-                locateId.OrigTranDate = custDto?.TranDate;
-                locateId.ModifiedDate = DateTime.Now;
-
-                //Updates the MMS
-                var updateResult = await UpdateCreditMemoMMS(custDto);
-                if (updateResult)
+                if (locateId != null)
                 {
-                    result = true;
-                    await _dbContext.SaveChangesAsync();
+                    var origTranDate = new DateTime();
+                    var isLazadaOrShoppee = custCodesIgnore.Contains(locateId.CustomerCode);
+                    if (isLazadaOrShoppee)
+                    {
+                        //check for transaction no. in OMS.
+                        try
+                        {
+                            var salesHead = await _dbOmsContext.Saleshead.FromSqlRaw($@"SELECT * FROM saleshead WHERE transactionno = {custDto.JobOrderNo}").FirstOrDefaultAsync();
+                            origTranDate = (DateTime)salesHead.trandate;
+                        }
+                        catch(Exception ex)
+                        {
+                            _loggerHelper.Logger(custDto.Id.ToString(), "Credit Memo Update - Check Orig. Tran Date", ex.Message, custDto.Username, custDto.Club.ToString());
+                            return result;
+                        }
+                    }
+                    locateId.CustomerCode = custDto.CustomerCode ?? string.Empty;
+                    locateId.JobOrderNo = custDto?.JobOrderNo ?? string.Empty;
+                    locateId.Status = (int)StatusEnums.PENDING;
+                    locateId.ModifiedBy = custDto?.ModifiedBy;
+                    locateId.OrigTranDate = isLazadaOrShoppee ? origTranDate:null;
+                    locateId.ModifiedDate = DateTime.Now;
+
+                    //Updates the MMS
+                    var updateResult = await UpdateCreditMemoMMS(custDto);
+                    if (updateResult)
+                    {
+                        result = true;
+                        await _dbContext.SaveChangesAsync();
+                    }
                 }
-            }
             }
             catch (Exception ex)
             {
-                _loggerHelper.Logger(custDto.Id.ToString(), "Exception", ex.Message, custDto.Username, custDto.Club.ToString());
+                _loggerHelper.Logger(custDto.Id.ToString(), "Credit Memo Update", ex.Message, custDto.Username, custDto.Club.ToString());
                 throw ex;
             }
             return result;
@@ -106,7 +120,7 @@ namespace CSI.Application.Services
                 var lastCmInvoice = _dbContext.CMTransaction.OrderByDescending(i => i.Id).Select(x => new { x.CMInvoiceNo }).FirstOrDefault();
 
                 //cmInvoice length = 12;
-                    var newInvoiceNo = string.IsNullOrEmpty(lastCmInvoice.CMInvoiceNo) ? 00000000001 : int.Parse(lastCmInvoice.CMInvoiceNo.Substring(2, lastCmInvoice.CMInvoiceNo.Length)) + 1;
+                var newInvoiceNo = string.IsNullOrEmpty(lastCmInvoice.CMInvoiceNo) ? 00000000001 : int.Parse(lastCmInvoice.CMInvoiceNo.Substring(2, lastCmInvoice.CMInvoiceNo.Length)) + 1;
                 var custId = _dbContext.CMTransaction.Where(x => x.Id == item.Id).FirstOrDefault();
                 if (custId != null)
                 {
@@ -251,7 +265,7 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                _loggerHelper.Logger(custTranList.Id, "Exception", ex.Message, custTranList.Username, custTranList.Club.ToString());
+                _loggerHelper.Logger(custTranList.Id, "Credit Memo Submit", ex.Message, custTranList.Username, custTranList.Club.ToString());
                 throw ex;
             }
 
@@ -264,68 +278,75 @@ namespace CSI.Application.Services
         {
             try
             {
-            //var dateFrom = DateTime.Now.AddDays(-1);
-            var results = new List<CMTranDto>();
-            var formattedDate = decimal.Parse(!string.IsNullOrEmpty(variance.CurrentDate) ? variance.CurrentDate : "0");
+                //var dateFrom = DateTime.Now.AddDays(-1);
+                string[] custCodesIgnore = { "9999011914", "9999012041", "9999011915", "9999012040" };
+                var results = new List<CMTranDto>();
+                var formattedDate = decimal.Parse(!string.IsNullOrEmpty(variance.CurrentDate) ? variance.CurrentDate : "0");
 
-            var result = await _dbContext.TempViewCMMMS.FromSqlRaw($@"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSCUST, A.CSTAMT,B.CSTDOC,B.CSTRAN,B.CSCARD,B.CSDTYP,B.CSTIL,B.CSSEQ " +
-                $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE CSDATE = ''{formattedDate}''') A " +
-                $@"INNER JOIN (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
-                $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND WHERE CSDATE = {formattedDate} " +
-                $@"AND CSDTYP = ''CM'' AND CSSTOR = {variance.Store} GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ')) B " +
-                $@"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN").ToListAsync();
+                var result = await _dbContext.TempViewCMMMS.FromSqlRaw($@"SELECT A.CSDATE, A.CSSTOR, A.CSREG, A.CSCUST, A.CSTAMT,B.CSTDOC,B.CSTRAN,B.CSCARD,B.CSDTYP,B.CSTIL,B.CSSEQ " +
+                    $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSCUST, CSTAMT FROM MMJDALIB.CSHHDR WHERE CSDATE = ''{formattedDate}''') A " +
+                    $@"INNER JOIN (SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ " +
+                    $@"FROM OPENQUERY([{_linkedServerOptions.MMS}], 'SELECT CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ FROM MMJDALIB.CSHTND WHERE CSDATE = {formattedDate} " +
+                    $@"AND CSDTYP = ''CM'' AND CSSTOR = {variance.Store} GROUP BY CSDATE, CSSTOR, CSREG, CSTRAN, CSTDOC, CSCARD, CSDTYP, CSTIL, CSSEQ ')) B " +
+                    $@"ON A.CSDATE = B.CSDATE AND A.CSSTOR = B.CSSTOR AND A.CSREG = B.CSREG AND A.CSTRAN = B.CSTRAN").ToListAsync();
 
 
-            var tempModel = result.Select(n => new CMTranDto
-            {
-                
-                CSDATE = n.CSDATE,
-                CSSTOR = n.CSSTOR,
-                CSREG = n.CSREG,
-                CSTRAN = n.CSTRAN,
-                CSCUST = n.CSCUST,
-                CSTAMT = n.CSTAMT,
-                CSTDOC = n.CSTDOC,
-                CSCARD = n.CSCARD,
-                CSDTYP = n.CSDTYP,
-                CSTIL = n.CSTIL,
-                CSSEQ = n.CSSEQ
-            }).AsQueryable();
-
-            foreach (var item in tempModel)
-            {
-                var cmdet = await _dbContext.CMTransaction.Where(x => x.Location == (int)item.CSSTOR && x.TransactionDate == item.CSDATE).FirstOrDefaultAsync();
-
-                if (cmdet != null)
+                var tempModel = result.Select(n => new CMTranDto
                 {
-                    _dbContext.CMTransaction.Remove(cmdet);
+                    
+                    CSDATE = n.CSDATE,
+                    CSSTOR = n.CSSTOR,
+                    CSREG = n.CSREG,
+                    CSTRAN = n.CSTRAN,
+                    CSCUST = n.CSCUST,
+                    CSTAMT = n.CSTAMT,
+                    CSTDOC = n.CSTDOC,
+                    CSCARD = n.CSCARD,
+                    CSDTYP = n.CSDTYP,
+                    CSTIL = n.CSTIL,
+                    CSSEQ = n.CSSEQ
+                }).AsQueryable();
+    
+                foreach (var item in tempModel)
+                {
+                    var cmdet = await _dbContext.CMTransaction.Where(x => x.Location == (int)item.CSSTOR && x.TransactionDate == item.CSDATE).FirstOrDefaultAsync();
+    
+                    if (cmdet != null)
+                    {
+                        _dbContext.CMTransaction.Remove(cmdet);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    var model = new CMTransaction
+                    {
+                        CustomerCode = string.IsNullOrEmpty(item.CSTDOC) ? string.Empty : item.CSTDOC,
+                        Location = (int)item.CSSTOR,
+                        TransactionDate = item.CSDATE,
+                        MembershipNo = item.CSCUST.ToString(),
+                        CashierNo = item.CSTIL.ToString(),
+                        RegisterNo = item.CSREG.ToString(),
+                        TrxNo = item.CSTRAN.ToString(),
+                        JobOrderNo = string.IsNullOrEmpty(item.CSCARD) ? string.Empty : item.CSCARD,
+                        Amount = item.CSTAMT,
+                        Status = string.IsNullOrEmpty(item.CSTDOC) || string.IsNullOrEmpty(item.CSCARD) ? (int)StatusEnums.EXCEPTION : (int)StatusEnums.PENDING,
+                        ModifiedDate = DateTime.Now,
+                        ModifiedBy = "System",
+                        IsDeleted = false,
+                        Seq = (long)item.CSSEQ
+
+                    };
+                    if (!string.IsNullOrEmpty(item.CSTDOC) && custCodesIgnore.Contains(item.CSTDOC))
+                    {
+                        var saleshead = await _dbOmsContext.Saleshead.FromSqlRaw($@"SELECT * FROM saleshead WHERE transactionno = '{item.CSCARD}'").Select(x => x.trandate).FirstOrDefaultAsync();
+                        model.OrigTranDate = saleshead;
+                    }
+    
+                    _dbContext.CMTransaction.Add(model);
                     await _dbContext.SaveChangesAsync();
                 }
-                var model = new CMTransaction
-                {
-                    CustomerCode = string.IsNullOrEmpty(item.CSTDOC) ? string.Empty : item.CSTDOC,
-                    Location = (int)item.CSSTOR,
-                    TransactionDate = item.CSDATE,
-                    MembershipNo = item.CSCUST.ToString(),
-                    CashierNo = item.CSTIL.ToString(),
-                    RegisterNo = item.CSREG.ToString(),
-                    TrxNo = item.CSTRAN.ToString(),
-                    JobOrderNo = string.IsNullOrEmpty(item.CSCARD) ? string.Empty : item.CSCARD,
-                    Amount = item.CSTAMT,
-                    Status = string.IsNullOrEmpty(item.CSTDOC) || string.IsNullOrEmpty(item.CSCARD) ? (int)StatusEnums.EXCEPTION : (int)StatusEnums.PENDING,
-                    ModifiedDate = DateTime.Now,
-                    ModifiedBy = "System",
-                    IsDeleted = false,
-                    Seq = (long)item.CSSEQ
-                };
-
-                _dbContext.CMTransaction.Add(model);
-                await _dbContext.SaveChangesAsync();
-            }
             }
             catch (Exception ex)
             {
-                _loggerHelper.Logger(variance.Id, "Exception", ex.Message, variance.UserName, variance.Store.ToString());
+                _loggerHelper.Logger(variance.Id, "Reload Credit Memo", ex.Message, variance.UserName, variance.Store.ToString());
                 throw ex;
             }
             return await RetriveCreditMemo(variance);
@@ -373,7 +394,7 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                _loggerHelper.Logger(req.UserId, "Exception", ex.Message, req.Username, req.StoreId.ToString());
+                _loggerHelper.Logger(req.UserId, "Load Credit Memo Invoice", ex.Message, req.Username, req.StoreId.ToString());
                 throw ex;
             }
             return generateInvList;
@@ -394,7 +415,7 @@ namespace CSI.Application.Services
             catch (Exception ex)
             {
                 //Log errors
-                _loggerHelper.Logger(request.Id.ToString(), "Exception", ex.Message, request.Username, request.Club.ToString());
+                _loggerHelper.Logger(request.Id.ToString(), "Credit Memo Update - MMS", ex.Message, request.Username, request.Club.ToString());
                 throw ex;
             }
             return result;
@@ -404,6 +425,7 @@ namespace CSI.Application.Services
         {
             try
             {
+                string[] custCodesIgnore = { "9999011914", "9999012041", "9999011915", "9999012040" };
                 var result = new CreditMemoTranDto();
                 var formattedDate = decimal.Parse(!string.IsNullOrEmpty(variance.CurrentDate) ? variance.CurrentDate : "0.00");
                 var csi = await _dbContext.CMTransaction.Where(x => x.TransactionDate == formattedDate && x.Location == variance.Store).Select(x => x.Amount).SumAsync();
@@ -429,9 +451,11 @@ namespace CSI.Application.Services
                     var custTranDto = new List<CustomerTransactionDto>();
                     if (string.IsNullOrEmpty(variance.searchQuery))
                     {
+                        
                         var vw_CmTran = await _dbContext.VW_CMTransactions.Where(x => x.TransactionDate == formattedDate && x.Location == variance.Store).ToListAsync();
                         foreach (var a in vw_CmTran)
                         {
+                            DateTime? formatOgTrDate = !string.IsNullOrEmpty(a.OrigTranDate.ToString()) ? (DateTime)a.OrigTranDate: null ;
                             var custDto = new CustomerTransactionDto();
                             custDto.Id = (int?)a.Id;
                             custDto.CustomerCode = a.CustomerCode;
@@ -441,7 +465,10 @@ namespace CSI.Application.Services
                             custDto.CashierNo = a.CashierNo;
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
-                            custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.JobOrderNo = custCodesIgnore.Contains(a.CustomerCode) ? formatOgTrDate.HasValue ? 
+                                formatOgTrDate.Value.ToString("MMMddyy", CultureInfo.CreateSpecificCulture("en-US")) : 
+                                string.Empty:
+                                a.JobOrderNo;
                             custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
@@ -457,6 +484,7 @@ namespace CSI.Application.Services
                         (x.CustomerName.Contains(variance.searchQuery) || x.JobOrderNo == variance.searchQuery || x.CustomerCode == variance.searchQuery)).ToListAsync();
                         foreach (var a in vw_CmTran)
                         {
+                            DateTime? formatOgTrDate = !string.IsNullOrEmpty(a.OrigTranDate.ToString()) ? (DateTime)a.OrigTranDate : null;
                             var custDto = new CustomerTransactionDto();
                             custDto.Id = (int?)a.Id;
                             custDto.CustomerCode = a.CustomerCode;
@@ -466,7 +494,10 @@ namespace CSI.Application.Services
                             custDto.CashierNo = a.CashierNo;
                             custDto.RegisterNo = a.RegisterNo;
                             custDto.TransactionNo = a.TransactionNo;
-                            custDto.JobOrderNo = a.JobOrderNo;
+                            custDto.JobOrderNo = custCodesIgnore.Contains(a.CustomerCode) ? formatOgTrDate.HasValue ?
+                                formatOgTrDate.Value.ToString("MMMddyy", CultureInfo.CreateSpecificCulture("en-US")) :
+                                string.Empty :
+                                a.JobOrderNo;
                             custDto.TranDate = a.OrigTranDate;
                             custDto.Amount = a.Amount;
                             custDto.Status = a.Status;
@@ -492,7 +523,7 @@ namespace CSI.Application.Services
             }
             catch (Exception ex)
             {
-                _loggerHelper.Logger(variance.Id, "Exception", ex.Message, variance.UserName, variance.Store.ToString());
+                _loggerHelper.Logger(variance.Id, "Load Credit Memo", ex.Message, variance.UserName, variance.Store.ToString());
                 throw ex;
             }
         }
