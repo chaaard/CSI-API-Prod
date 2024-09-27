@@ -28,6 +28,7 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IMerchantService, MerchantService>();
 builder.Services.AddScoped<ICreditMemoService, CreditMemoService>();
 builder.Services.AddScoped<DocumentHelper>();
+builder.Services.AddScoped<LoggerHelper>();
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 // Db Connection.
 builder.Services.AddDbContext<AppDBContext>(options =>
