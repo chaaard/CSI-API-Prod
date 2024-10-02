@@ -146,6 +146,7 @@ namespace CSI.Application.Services
                 g.OrigInvoice,
                 g.Location,
                 g.TransactionDate,
+                g.OrigTranDate,
                 }).Select(x => new
             {
                 CustomerCode = x.Key.CustomerCode,
@@ -154,6 +155,7 @@ namespace CSI.Application.Services
                 OrigInvoice = x.Key.OrigInvoice,
                 Location = x.Key.Location,
                 TransactionDate = x.Key.TransactionDate,
+                OrigTranDate = x.Key.OrigTranDate,
                 TotalAmount = x.Sum(c => c.Amount)
             }).ToList();
             foreach (var i in cmCustPerBranchList)
@@ -171,7 +173,7 @@ namespace CSI.Application.Services
                     _dbContext.SaveChanges();
                 }
                 var invoice = _documentHelper.InvoiceMapper(i.CMInvoice,formattedDate,"CM",formattedDate,referenceNo,i.TotalAmount,i.OrigInvoice,
-                    getShortName?.ShortName,getCustomerNo.CustomerNo,getShortName?.ShortName,filename, "CREDIT MEMO INVOICE");
+                    i.OrigTranDate,getShortName?.ShortName,getCustomerNo.CustomerNo,getShortName?.ShortName,filename, "CREDIT MEMO INVOICE");
                 var format = new
                 {
                     HDR_TRX_NUMBER = i.CMInvoice,
@@ -184,6 +186,7 @@ namespace CSI.Application.Services
                     HDR_BUSINESS_LINE = "1",
                     HDR_BATCH_SOURCE_NAME = "POS",
                     HDR_GL_DATE = formattedDate.ToString("dd-MMM-yyyy"),
+                    HDR_ORIGINAL_TRANSACTION_DATE = i.OrigTranDate != null ? i.OrigTranDate.Value.ToString("dd-MMM-yyyy"):string.Empty,
                     HDR_SOURCE_REFERENCE = "CM",
                     DTL_LINE_DESC = referenceNo,
                     DTL_QUANTITY = 1,
@@ -206,6 +209,7 @@ namespace CSI.Application.Services
                     $"{format.HDR_BUSINESS_LINE}|" +
                     $"{format.HDR_BATCH_SOURCE_NAME}|" +
                     $"{format.HDR_GL_DATE}|" +
+                    $"{format.HDR_ORIGINAL_TRANSACTION_DATE}" +
                     $"{format.HDR_SOURCE_REFERENCE}|" +
                     $"{format.DTL_LINE_DESC}|" +
                     $"{format.DTL_QUANTITY}|" +
@@ -338,6 +342,7 @@ namespace CSI.Application.Services
                     {
                         var saleshead = await _dbOmsContext.Saleshead.FromSqlRaw($@"SELECT * FROM saleshead WHERE transactionno = '{item.CSCARD}'").Select(x => x.trandate).FirstOrDefaultAsync();
                         model.OrigTranDate = saleshead;
+                        model.Status = saleshead.HasValue ? (int)StatusEnums.PENDING : (int)StatusEnums.EXCEPTION;
                     }
     
                     _dbContext.CMTransaction.Add(model);
@@ -374,6 +379,7 @@ namespace CSI.Application.Services
                     && stores.Contains(x.Location) && merchants.Contains(x.CustomerCode)).Distinct().ToListAsync();
                 foreach (var item in getCMTranDateRange)
                 {
+                    string[] custCodesIgnore = { "9999011914", "9999012041", "9999011915", "9999012040" };
                     var getCustNo = await _dbContext.CustomerCodes.Where(x => x.CustomerCode == item.CustomerCode).Select(x => x.CustomerNo).FirstOrDefaultAsync();
                     DateTime.TryParseExact(item.TransactionDate.ToString("0"), "yyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime transactionDate);
                     var genInvItem = new GenerateInvoice();
@@ -385,6 +391,8 @@ namespace CSI.Application.Services
                     genInvItem.InvoiceNo = item.CMInvoiceNo;
                     genInvItem.InvoiceDate = transactionDate;
                     genInvItem.TransactionDate = transactionDate;
+                    genInvItem.OrigTranDate = custCodesIgnore.Contains(item.CustomerCode) ? (DateTime)item.OrigTranDate:DateTime.ParseExact(item.JobOrderNo, 
+                        "MMMddyy", CultureInfo.InvariantCulture);
                     genInvItem.Location = item.Location.ToString();
                     genInvItem.ReferenceNo = item.ReferenceNo;
                     genInvItem.InvoiceAmount = item.Amount;
