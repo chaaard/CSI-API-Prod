@@ -6822,7 +6822,7 @@ namespace CSI.Application.Services
                     var formattedDate = dateFrom.ToString("yyMMdd");
                     var result = await _dbContext.VarianceMMS.
                         FromSqlRaw($"SELECT A.MMS, SUM(ABS(A.MMS - B.CSI))[Variance], B.CSI " +
-                            $"FROM (SELECT CSRPAM[MMS] FROM OPENQUERY([SNR],'SELECT * FROM MMJDALIB.CSHREP WHERE CSDATE = {formattedDate} " +
+                            $"FROM (SELECT CSRPAM[MMS] FROM OPENQUERY([{_linkedServerOptions.MMS}],'SELECT * FROM MMJDALIB.CSHREP WHERE CSDATE = {formattedDate} " +
                             $"AND CSSTOR = {refreshAnalyticsDto.storeId[0]} AND CSTLIN = 720 AND CSREG = 0 AND CSTIL = 0')) AS [A] " +
                             $"CROSS JOIN (SELECT SUM(SubTotal)[CSI] " +
                             $"FROM (SELECT LocationId, FORMAT(CAST(TransactionDate AS DATE),'yyMMdd')[TransactionDate], SUM(SubTotal)[SubTotal] " +

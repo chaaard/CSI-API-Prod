@@ -27,5 +27,6 @@ namespace CSI.Application.DTOs
         public string INVOICE_APPLIED { get; set; } = string.Empty;
         public string FILENAME { get; set; } = string.Empty;
         public string REMARKS { get; set; } = string.Empty;
+        public DateTime? ORIG_TRAN_DATE { get; set; }
     }
 }

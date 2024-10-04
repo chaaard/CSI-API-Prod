@@ -10,7 +10,7 @@ namespace CSI.Application.Helper
     public class DocumentHelper
     {
         public InvoiceDto InvoiceMapper(string trxNo,DateTime trxDate,string paymentType,DateTime glDate,string lineDesc,
-            decimal amount,string invApplied,string? branchCode = null,string? customerNo = null,string? customerSite = null,string? filename = null,string? remarks = null)
+            decimal amount,string invApplied, DateTime? origTranDate,string? branchCode = null,string? customerNo = null,string? customerSite = null,string? filename = null,string? remarks = null)
         {
             var invoice = new InvoiceDto();
             invoice.HDR_TRX_NUMBER = trxNo;
@@ -32,6 +32,7 @@ namespace CSI.Application.Helper
             invoice.INVOICE_APPLIED = invApplied;
             invoice.FILENAME = string.IsNullOrEmpty(filename) ? string.Empty : filename;
             invoice.REMARKS = string.IsNullOrEmpty(remarks) ? string.Empty : remarks;
+            invoice.ORIG_TRAN_DATE = origTranDate;
             return invoice;
         }
     }
