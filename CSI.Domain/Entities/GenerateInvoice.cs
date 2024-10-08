@@ -16,7 +16,6 @@ namespace CSI.Domain.Entities
         public string InvoiceNo { get; set; } = string.Empty;
         public DateTime? InvoiceDate { get; set; }
         public DateTime? TransactionDate { get; set; }
-        public DateTime? OrigTranDate { get; set; }
         public string Location { get; set; } = string.Empty;
         public string ReferenceNo { get; set; } = string.Empty;
         public decimal? InvoiceAmount { get; set; }

@@ -359,9 +359,9 @@ namespace CSI.Application.Services
         #endregion
 
         #region Credit Memo Invoice Report
-        public async Task<List<GenerateInvoice>> GetCreditMemoInvoice(CreditMemoInvoiceDto req)
+        public async Task<List<GenerateInvoiceDto>> GetCreditMemoInvoice(CreditMemoInvoiceDto req)
         {
-            var generateInvList = new List<GenerateInvoice>();
+            var generateInvList = new List<GenerateInvoiceDto>();
             try
             {
                 var dates = new List<string>();
@@ -382,7 +382,7 @@ namespace CSI.Application.Services
                     string[] custCodesIgnore = { "9999011914", "9999012041", "9999011915", "9999012040" };
                     var getCustNo = await _dbContext.CustomerCodes.Where(x => x.CustomerCode == item.CustomerCode).Select(x => x.CustomerNo).FirstOrDefaultAsync();
                     DateTime.TryParseExact(item.TransactionDate.ToString("0"), "yyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime transactionDate);
-                    var genInvItem = new GenerateInvoice();
+                    var genInvItem = new GenerateInvoiceDto();
                     genInvItem.Id = (int)item.Id;
                     genInvItem.Club = item.Location;
                     genInvItem.CustomerNo = item.CustomerCode;

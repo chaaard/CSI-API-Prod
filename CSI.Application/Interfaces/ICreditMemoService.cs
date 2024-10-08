@@ -10,6 +10,6 @@ namespace CSI.Application.Interfaces
         //Task<CreditMemoTranDto> SearchCreditMemoItem(CMSearchParams searchParams);
         Task<bool> UpdateCreditMemoStatus(CreditMemoDto custTranList);
         Task<bool> UpdateCustCreditMemo(CustomerTransactionDto custDto);
-        Task<List<GenerateInvoice>> GetCreditMemoInvoice(CreditMemoInvoiceDto req);
+        Task<List<GenerateInvoiceDto>> GetCreditMemoInvoice(CreditMemoInvoiceDto req);
     }
 }
