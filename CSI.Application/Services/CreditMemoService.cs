@@ -310,16 +310,13 @@ namespace CSI.Application.Services
                     CSTIL = n.CSTIL,
                     CSSEQ = n.CSSEQ
                 }).AsQueryable();
-    
+
+                var cmdet = await _dbContext.CMTransaction.Where(x => x.Location == variance.Store && x.TransactionDate == formattedDate).ToListAsync();
+                _dbContext.CMTransaction.RemoveRange(cmdet);
+                await _dbContext.SaveChangesAsync();
+
                 foreach (var item in tempModel)
                 {
-                    var cmdet = await _dbContext.CMTransaction.Where(x => x.Location == (int)item.CSSTOR && x.TransactionDate == item.CSDATE).FirstOrDefaultAsync();
-    
-                    if (cmdet != null)
-                    {
-                        _dbContext.CMTransaction.Remove(cmdet);
-                        await _dbContext.SaveChangesAsync();
-                    }
                     var model = new CMTransaction
                     {
                         CustomerCode = string.IsNullOrEmpty(item.CSTDOC) ? string.Empty : item.CSTDOC,
@@ -333,7 +330,7 @@ namespace CSI.Application.Services
                         Amount = item.CSTAMT,
                         Status = string.IsNullOrEmpty(item.CSTDOC) || string.IsNullOrEmpty(item.CSCARD) ? (int)StatusEnums.EXCEPTION : (int)StatusEnums.PENDING,
                         ModifiedDate = DateTime.Now,
-                        ModifiedBy = "System",
+                        ModifiedBy = variance.UserName,
                         IsDeleted = false,
                         Seq = (long)item.CSSEQ
 
